@@ -20,14 +20,17 @@ The system is online only. It runs as one monolith on one private server that on
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
 workload the owner gives the agents.
 
-## Current state (phase 2)
+## Current state (phase 3)
 
 ```mermaid
 flowchart LR
-  owner["Owner: curl and the scripted client today, the browser from phase 3"] -->|"HTTPS and WebSocket inside the tailnet"| serve["tailscale serve on the host"]
+  owner["Owner: the browser desktop, curl and the scripted client"] -->|"HTTPS and WebSocket inside the tailnet"| serve["tailscale serve on the host"]
   serve -->|"127.0.0.1:3000"| web
+  serve -->|"127.0.0.1:3005"| grafana
   subgraph backend_network["backend network"]
-    web["web: REST routes, GET /events, the Socket.IO gateway, idempotent commands"]
+    web["web: the client under /app, REST routes, GET /events, the Socket.IO gateway, idempotent commands"]
+    prometheus["Prometheus: scrapes the four processes, 30 days"]
+    grafana["Grafana: the tbn overview dashboard"]
     worker["worker: run loop, tools, caches, git jobs, notifications, sweep"]
     sandbox["sandbox launcher: the docker socket, one container per job"]
     postgres[("PostgreSQL 18: rows, transcripts, caches, pg-boss queue")]
@@ -49,9 +52,16 @@ flowchart LR
   egress_proxy -->|"public web"| internet["The open web"]
   worker -->|"file tools, checkouts, canonical repositories"| workspace[("workspace volume")]
   jobs -->|"/work and /files by subpath"| workspace
+  prometheus -->|"/metrics"| web
+  prometheus -->|"/metrics"| worker
+  grafana --> prometheus
+  backup["tbn_backup, weekly systemd timer on the host"] -.->|"pg_dump and a tarball"| postgres
+  backup -.-> workspace
 ```
 
-The company works over REST, and every change reaches the owner live. The owner logs in, adds
+The owner runs the company from a browser: the web process serves the virtual desktop under
+`/app`, and every screen stays live through the event log. Everything it does goes through the
+same REST routes and gateway that scripts use. The owner logs in, adds
 providers, search providers, repositories, integrations and plugins, recruits level 1 agents,
 assigns goals, chats with any agent, decides the approval inbox, merges merge requests and downloads
 reports. A manager researches on the web, runs a team of interns that build and test code in the
@@ -147,8 +157,28 @@ output as it is generated.
   runs gets 409, and a 5xx frees the key.
 - **Retention.** Once the owner sets `EVENT_RETENTION_DAYS` or `COMMAND_RETENTION_HOURS`, the
   worker prunes older events or commands once an hour. Both default to 0, which keeps everything.
-- **Not yet.** The first production deploy, Prometheus, Grafana and the backups come with the
-  deploy in phase 3 or 4. The clients start in phase 3.
+- **Client.** The virtual desktop as 2D screens: sign in, agents with chat, recruiting,
+  departments, tasks, approvals, reports, repositories, merge requests, sandbox jobs, providers
+  with usage and caps, search providers, integrations with notification channels and the log,
+  plugins, skills, instructions, preferences and cache savings. The web process serves the build
+  from `CLIENT_DIR` under `/app`, hashed assets as immutable and every other path as the page. The
+  session token lives in the tab's session storage. Each collection is loaded whole once and kept
+  live by writing every change into the TanStack Query cache; streamed output goes to a small
+  store and gives way to the stored reply. Every command carries an `Idempotency-Key`, which a
+  resubmitted form and an automatic retry reuse. The gateway accepts a page on its own origin.
+- **Monitoring.** Prometheus scrapes `web`, `worker`, `sandbox` and `egress_proxy` and keeps 30
+  days. The worker refreshes gauges of queue depth, runs by status, spend, tokens and requests by
+  provider, cache hits and misses, and the workspace volume every 30 seconds. Grafana, on
+  `127.0.0.1:3005`, shows them with proxy refusals on one provisioned dashboard; it has no
+  alerting, as alerts go through the notification channels.
+- **Backups.** `deploy/backup/tbn_backup.sh`, run weekly by a systemd timer, writes a `pg_dump`
+  custom-format dump and a tarball of the workspace volume with their checksums, keeps the newest
+  `BACKUP_KEEP` sets, and on failure sends `backup_failed` through `dist/admin.js`.
+  `tbn_restore.sh` restores a set into a fresh database, swaps it in for `tbn` and keeps the old
+  one until the owner drops it.
+- **Not yet.** The 3D world, the in-world computer that opens this desktop, and semantic world
+  events come in phase 4; the mobile and desktop shells in phases 5 and 6. The production deploy
+  is ready for the owner to dispatch.
 
 ## Backend
 
@@ -218,7 +248,8 @@ One process and one database are assumed in these places. Each carries a comment
   sequence number and receives everything after it. Model output streams to the agent chat as
   transient events that are not replayed.
 - The client applies an event by writing into the TanStack Query cache directly. No polling, and no
-  broad cache invalidation in response to an event.
+  broad cache invalidation in response to an event. The one exception is data still loading when a
+  change for it arrives: its answer may predate the change, so it loads again.
 - Every command accepts a client-generated id in the `Idempotency-Key` header and is idempotent on
   it, so a retry after a dropped connection cannot recruit or assign twice. A command runs at most
   once: if the process dies between claiming the key and storing the answer, the key answers 409
@@ -325,8 +356,8 @@ packages/
 
 - Multi-stage `Dockerfile`, non-root user, pinned base image digests, no secrets in layers.
 - One `docker-compose.<env>.yml` per environment: `web`, `worker`, `postgres`, `sandbox`,
-  `egress_proxy`, `searxng`. Every service declares a healthcheck, resource limits and a restart
-  policy.
+  `egress_proxy`, `searxng`, `prometheus` and `grafana`. Every service declares a healthcheck,
+  resource limits and a restart policy.
 - GitHub Actions run build, test, Semgrep, Trivy, gitleaks and dependency scanning, then cosign
   signing with an SBOM. Production deploys the exact signed digest after the owner's manual
   approval.
@@ -350,7 +381,9 @@ packages/
 ### How delivery works today
 
 - `.github/workflows/ci.yml` runs on every pull request and every push to `main`:
-  - format, lint, typecheck, build, and tests against PostgreSQL;
+  - format, lint, typecheck, build, the client's Vitest tests, and the backend tests against
+    PostgreSQL;
+  - the Playwright flows against the built web process and worker with a fake model;
   - `npm audit` and `npm audit signatures`;
   - Semgrep, gitleaks over the full history, and actionlint with shellcheck;
   - the compose smoke test.
@@ -365,14 +398,16 @@ packages/
   `production` environment on the runner labelled `tbn-production`. In order, it:
   1. verifies the signature and the SBOM attestation;
   2. decrypts `deploy/secrets/production.enc.env` with SOPS;
-  3. copies the stack files to `/opt/tbn`;
+  3. copies the stack files, Prometheus's configuration and Grafana's provisioning to `/opt/tbn`;
   4. runs `prisma migrate deploy` as the release step;
   5. starts the stack;
-  6. checks that `/health` reports the deployed commit.
+  6. checks that `/health` reports the deployed commit and that Grafana is healthy.
 - `deploy/runner/job_started_guard.sh` refuses every job on the runner except that deploy, run from
   `main` and dispatched by the owner.
 - Docker restarts crashed containers through `restart: unless-stopped`. It never restarts an
   unhealthy one, so `deploy/host/tbn_restart_unhealthy.*` adds a systemd timer for that.
+- `deploy/backup/tbn_backup.*` adds the weekly backup timer; `docs/server_setup.md` installs it and
+  walks through a restore.
 - npm resolves only versions published more than 7 days ago (`min-release-age`), runs only the
   install scripts approved in `allowScripts`, and the root `overrides` lift two Prisma CLI
   dependencies past published advisories. Dependabot proposes grouped monthly updates with a 7 day
@@ -680,3 +715,19 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | Nothing is pruned unless the owner sets a limit | The brief promises everything after a cursor and a command id that stays idempotent; the plan's 30 days and 24 hours wait for the owner's answer. |
 | Retention runs on the worker | The worker already owns periodic work; the web process stays request-driven. |
 | The deploy, Prometheus, Grafana and backups move to phase 3 or 4 | The owner's call: deploy once there is a UI to use. |
+
+## Decisions made in phase 3
+
+| Decision | Why |
+| --- | --- |
+| The deploy, Prometheus, Grafana and backups land in phase 3 | The owner's call. |
+| The web process serves the client under `/app` | One image, one port and one `tailscale serve` address; no new service. The API keeps its paths. |
+| The session token lives in session storage | A reload keeps the session and closing the tab ends it; nothing outlives the tab. |
+| Collections are loaded whole and kept live by events | The owner's company is small; screens filter in memory and no screen polls. Lists the server caps at 200 rows show the newest. |
+| A change that arrives while its data loads reloads that data | The answer in flight may have been read before the change; reloading once is cheaper than a lost row. |
+| A form keeps its command id until its draft changes | Pressing the button again after a dropped connection is the same submission, so the server runs it once. |
+| The gateway accepts a page on its own origin | The client is served by the same host; the CORS list stays for the Vite dev server and the shells. |
+| Screens load with their route | The first page stays near 400 kB; Markdown and each screen arrive when opened. |
+| The e2e run keeps its database and owner | It applies migrations and never wipes a database; a run's rows carry its own id, and CI starts from an empty one. |
+| A restore goes into a fresh database that is then renamed | `pg_restore --clean` cannot drop pg-boss's partitions, and a swap leaves the old database for the owner to check. |
+| Backup failures go through `dist/admin.js` in the web container | The host script needs no database settings of its own, and the notice uses the owner's channels like every other alert. |

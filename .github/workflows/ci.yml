@@ -1,6 +1,6 @@
 # Continuous integration. Every gate runs on each pull request and on each push to main:
-# checks and tests, dependency scanning, Semgrep, gitleaks, workflow lint and the compose smoke
-# test. Only when all of them pass does the image job build the backend and sandbox images, scan
+# checks and tests, the Playwright flows, dependency scanning, Semgrep, gitleaks, workflow lint
+# and the compose smoke test. Only when all of them pass does the image job build the backend and sandbox images, scan
 # them with Trivy, push them, sign them with cosign and attach a CycloneDX SBOM attestation to
 # each. The deploy workflow trusts only images signed by this workflow on main.
 name: ci
@@ -58,9 +58,57 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - name: Client tests
+        run: npm run test:client
       - name: Sandbox image for the tests
         run: docker build --file Dockerfile.sandbox --tag tbn/sandbox:test .
       - run: npm test
+
+  e2e:
+    name: Playwright flows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18.6-trixie@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        env:
+          POSTGRES_USER: tbn
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: tbn_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username=tbn --dbname=tbn_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      E2E_DATABASE_URL: postgresql://tbn:ci_only_password@127.0.0.1:5432/tbn_e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Chromium for Playwright
+        run: npm exec --workspace @tbn/client -- playwright install --with-deps chromium
+      - name: Sign in, add a provider, recruit, assign, approve, read the report
+        run: npm run e2e
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            client/playwright-report
+            client/test-results
+          retention-days: 7
 
   dependencies:
     name: dependency scanning
@@ -168,7 +216,7 @@ jobs:
 
   image:
     name: ${{ matrix.image }} image build, Trivy, push, cosign signature and SBOM
-    needs: [checks, dependencies, semgrep, gitleaks, workflow_lint, compose_smoke]
+    needs: [checks, e2e, dependencies, semgrep, gitleaks, workflow_lint, compose_smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:

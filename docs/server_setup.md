@@ -1,8 +1,9 @@
 # Server setup
 
 A runbook to follow by hand. It takes a spare Linux machine to a production stack that only your
-tailnet can reach, deployed by the self-hosted runner from signed images. The first production
-deploy is part of phase 2, but you can prepare the server at any time.
+tailnet can reach, deployed by the self-hosted runner from signed images, with dashboards and weekly
+backups. Phase 3 makes the first production deploy possible; you can prepare the server at any
+time.
 
 Commands marked `server$` run on the server, `you$` on your workstation. Replace `<...>` values.
 
@@ -67,7 +68,14 @@ container run without it.
    server$ tailscale serve status
    ```
 
-   The app answers at `https://<machine>.<tailnet>.ts.net` once the stack runs.
+   The app answers at `https://<machine>.<tailnet>.ts.net` once the stack runs, the desktop at
+   `/app/`. Give Grafana its own HTTPS port the same way:
+
+   ```
+   server$ sudo tailscale serve --bg --https=8443 http://127.0.0.1:3005
+   ```
+
+   The dashboards then answer at `https://<machine>.<tailnet>.ts.net:8443`.
 
 4. Deny all inbound traffic except the tailnet. Do this from the console or over Tailscale, because
    an SSH session over the LAN drops when the firewall turns on.
@@ -223,6 +231,9 @@ holds. You create both; no session ever does.
 
    Fill in the variables from the production section of `.env.example`:
    - `POSTGRES_PASSWORD` and `SEARXNG_SECRET`, each the output of `openssl rand -hex 32`;
+   - `SECRETS_ENCRYPTION_KEY`, the output of `openssl rand -base64 32`;
+   - `GRAFANA_ADMIN_PASSWORD`, for example the output of `openssl rand -hex 24`; you sign in to
+     Grafana as `admin` with it;
    - any optional settings you want to change.
 
 5. Commit `.sops.yaml` and the encrypted file through a pull request.
@@ -243,10 +254,61 @@ server$ sudo install -m 0644 /tmp/tbn_game/deploy/host/tbn_restart_unhealthy.ser
 server$ sudo systemctl daemon-reload
 server$ sudo systemctl enable --now tbn_restart_unhealthy.timer
 server$ systemctl list-timers tbn_restart_unhealthy.timer
+```
+
+## 8. Weekly backups
+
+`tbn_backup` writes a `pg_dump` custom-format dump of the database and a tarball of the workspace
+volume, with their checksums, into a dated directory under `BACKUP_DIR`, and keeps the newest
+`BACKUP_KEEP` sets. A systemd timer runs it every Sunday around 03:30. If it fails, it sends a
+`backup_failed` notice through the stack, so attach an integration to that event (step 10).
+
+Put `BACKUP_DIR` on another disk when you have one; the default is `/var/backups/tbn`.
+
+```
+server$ sudo install -d -m 0700 /etc/tbn
+server$ printf 'BACKUP_DIR=/var/backups/tbn\nBACKUP_KEEP=4\n' | sudo tee /etc/tbn/backup.env
+server$ sudo install -m 0755 /tmp/tbn_game/deploy/backup/tbn_backup.sh /usr/local/sbin/tbn_backup
+server$ sudo install -m 0755 /tmp/tbn_game/deploy/backup/tbn_restore.sh /usr/local/sbin/tbn_restore
+server$ sudo install -m 0644 /tmp/tbn_game/deploy/backup/tbn_backup.service \
+  /tmp/tbn_game/deploy/backup/tbn_backup.timer /etc/systemd/system/
+server$ sudo systemctl daemon-reload
+server$ sudo systemctl enable --now tbn_backup.timer
+server$ systemctl list-timers tbn_backup.timer
 server$ rm -rf /tmp/tbn_game
 ```
 
-## 8. First deploy
+The clone in `/tmp/tbn_game` is from step 4; clone it again if it is gone. When a later phase
+changes these scripts, install them the same way.
+
+After the first deploy, run one backup by hand and read its log:
+
+```
+server$ sudo systemctl start tbn_backup.service
+server$ journalctl -u tbn_backup.service --since today
+server$ sudo ls -l /var/backups/tbn
+```
+
+### Restore
+
+A restore replaces the database and the workspace with one backup set. It stops `web`, `worker`,
+`sandbox` and `egress_proxy`, restores the dump into a fresh database and renames it to `tbn`,
+keeps the database it replaced as `tbn_replaced_<time>`, and replaces the workspace volume's
+content. It asks you to type the project name first.
+
+```
+server$ sudo tbn_restore /var/backups/tbn/tbn_<time>
+```
+
+Then start the stack again with the deploy workflow, or on the server with the decrypted secrets
+(`docker compose --env-file <file> -f /opt/tbn/docker-compose.production.yml up --detach
+--wait`). Sign in and check the company is as it was. When it is, drop the old database with the
+command the restore printed: `docker exec tbn-postgres-1 dropdb --username=tbn tbn_replaced_<time>`.
+
+Practise a restore once on a scratch machine or the development stack
+(`TBN_COMPOSE_PROJECT=tbn_development`) before you need it.
+
+## 9. First deploy
 
 1. Merge the phase pull request into `main` yourself. CI runs on `main` and signs both images, the
    backend and the sandbox. The run summary of each image job shows its digest.
@@ -262,14 +324,28 @@ server$ rm -rf /tmp/tbn_game
    1. verifies the cosign signatures and the SBOM attestations of both images from CI on `main`;
    2. pulls both images;
    3. decrypts the secrets into the runner's temporary directory;
-   4. copies the stack files to `/opt/tbn`;
+   4. copies the stack files, Prometheus's configuration and Grafana's provisioning to `/opt/tbn`;
    5. runs `prisma migrate deploy`;
    6. starts the stack;
-   7. checks that `/health` reports the deployed commit;
+   7. checks that `/health` reports the deployed commit and that Grafana is healthy;
    8. deletes the decrypted file.
 5. From a tailnet device: `curl https://<machine>.<tailnet>.ts.net/health`.
+6. Create the owner account once. The password is read from standard input, so it stays out of
+   the shell history and the process list:
 
-## 9. Operating the stack
+   ```
+   server$ read -rs PASSWORD
+   server$ printf '%s' "$PASSWORD" | docker exec -i tbn-web-1 /nodejs/bin/node dist/admin.js \
+     owner_create <username>
+   ```
+
+7. Open `https://<machine>.<tailnet>.ts.net/app/` and sign in. Add a provider, recruit a manager
+   and assign it a task; `scripts/demo_phase_3.sh` lists the steps.
+8. Open `https://<machine>.<tailnet>.ts.net:8443`, sign in as `admin`, and check that the tbn
+   overview dashboard shows the four processes up.
+
+
+## 10. Operating the stack
 
 - **Status.** The production compose file needs its secrets to render, so read state from Docker:
   `docker ps --filter label=com.docker.compose.project=tbn`.
@@ -277,9 +353,12 @@ server$ rm -rf /tmp/tbn_game
   `tbn-egress_proxy-1` and the other services. Container logs rotate at 10 MB times 5 files. The
   proxy logs every request with the run and agent ids; a sandbox container's output is in its
   job row, `GET /sandbox_jobs/:id`.
-- **Notifications.** Attach an integration to `process_restarted`, `run_failed`,
-  `disk_nearly_full` and the other events in `GET /notification_events` to hear about them; the
-  log of every notification is `GET /notifications`.
+- **Notifications.** On the desktop's Integrations screen, attach an integration to
+  `process_restarted`, `run_failed`, `backup_failed`, `disk_nearly_full` and the other events to
+  hear about them; the Notification log tab shows each one and how it went.
+- **Dashboards.** Grafana's tbn overview shows the processes, queue depth, run failures, spend,
+  cache hit rate, proxy refusals and the workspace disk. Prometheus keeps 30 days
+  (`PROMETHEUS_RETENTION`). Grafana has no alerting; alerts are the notification channels.
 - **Rollback.** Dispatch the deploy again with an earlier digest from a previous run summary.
   Migrations only move forward, so a rollback across a migration needs a forward fix instead.
 - **Reboot test.** Run `sudo reboot`. Afterwards every container is up and healthy,
@@ -287,4 +366,3 @@ server$ rm -rf /tmp/tbn_game
 - **Updates.** Dependabot proposes monthly updates of npm packages, base images and actions. They
   go through every CI gate, and you merge and deploy them like any other change.
 
-Backups, and Prometheus and Grafana dashboards, arrive with phase 2. See `docs/roadmap.md`.

@@ -18,7 +18,7 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 1b | The team | Merged |
 | 1c | The outside world | Merged |
 | 2 | Realtime | Merged |
-| 3 | Web app without 3D | In progress |
+| 3 | Web app without 3D | In review |
 | 4 | The 3D world | Not started |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |

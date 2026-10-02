@@ -23,35 +23,36 @@ type Reply =
   | { kind: 'text'; text: string }
   | { kind: 'tool'; text: string; name: string; input: Record<string, string> };
 
-/** What the conversation so far asks of the model: its texts and how many tool results it has. */
-function readConversation(body: z.infer<typeof RequestSchema>): {
-  texts: string[];
-  results: number;
-} {
-  const texts: string[] = [];
-  let results = 0;
-  for (const message of body.messages) {
-    if (message.role !== 'user') continue;
-    const blocks =
-      typeof message.content === 'string'
-        ? [{ type: 'text', text: message.content }]
-        : message.content;
-    for (const block of blocks) {
-      if (block.type === 'tool_result') results += 1;
-      if (block.type === 'text' && block.text !== undefined) texts.push(block.text);
-    }
-  }
-  return { texts, results };
+type Message = z.infer<typeof RequestSchema>['messages'][number];
+
+function blocksOf(message: Message): Array<z.infer<typeof BlockSchema>> {
+  return typeof message.content === 'string'
+    ? [{ type: 'text', text: message.content }]
+    : message.content;
 }
 
+function textOf(message: Message): string {
+  return blocksOf(message)
+    .map((block) => (block.type === 'text' ? (block.text ?? '') : ''))
+    .join('\n');
+}
+
+const GREETING =
+  'Hello from the fake model. I read your message, thought about it for a moment, and here is my answer in a few short words.';
+
 /**
- * The approval story: list the roster, which the agent's policy makes wait for the owner, then
- * finish the task. Anything else gets a short streamed answer that quotes the owner.
+ * Plays from the latest user message. A task carrying the approval marker lists the roster, which
+ * the agent's policy makes wait for the owner, then finishes the task and goes quiet. Anything else
+ * gets a short streamed answer that quotes the owner.
  */
 function plan(body: z.infer<typeof RequestSchema>): Reply {
-  const { texts, results } = readConversation(body);
-  if (texts.some((text) => text.includes(APPROVAL_MARKER))) {
-    if (results === 0) {
+  const users = body.messages.filter((message) => message.role === 'user');
+  const last = users.at(-1);
+  if (last === undefined) return { kind: 'text', text: GREETING };
+  const results = blocksOf(last).filter((block) => block.type === 'tool_result').length;
+  if (results === 0) {
+    const text = textOf(last);
+    if (text.includes(APPROVAL_MARKER)) {
       return {
         kind: 'tool',
         text: 'I will check who is on the team first.',
@@ -59,6 +60,18 @@ function plan(body: z.infer<typeof RequestSchema>): Reply {
         input: {},
       };
     }
+    const quoted = text.trim().split('\n').at(-1) ?? '';
+    return { kind: 'text', text: `${GREETING} You wrote: ${quoted.slice(0, 200)}` };
+  }
+  const marker = users.findLastIndex((message) => textOf(message).includes(APPROVAL_MARKER));
+  const answered = users
+    .slice(marker + 1)
+    .reduce(
+      (count, message) =>
+        count + blocksOf(message).filter((block) => block.type === 'tool_result').length,
+      0,
+    );
+  if (marker !== -1 && answered === 1) {
     return {
       kind: 'tool',
       text: 'The team is known, so I am reporting back.',
@@ -71,8 +84,7 @@ function plan(body: z.infer<typeof RequestSchema>): Reply {
       },
     };
   }
-  const last = (texts.at(-1) ?? '').trim().split('\n').at(-1) ?? '';
-  return { kind: 'text', text: `Hello from the fake model. You wrote: ${last.slice(0, 200)}` };
+  return { kind: 'text', text: 'Done.' };
 }
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -172,7 +184,7 @@ export interface FakeModel {
 }
 
 /** Starts the fake model on a free local port. */
-export async function startFakeModel(pieceDelayMs = 60): Promise<FakeModel> {
+export async function startFakeModel(pieceDelayMs = 150): Promise<FakeModel> {
   const server: Server = createServer((request, response) => {
     readBody(request)
       .then(async (raw) => {

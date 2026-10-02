@@ -73,12 +73,17 @@ test('recruit', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toContainText(MANAGER);
   await expect(page.getByText('Nothing said yet')).toBeVisible();
 
-  // The new manager answers a message, streamed, and the stored reply takes its place.
+  // The new manager answers a message, streamed as it is written, and the stored reply takes its
+  // place.
   await page.getByLabel(`Message to ${MANAGER}`).fill('Hello there');
   await page.getByRole('button', { name: 'Send' }).click();
   const chat = page.getByRole('log', { name: `Chat with ${MANAGER}` });
   await expect(chat).toContainText('Hello there');
-  await expect(chat).toContainText('Hello from the fake model. You wrote: Hello there');
+  const writing = page.getByText(`${MANAGER} · writing…`);
+  await expect(writing).toBeVisible();
+  await expect(chat).toContainText('Hello from the fake model.');
+  await expect(chat).toContainText('You wrote: Hello there');
+  await expect(writing).toBeHidden();
 
   await openScreen(page, 'Departments');
   await expect(page.getByRole('heading', { name: ROLE })).toBeVisible();
