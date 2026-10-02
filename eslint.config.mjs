@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 /** Nest lifecycle and framework method names keep the casing the framework requires. */
@@ -101,7 +102,35 @@ export default tseslint.config(
     },
   },
   {
+    // The client: camelCase identifiers, PascalCase components and types. API payload fields keep
+    // the backend's snake_case, so object properties and destructured names are free.
+    files: ['client/**/*.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.browser } },
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      ...reactHooks.configs.flat['recommended-latest'].rules,
+      'react-hooks/exhaustive-deps': 'error',
+      '@typescript-eslint/naming-convention': [
+        'error',
+        { selector: 'default', format: ['camelCase'], leadingUnderscore: 'allow' },
+        { selector: 'variable', format: ['camelCase', 'PascalCase', 'UPPER_CASE'] },
+        { selector: 'variable', modifiers: ['destructured'], format: null },
+        { selector: 'parameter', modifiers: ['destructured'], format: null },
+        { selector: 'function', format: ['camelCase', 'PascalCase'] },
+        { selector: 'typeLike', format: ['PascalCase'] },
+        { selector: 'import', format: null },
+        {
+          selector: ['objectLiteralProperty', 'objectLiteralMethod', 'typeProperty'],
+          format: null,
+        },
+      ],
+    },
+  },
+  {
     files: [
+      'client/vite.config.ts',
+      'client/playwright.config.ts',
+      'client/e2e/**/*.ts',
       'backend/src/config/load_config.ts',
       'backend/prisma.config.ts',
       'backend/src/testing/jest_setup.ts',

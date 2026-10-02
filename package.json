@@ -10,22 +10,26 @@
   },
   "workspaces": [
     "packages/contracts",
-    "backend"
+    "backend",
+    "client"
   ],
   "scripts": {
     "codegen": "npm run build --workspace @tbn/contracts && npm run db:generate --workspace @tbn/backend",
-    "build": "npm run build --workspace @tbn/contracts && npm run build --workspace @tbn/backend",
-    "typecheck": "npm run codegen && npm run typecheck --workspace @tbn/backend",
+    "build": "npm run build --workspace @tbn/contracts && npm run build --workspace @tbn/backend && npm run build --workspace @tbn/client",
+    "typecheck": "npm run codegen && npm run typecheck --workspace @tbn/backend && npm run typecheck --workspace @tbn/client",
     "lint": "npm run codegen && eslint --max-warnings 0 .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run codegen && npm run test --workspace @tbn/backend",
     "stack:up": "scripts/stack_up.sh",
-    "stack:down": "docker compose -f docker-compose.development.yml down"
+    "stack:down": "docker compose -f docker-compose.development.yml down",
+    "test:client": "npm run test --workspace @tbn/client",
+    "e2e": "npm run e2e --workspace @tbn/client"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "eslint": "10.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.12.0",
     "prettier": "3.9.9",
     "typescript": "6.0.3",
