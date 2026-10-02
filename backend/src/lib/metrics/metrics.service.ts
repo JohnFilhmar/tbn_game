@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ProcessType } from '@tbn/contracts';
-import { Gauge, Registry, collectDefaultMetrics } from '@prometheus-io/client';
+import { Counter, Gauge, Registry, collectDefaultMetrics } from '@prometheus-io/client';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 
@@ -21,6 +21,22 @@ export class MetricsService {
       labelNames: ['commit_sha'],
       registers: [this.registry],
     }).set({ commit_sha: config.git_commit_sha }, 1);
+  }
+
+  /**
+   * Registers a counter of this process.
+   *
+   * @param name - The series name, prefixed `tbn_`.
+   * @param help - What it counts.
+   * @param label_names - The labels every increment carries.
+   */
+  counter<Label extends string>(name: string, help: string, label_names: Label[]): Counter<Label> {
+    return new Counter<Label>({
+      name,
+      help,
+      labelNames: label_names,
+      registers: [this.registry],
+    });
   }
 
   /** Content type of the Prometheus text exposition format. */
