@@ -160,6 +160,11 @@ verifying the phase:
   reserved blocks nobody can use and reads higher than `df`. It now reports what `df` reports.
 - **Approvals moved to the runtime module.** The plan put the rows in the company module; every
   reader and writer is the run loop, so the module boundary would have been crossed on every call.
+- **Trivy on the sandbox image.** The first scan found a fixable `libpcre2` CVE in the Debian
+  base and four in the dependencies npm bundles. The image now upgrades its Debian packages at
+  build time and pins npm 12.1.0, which carries the `ip-address` and `tar` fixes. No released npm
+  carries the `brace-expansion` and `undici` fixes yet, so `.trivyignore` lists those three CVEs
+  with an expiry six weeks out; each is a denial of service of one sandbox job at most.
 - **The objections in the plan.** All five were approved as proposed: `<manager>/main` branch
   names, the empty host allowlist by default, disk limits on the scratch space only, reviews and
   merge requests as rows until the event log, and sandbox network access for tainted runs.

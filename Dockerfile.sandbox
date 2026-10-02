@@ -5,10 +5,15 @@
 FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe
 LABEL org.opencontainers.image.source="https://github.com/JohnFilhmar/tbn_game" \
       org.opencontainers.image.description="tbn_game sandbox: the toolchain agent code runs in"
+# The Debian packages take the security fixes published since the pinned base image, and npm moves
+# to a pinned release newer than the one the image bundles, for the fixes in its own dependencies.
 RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
   && apt-get install -y --no-install-recommends \
     bash ca-certificates curl git jq make python3 python3-venv \
   && rm -rf /var/lib/apt/lists/* \
+  && npm install -g npm@12.1.0 \
+  && npm cache clean --force \
   && groupadd --gid 65532 agent \
   && useradd --uid 65532 --gid 65532 --create-home --home-dir /home/agent --shell /bin/bash agent \
   && install -d -m 0755 /opt/tbn /work /files

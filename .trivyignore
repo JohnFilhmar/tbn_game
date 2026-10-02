@@ -1,0 +1,11 @@
+# Vulnerabilities in the dependencies npm bundles, fixed upstream but not yet in a released npm,
+# so the sandbox image cannot carry the fix. Each is a denial of service of one sandbox job at
+# most: the job runs under cpu, memory and time limits, and npm opens no WebSocket. Drop a line
+# once a released npm bundles the fixed version; the dates reopen the gate either way.
+
+# brace-expansion below 5.0.10 and 5.0.11
+CVE-2026-102276 exp:2026-11-13
+CVE-2026-102278 exp:2026-11-13
+
+# undici below 6.28.1
+CVE-2026-19534 exp:2026-11-13
