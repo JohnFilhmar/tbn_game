@@ -102,15 +102,17 @@ test('assign', async ({ page }) => {
 test('approve', async ({ page }) => {
   await signIn(page);
   const launcher = page.getByRole('navigation', { name: 'Launcher' });
-  await expect(launcher.getByRole('link', { name: /Approvals 1 waiting/ })).toBeVisible();
+  await expect(launcher.getByRole('link', { name: /Approvals \d+ waiting/ })).toBeVisible();
   await openScreen(page, 'Approvals');
-  const card = page.getByRole('article', { name: /Wants to call list_roster/ });
-  await expect(card).toContainText(MANAGER);
+  const card = page.getByRole('article', { name: `${MANAGER}: Wants to call list_roster` });
+  await expect(card).toContainText(TASK);
+  await expect(card.getByLabel('Tool input')).toContainText('{}');
   await card.getByLabel('Note to the agent').fill('Go ahead.');
   await card.getByRole('button', { name: 'Approve' }).click();
-  await expect(page.getByText('Nothing waits for you')).toBeVisible();
+  await expect(card).toBeHidden();
   await page.getByRole('button', { name: /Decided/ }).click();
   await expect(card).toContainText('Your note: Go ahead.');
+  await expect(card).toContainText('Approved');
 });
 
 test('read report', async ({ page }) => {

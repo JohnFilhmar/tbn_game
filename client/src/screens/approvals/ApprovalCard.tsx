@@ -29,6 +29,7 @@ function headline(approval: Approval): string {
 /** Props of `ApprovalCard`. */
 export interface ApprovalCardProps {
   approval: Approval;
+  agentName: string;
   taskTitle: string | undefined;
 }
 
@@ -36,7 +37,7 @@ export interface ApprovalCardProps {
  * One question for the owner with everything needed to answer it: the exact input, the request an
  * integration would send, and what the run had read. A note goes to the agent with the decision.
  */
-export function ApprovalCard({ approval, taskTitle }: ApprovalCardProps) {
+export function ApprovalCard({ approval, agentName, taskTitle }: ApprovalCardProps) {
   const api = useApi();
   const client = useQueryClient();
   const [note, setNote] = useState('');
@@ -64,7 +65,7 @@ export function ApprovalCard({ approval, taskTitle }: ApprovalCardProps) {
 
   return (
     <article
-      aria-label={`${headline(approval)}, asked by the agent`}
+      aria-label={`${agentName}: ${headline(approval)}`}
       className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <header className="flex flex-wrap items-start justify-between gap-2">

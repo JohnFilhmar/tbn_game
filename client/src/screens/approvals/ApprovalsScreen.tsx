@@ -14,6 +14,7 @@ type ApprovalFilter = 'pending' | 'decided';
 export function ApprovalsScreen() {
   const approvals = useCollection(COLLECTIONS.approvals);
   const tasks = useCollection(COLLECTIONS.tasks);
+  const agents = useCollection(COLLECTIONS.agents);
   const [filter, setFilter] = useState<ApprovalFilter>('pending');
   const header = (
     <PageHeader
@@ -39,6 +40,7 @@ export function ApprovalsScreen() {
   );
   const shown = filter === 'pending' ? pending : decided;
   const taskById = byId(tasks.data);
+  const agentById = byId(agents.data);
   return (
     <>
       {header}
@@ -66,6 +68,7 @@ export function ApprovalsScreen() {
             <ApprovalCard
               key={approval.id}
               approval={approval}
+              agentName={agentById.get(approval.agent_id)?.name ?? 'An agent'}
               taskTitle={
                 approval.task_id === null ? undefined : taskById.get(approval.task_id)?.title
               }
