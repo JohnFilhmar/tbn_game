@@ -3,12 +3,13 @@ import { IDEMPOTENCY_KEY_HEADER, IDEMPOTENT_REPLAYED_HEADER } from '@tbn/contrac
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import type { AppConfig } from '@/config/config.schema';
+import { serve_client } from './serve_client';
 
 /**
  * Applies the HTTP settings every web app instance shares: JSON logging, security headers, the
- * explicit CORS origin list with the headers a browser client may send and read, and request body
- * size limits. Tests call it too, so they exercise the
- * same stack as production.
+ * explicit CORS origin list with the headers a browser client may send and read, request body
+ * size limits, and the built client under `/app` when `CLIENT_DIR` is set. Tests call it too, so
+ * they exercise the same stack as production.
  *
  * @param app - The Nest application created from `WebModule`.
  * @param config - Parsed configuration.
@@ -24,4 +25,5 @@ export function configure_web_app(app: NestExpressApplication, config: AppConfig
   });
   app.useBodyParser('json', { limit: config.web.body_limit_bytes });
   app.useBodyParser('urlencoded', { limit: config.web.body_limit_bytes, extended: false });
+  if (config.web.client_dir !== undefined) serve_client(app, config.web.client_dir);
 }

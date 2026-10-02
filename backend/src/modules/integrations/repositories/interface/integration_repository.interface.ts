@@ -49,6 +49,8 @@ export interface IntegrationRepository {
   detach(owner_id: string, integration_id: string, agent_id: string): Promise<boolean>;
   /** The integrations attached to an agent, by name. */
   list_for_agent(owner_id: string, agent_id: string): Promise<IntegrationRecord[]>;
+  /** The ids of the integrations attached to an agent, oldest attachment first. */
+  attached_ids(owner_id: string, agent_id: string): Promise<string[]>;
 }
 
 /** Notification channels and the notification log, scoped by owner. */
@@ -98,6 +100,8 @@ export interface PluginRepository {
   detach(owner_id: string, plugin_id: string, agent_id: string): Promise<boolean>;
   /** The enabled plugins attached to an agent, by name. */
   list_for_agent(owner_id: string, agent_id: string): Promise<PluginRecord[]>;
+  /** The ids of every plugin attached to an agent, enabled or not, oldest attachment first. */
+  attached_ids(owner_id: string, agent_id: string): Promise<string[]>;
 }
 
 /** Process boots, for restart detection. Not scoped: processes belong to the server. */

@@ -1,5 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { EventsPageSchema, InstructionSchema } from '@tbn/contracts';
+import { EventsPageSchema, InstructionSchema, IntegrationSchema } from '@tbn/contracts';
 import request from 'supertest';
 import { z } from 'zod';
 import { PrismaService } from '@/lib/database/prisma.service';
@@ -8,6 +8,7 @@ import {
   type EventRepository,
 } from '@/modules/events/repositories/interface/event_repository.interface';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
+import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
 
 const GoneBodySchema = z.looseObject({ head_seq: z.number(), oldest_seq: z.number() });
@@ -93,6 +94,45 @@ describe('GET /events', () => {
       .get('/events')
       .set({ Authorization: `Bearer ${other.token}` });
     expect(EventsPageSchema.parse(theirs.body)).toEqual({ head_seq: 0, events: [] });
+  });
+
+  it("sends an agent's attachments as their own view, under the agent's id", async () => {
+    const mine = await create_test_owner(app);
+    const as_mine = { Authorization: `Bearer ${mine.token}` };
+    const provider = await create_test_provider(app, mine.owner_id, 'anthropic_messages');
+    const agent = await recruit_test_agent(app, mine.owner_id, provider.id);
+    const integration = IntegrationSchema.parse(
+      (
+        await api()
+          .post('/integrations')
+          .set(as_mine)
+          .send({
+            name: 'Pager',
+            method: 'POST',
+            url: 'http://127.0.0.1:9/hook',
+            body_format: 'json',
+            body_template: '{"text": "{{text}}"}',
+            placeholders: [{ name: 'text', description: 'The text', required: true }],
+          })
+          .expect(201)
+      ).body,
+    );
+    const head = EventsPageSchema.parse(
+      (await api().get('/events').query({ after: 0, limit: 1 }).set(as_mine).expect(200)).body,
+    ).head_seq;
+    await api().post(`/agents/${agent.id}/integrations/${integration.id}`).set(as_mine).expect(201);
+    await api()
+      .delete(`/agents/${agent.id}/integrations/${integration.id}`)
+      .set(as_mine)
+      .expect(204);
+    const after = EventsPageSchema.parse(
+      (await api().get('/events').query({ after: head }).set(as_mine).expect(200)).body,
+    ).events;
+    expect(after.map(({ entity, id, op }) => ({ entity, id, op }))).toEqual([
+      { entity: 'agent_attachments', id: agent.id, op: 'update' },
+      { entity: 'agent_attachments', id: agent.id, op: 'update' },
+    ]);
+    expect(after[1]?.data).toEqual({ agent_id: agent.id, integration_ids: [], plugin_ids: [] });
   });
 
   it('rejects a bad cursor, and answers 410 once the events after it are pruned', async () => {

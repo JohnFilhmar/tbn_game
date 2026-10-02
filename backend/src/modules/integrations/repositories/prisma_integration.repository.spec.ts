@@ -67,6 +67,8 @@ describe('integration, notification, plugin and process instance repositories', 
       (await integrations.list_for_agent(owner.owner_id, agent_id)).map((row) => row.id),
     ).toEqual([integration.id]);
     expect(await integrations.list_for_agent(other.owner_id, agent_id)).toEqual([]);
+    expect(await integrations.attached_ids(owner.owner_id, agent_id)).toEqual([integration.id]);
+    expect(await integrations.attached_ids(other.owner_id, agent_id)).toEqual([]);
     expect(await integrations.detach(other.owner_id, integration.id, agent_id)).toBe(false);
     expect(await integrations.detach(owner.owner_id, integration.id, agent_id)).toBe(true);
     expect(await integrations.detach(owner.owner_id, integration.id, agent_id)).toBe(false);
@@ -147,6 +149,8 @@ describe('integration, notification, plugin and process instance repositories', 
     ]);
     await plugins.update(owner.owner_id, plugin.id, { enabled: false });
     expect(await plugins.list_for_agent(owner.owner_id, agent_id)).toEqual([]);
+    expect(await plugins.attached_ids(owner.owner_id, agent_id)).toEqual([plugin.id]);
+    expect(await plugins.attached_ids(other.owner_id, agent_id)).toEqual([]);
     expect(await plugins.detach(owner.owner_id, plugin.id, agent_id)).toBe(true);
     expect(await plugins.detach(owner.owner_id, plugin.id, agent_id)).toBe(false);
     expect(await plugins.delete(other.owner_id, plugin.id)).toBe(false);

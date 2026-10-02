@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { IntegrationCallResultSchema, IntegrationSchema, type Integration } from '@tbn/contracts';
+import {
+  AgentAttachmentsSchema,
+  IntegrationCallResultSchema,
+  IntegrationSchema,
+  type Integration,
+} from '@tbn/contracts';
 import request from 'supertest';
 import { PrismaService } from '@/lib/database/prisma.service';
 import { start_fake_webhook_server, type FakeWebhookServer } from '@/testing/fake_webhook_server';
@@ -187,6 +192,17 @@ describe('integration routes', () => {
       .set(auth())
       .expect(404);
     await api().post(`/agents/${agent.id}/integrations/${randomUUID()}`).set(auth()).expect(404);
+    await api().get(`/agents/${agent.id}/attachments`).expect(401);
+    expect(
+      AgentAttachmentsSchema.parse(
+        (await api().get(`/agents/${agent.id}/attachments`).set(auth()).expect(200)).body,
+      ),
+    ).toEqual({ agent_id: agent.id, integration_ids: [integration.id], plugin_ids: [] });
+    await api().get(`/agents/${randomUUID()}/attachments`).set(auth()).expect(404);
+    await api()
+      .get(`/agents/${agent.id}/attachments`)
+      .set({ Authorization: `Bearer ${other.token}` })
+      .expect(404);
     await api()
       .delete(`/agents/${agent.id}/integrations/${integration.id}`)
       .set(auth())
@@ -195,5 +211,10 @@ describe('integration routes', () => {
       .delete(`/agents/${agent.id}/integrations/${integration.id}`)
       .set(auth())
       .expect(404);
+    expect(
+      AgentAttachmentsSchema.parse(
+        (await api().get(`/agents/${agent.id}/attachments`).set(auth()).expect(200)).body,
+      ).integration_ids,
+    ).toEqual([]);
   });
 });

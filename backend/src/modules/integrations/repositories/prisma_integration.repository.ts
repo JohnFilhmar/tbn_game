@@ -99,6 +99,15 @@ export class PrismaIntegrationRepository implements IntegrationRepository {
     });
     return rows.map((row) => row.integration).sort((a, b) => a.name.localeCompare(b.name));
   }
+
+  async attached_ids(owner_id: string, agent_id: string): Promise<string[]> {
+    const rows = await this.prisma.integrationAttachment.findMany({
+      where: { owner_id, agent_id },
+      select: { integration_id: true },
+      orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((row) => row.integration_id);
+  }
 }
 
 /** `PluginRepository` on Prisma. */
@@ -157,6 +166,15 @@ export class PrismaPluginRepository implements PluginRepository {
       include: { plugin: true },
     });
     return rows.map((row) => row.plugin).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async attached_ids(owner_id: string, agent_id: string): Promise<string[]> {
+    const rows = await this.prisma.pluginAttachment.findMany({
+      where: { owner_id, agent_id },
+      select: { plugin_id: true },
+      orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((row) => row.plugin_id);
   }
 }
 
