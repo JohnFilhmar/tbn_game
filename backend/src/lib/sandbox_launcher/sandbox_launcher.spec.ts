@@ -129,7 +129,11 @@ describe('the sandbox launcher', () => {
       const found = await docker.containers_with_label(`${SANDBOX_LABEL}=1`);
       return found.some((container) => container.id === orphan.container_id) ? undefined : true;
     });
-    const row = await prisma.sandboxJob.findUniqueOrThrow({ where: { id: orphan.job_id } });
+    // The launcher removes the containers first and marks their jobs lost after.
+    const row = await wait_for('the orphaned job to be marked lost', async () => {
+      const found = await prisma.sandboxJob.findUniqueOrThrow({ where: { id: orphan.job_id } });
+      return found.status === 'running' ? undefined : found;
+    });
     expect(row.status).toBe('lost');
     expect(row.error).toContain('restart');
   });
