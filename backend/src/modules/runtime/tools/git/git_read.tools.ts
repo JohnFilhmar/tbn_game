@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { GitRecordsService } from '@/modules/company/services/git_records.service';
 import { TaskService } from '@/modules/company/services/task.service';
 import { AgentBranchesService } from '@/modules/runtime/services/git/agent_branches.service';
+import { BASE_BRANCH } from '@/modules/runtime/services/git/branch_rules';
 import { GitJobService } from '@/modules/runtime/services/git/git_job.service';
 import type { Tool, ToolContext, ToolOutcome } from '../tool.interface';
 import {
@@ -42,7 +43,7 @@ export class GitReadSupport {
       );
       const head =
         input.head ?? (await this.branches.working_branch(context.agent, task, undefined));
-      const base = input.base ?? 'development';
+      const base = input.base ?? BASE_BRANCH;
       const result =
         operation === 'diff'
           ? await this.git.diff(context.owner_id, repository, base, head, worker_of(context))

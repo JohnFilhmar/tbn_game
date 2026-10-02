@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { GitRecordsService } from '@/modules/company/services/git_records.service';
 import { TaskService } from '@/modules/company/services/task.service';
 import { AgentBranchesService } from '@/modules/runtime/services/git/agent_branches.service';
+import { BASE_BRANCH } from '@/modules/runtime/services/git/branch_rules';
 import { GitJobService } from '@/modules/runtime/services/git/git_job.service';
 import type { Tool, ToolContext, ToolOutcome } from '../tool.interface';
 import {
@@ -13,9 +14,6 @@ import {
   rule_error_outcome,
   worker_of,
 } from './git_tool_support';
-
-/** The branch new work starts from. */
-const BASE_BRANCH = 'development';
 
 const InputSchema = z.strictObject({
   repository: RepositoryInputSchema,

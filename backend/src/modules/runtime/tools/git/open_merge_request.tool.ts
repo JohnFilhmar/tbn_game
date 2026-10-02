@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { GitRecordsService } from '@/modules/company/services/git_records.service';
 import { TaskService } from '@/modules/company/services/task.service';
 import { AgentBranchesService } from '@/modules/runtime/services/git/agent_branches.service';
+import { BASE_BRANCH } from '@/modules/runtime/services/git/branch_rules';
 import { GitJobService } from '@/modules/runtime/services/git/git_job.service';
 import { SandboxJobService } from '@/modules/runtime/services/sandbox/sandbox_job.service';
 import type { Tool, ToolContext, ToolOutcome } from '../tool.interface';
@@ -17,9 +18,6 @@ import {
 
 /** How much of a test job's output a merge request keeps. */
 const TEST_OUTPUT_CHARS = 20_000;
-
-/** The branch merge requests target. */
-const TARGET_BRANCH = 'development';
 
 const InputSchema = z.strictObject({
   repository: RepositoryInputSchema,
@@ -96,7 +94,7 @@ export class OpenMergeRequestTool implements Tool<Input> {
       const diff = await this.git.diff(
         context.owner_id,
         repository,
-        TARGET_BRANCH,
+        BASE_BRANCH,
         manager_branch,
         worker,
       );
@@ -104,14 +102,14 @@ export class OpenMergeRequestTool implements Tool<Input> {
       const log = await this.git.log(
         context.owner_id,
         repository,
-        TARGET_BRANCH,
+        BASE_BRANCH,
         manager_branch,
         worker,
       );
       if (log.outcome !== 'done') return job_error_outcome(log);
       if (log.stdout.length === 0) {
         return {
-          content: `${manager_branch} has no commits that ${TARGET_BRANCH} lacks. Publish your work first.`,
+          content: `${manager_branch} has no commits that ${BASE_BRANCH} lacks. Publish your work first.`,
           is_error: true,
         };
       }
@@ -119,7 +117,7 @@ export class OpenMergeRequestTool implements Tool<Input> {
         repository_id: repository.id,
         agent_id: context.agent_id,
         source_branch: manager_branch,
-        target_branch: TARGET_BRANCH,
+        target_branch: BASE_BRANCH,
         head_sha: head.stdout,
         diff: diff.stdout,
         log: log.stdout,
@@ -128,7 +126,7 @@ export class OpenMergeRequestTool implements Tool<Input> {
         test_job_id: input.test_job_id ?? null,
       });
       return {
-        content: `Opened merge request ${request.id} from ${manager_branch} into ${TARGET_BRANCH} at ${head.stdout}. The owner decides on it; your task can finish.`,
+        content: `Opened merge request ${request.id} from ${manager_branch} into ${BASE_BRANCH} at ${head.stdout}. The owner decides on it; your task can finish.`,
       };
     } catch (error: unknown) {
       return rule_error_outcome(error);

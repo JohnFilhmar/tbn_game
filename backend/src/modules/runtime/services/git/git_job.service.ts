@@ -13,7 +13,7 @@ import {
   type JobOrigin,
 } from '@/modules/runtime/services/sandbox/sandbox_job.service';
 import type { SandboxJobRecord } from '@/modules/runtime/types/sandbox_job_record';
-import { slugify } from './branch_rules';
+import { BASE_BRANCH, slugify } from './branch_rules';
 
 /** The fixed script every git job runs, baked into the sandbox image. */
 const GIT_JOB = '/opt/tbn/git_job.sh';
@@ -185,7 +185,10 @@ export class GitJobService {
     return this.read(owner_id, repository, ['diff', base, head], worker);
   }
 
-  /** `merge_feature <feature> <manager_branch> <reviewed_sha>`: a reviewed feature into the manager branch. */
+  /**
+   * `merge_feature <feature> <manager_branch> <reviewed_sha> <base>`: a reviewed feature into the
+   * manager branch, which starts at the base branch when nobody published it yet.
+   */
   merge_feature(
     owner_id: string,
     repository: RepositoryRecord,
@@ -194,7 +197,8 @@ export class GitJobService {
     manager_branch: string,
     reviewed_sha: string,
   ): Promise<GitJobResult> {
-    return this.run(owner_id, ['merge_feature', feature, manager_branch, reviewed_sha], {
+    const args = ['merge_feature', feature, manager_branch, reviewed_sha, BASE_BRANCH];
+    return this.run(owner_id, args, {
       mounts: [this.repo_mount(owner_id, repository, false)],
       network: 'none',
       worker,

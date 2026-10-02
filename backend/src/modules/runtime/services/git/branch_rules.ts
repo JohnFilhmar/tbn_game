@@ -3,6 +3,9 @@ import { PROTECTED_BRANCHES } from '@tbn/contracts';
 /** The longest a slug gets, so branch names stay readable. */
 const SLUG_CHARS = 40;
 
+/** The branch all work starts from and merge requests go to. */
+export const BASE_BRANCH = 'development';
+
 /** A name as a branch path segment: lowercase letters, digits and dashes. */
 export function slugify(name: string): string {
   const slug = name

@@ -51,13 +51,18 @@ drop_worktree() {
 }
 
 merge_into() {
-  local source=$1 target=$2 expected=$3
+  local source=$1 target=$2 expected=$3 base=${4:-}
   check_branch "$source"
   check_branch "$target"
   check_sha "$expected"
   local actual
   actual=$(git -C "$REPO" rev-parse "refs/heads/$source")
   [[ "$actual" == "$expected"* ]] || refuse "$source moved to $actual since the review of $expected"
+  # A manager branch nobody published yet starts at the base branch.
+  if [[ -n "$base" ]] && ! git -C "$REPO" rev-parse --verify --quiet "refs/heads/$target" >/dev/null; then
+    check_branch "$base"
+    git -C "$REPO" branch --quiet "$target" "refs/heads/$base"
+  fi
   local dir
   dir=$(with_worktree "$target")
   if ! git -C "$dir" merge --no-ff --no-edit -m "${TBN_MESSAGE:-Merge $source into $target}" \
@@ -167,8 +172,9 @@ case "$operation" in
     git -C "$REPO" diff "refs/heads/$1...refs/heads/$2" | head -c "$DIFF_LIMIT_BYTES"
     ;;
   merge_feature)
-    # merge_feature <feature> <manager_branch> <reviewed_sha>: a manager merges a reviewed feature.
-    merge_into "$1" "$2" "$3"
+    # merge_feature <feature> <manager_branch> <reviewed_sha> <base_branch>: a manager merges a
+    # reviewed feature; its branch is created from <base_branch> when it was never published.
+    merge_into "$1" "$2" "$3" "$4"
     ;;
   merge_to_development)
     # merge_to_development <manager_branch> <head_sha>: the owner merges a merge request.
