@@ -28,10 +28,10 @@ export interface PruneResult {
 }
 
 /**
- * Keeps the event log and the command store from growing without end: on the worker, once an hour,
- * it removes events older than `EVENT_RETENTION_DAYS` and commands older than
- * `COMMAND_RETENTION_HOURS`. A client whose cursor falls before the oldest event left resyncs, and
- * a command id older than its retention can run again.
+ * Bounds the event log and the command store when the owner sets a limit: on the worker, once an
+ * hour, it removes events older than `EVENT_RETENTION_DAYS` and commands older than
+ * `COMMAND_RETENTION_HOURS`. A limit of 0, the default, keeps everything. A client whose cursor
+ * falls before the oldest event left resyncs, and a command id older than its limit runs again.
  *
  * Ceiling: every worker process prunes every owner. With several workers the deletes overlap,
  * which is safe.
@@ -49,7 +49,10 @@ export class RetentionService implements OnApplicationBootstrap, OnApplicationSh
   ) {}
 
   onApplicationBootstrap(): void {
-    if (this.process_type === 'worker') this.schedule(FIRST_PRUNE_MS);
+    const { event_days, command_hours } = this.config.retention;
+    if (this.process_type === 'worker' && event_days + command_hours > 0) {
+      this.schedule(FIRST_PRUNE_MS);
+    }
   }
 
   onApplicationShutdown(): void {
@@ -58,23 +61,27 @@ export class RetentionService implements OnApplicationBootstrap, OnApplicationSh
   }
 
   /**
-   * Prunes once. Each store logs and swallows its own failure, and the next hour tries again.
+   * Prunes once. A store whose limit is 0 is left alone. Each store logs and swallows its own
+   * failure, and the next hour tries again.
    *
    * @param now - The time retention counts back from.
    */
   async prune(now = new Date()): Promise<PruneResult> {
+    const { event_days, command_hours } = this.config.retention;
     const result: PruneResult = { events: 0, commands: 0 };
     try {
-      result.events = await this.events.prune(
-        new Date(now.getTime() - this.config.retention.event_days * DAY_MS),
-      );
+      if (event_days > 0) {
+        result.events = await this.events.prune(new Date(now.getTime() - event_days * DAY_MS));
+      }
     } catch (error: unknown) {
       this.logger.warn(`Events not pruned: ${error_message(error)}`);
     }
     try {
-      result.commands = await this.commands.prune(
-        new Date(now.getTime() - this.config.retention.command_hours * HOUR_MS),
-      );
+      if (command_hours > 0) {
+        result.commands = await this.commands.prune(
+          new Date(now.getTime() - command_hours * HOUR_MS),
+        );
+      }
     } catch (error: unknown) {
       this.logger.warn(`Commands not pruned: ${error_message(error)}`);
     }

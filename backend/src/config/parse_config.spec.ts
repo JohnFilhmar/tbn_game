@@ -63,7 +63,7 @@ describe('parse_config', () => {
       fetch: { max_bytes: 2_097_152 },
       integrations: { timeout_ms: 15_000 },
       search: { searxng_url: undefined },
-      retention: { event_days: 30, command_hours: 24 },
+      retention: { event_days: 0, command_hours: 0 },
     });
   });
 

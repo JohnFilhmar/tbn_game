@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { EventsPageSchema, IDEMPOTENCY_KEY_HEADER } from '@tbn/contracts';
 import request from 'supertest';
+import type { AppConfig } from '@/config/config.schema';
 import { PrismaService } from '@/lib/database/prisma.service';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
@@ -12,6 +13,7 @@ const DAY_MS = 86_400_000;
 describe('retention', () => {
   let app: NestExpressApplication;
   let owner: TestOwner;
+  let config: AppConfig;
 
   function rule(title: string, key?: string): Promise<unknown> {
     const call = request(app.getHttpServer())
@@ -22,7 +24,7 @@ describe('retention', () => {
   }
 
   beforeAll(async () => {
-    const config = load_test_config();
+    config = load_test_config();
     app = await create_test_web_app({
       ...config,
       retention: { event_days: 30, command_hours: 24 },
@@ -74,6 +76,32 @@ describe('retention', () => {
 
     await rule('Old one', old_key);
     expect(await prisma.command.count({ where: { owner_id: owner.owner_id } })).toBe(2);
+  });
+
+  it('keeps everything while both limits are 0, the default', async () => {
+    const keeper = await create_test_web_app({
+      ...config,
+      retention: { event_days: 0, command_hours: 0 },
+    });
+    try {
+      const prisma = keeper.get(PrismaService);
+      const other = await create_test_owner(keeper);
+      await request(keeper.getHttpServer())
+        .post('/instructions')
+        .set('Authorization', `Bearer ${other.token}`)
+        .set(IDEMPOTENCY_KEY_HEADER, randomUUID())
+        .send({ scope: 'global', title: 'Ancient', body: 'Be brief.' })
+        .expect(201);
+      const ancient = new Date(Date.now() - 3_650 * DAY_MS);
+      const mine = { owner_id: other.owner_id };
+      await prisma.event.updateMany({ where: mine, data: { created_at: ancient } });
+      await prisma.command.updateMany({ where: mine, data: { created_at: ancient } });
+      expect(await keeper.get(RetentionService).prune()).toEqual({ events: 0, commands: 0 });
+      expect(await prisma.event.count({ where: mine })).toBe(1);
+      expect(await prisma.command.count({ where: mine })).toBe(1);
+    } finally {
+      await keeper.close();
+    }
   });
 
   it('leaves everything when nothing is old enough', async () => {
