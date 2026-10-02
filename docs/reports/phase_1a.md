@@ -24,9 +24,14 @@ Phase 1a meets its exit criteria.
 - **A saved API key never appears in a response or a log.** `provider.controller.spec.ts` calls
   every provider route with a known key while pino writes to a buffer, and checks both. On the
   stack, the demo keys appear nowhere in the web and worker logs.
-- **The draft pull request is open**,
-  [JohnFilhmar/tbn_game#4](https://github.com/JohnFilhmar/tbn_game/pull/4), with every CI gate. The
-  CI result is recorded below once the run finishes.
+- **CI is green on the draft pull request**,
+  [JohnFilhmar/tbn_game#4](https://github.com/JohnFilhmar/tbn_game/pull/4), with every gate.
+  - In [run 11](https://github.com/JohnFilhmar/tbn_game/actions/runs/36985331501), the image job
+    pushed `ghcr.io/johnfilhmar/tbn_game/backend@sha256:20742762480fd006606dd9d497d99cc4af909636a30864e4099320fcab8c1878`,
+    signed it with cosign under the pull request identity and attested its SBOM.
+  - Two earlier runs failed on this branch and were fixed in the same pull request: the port check
+    needed a placeholder `SECRETS_ENCRYPTION_KEY` to render the production compose file, and
+    Semgrep asked for an explicit GCM tag length.
 
 ## Demo
 
@@ -139,7 +144,9 @@ sends the agent a message that it reads at its next turn, or that starts a run w
 | Worker container killed with SIGKILL mid-call, both tasks finish after restart | yes | no |
 | Demo keys absent from web and worker logs | yes | no |
 | shellcheck on the demo script | no, not installed here | yes |
-| Trivy, gitleaks, Semgrep, actionlint, `npm audit`, image push and signature | no | yes |
+| Trivy on the image and the Dockerfile, gitleaks, `npm audit` | yes | yes |
+| Semgrep | public rules repository; semgrep.dev is blocked from this session | registry rules |
+| actionlint, image push, cosign signature, SBOM attestation | actionlint only | yes, pull request identity |
 | Demo against real Anthropic and OpenAI endpoints | no, no keys here | no |
 
 ## Open questions and notes
