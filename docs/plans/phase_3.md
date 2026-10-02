@@ -36,7 +36,7 @@ prints the steps; the owner then does the same in the browser with a real key.
 
 ```
 client/
-  index.html, vite.config.ts, vitest.config.ts, tsconfig.json
+  index.html, vite.config.ts (Vite and Vitest), playwright.config.ts, tsconfig.json
   src/
     main.tsx            mounts the app
     app/                router, layout of the desktop, the screen list
@@ -128,15 +128,14 @@ both themes.
 
 ### Backend changes
 
-- **Agent attachments.** `GET /agents/:id/integrations` and `GET /agents/:id/plugins` list what an
-  agent has attached, and the attachment tables get the event trigger under a new entity,
-  `agent_tools`, whose view is `{ agent_id, integration_ids, plugin_ids }`. Phase 2 left these for
-  this phase.
+- **Agent attachments.** `GET /agents/:id/attachments` returns what an agent has attached, and the
+  attachment tables get the event trigger under a new entity, `agent_attachments`, whose view is
+  the same `{ agent_id, integration_ids, plugin_ids }`. Phase 2 left these for this phase.
 - **Static client.** `CLIENT_DIR`, the routes above, and a CSP that the built client runs under.
 - **Metrics for the dashboards.** The worker refreshes gauges every 30 seconds: queue depth by
   queue and state, runs by status, spend and tokens by provider, cache hits and misses by cache,
   and the workspace volume's use. Proxy refusals already count in `tbn_egress_requests_total`.
-- **Backup notice.** `dist/admin.js notify backup_failed <reason>` records a `backup_failed`
+- **Backup notice.** `dist/admin.js backup_failed <reason>` records a `backup_failed`
   notification for the owner, which the worker delivers through the owner's channels, so alerts go
   through the notification channels only.
 
@@ -191,15 +190,14 @@ None new. The migration adds the event trigger to `integration_attachments` and
 
 ### Schemas in `@tbn/contracts`
 
-- `AgentToolsSchema` `{ agent_id, integration_ids, plugin_ids }`, and `agent_tools` in
-  `EventEntitySchema` and `ChangeEventSchema`.
+- `AgentAttachmentsSchema` `{ agent_id, integration_ids, plugin_ids }`, and `agent_attachments`
+  in `EventEntitySchema` and `ChangeEventSchema`.
 
 ### Routes
 
 | Route | Change |
 | --- | --- |
-| `GET /agents/:id/integrations` | new: the integrations attached to the agent |
-| `GET /agents/:id/plugins` | new: the plugins attached to the agent |
+| `GET /agents/:id/attachments` | new: the integrations and plugins attached to the agent |
 | `GET /`, `GET /app/*` | new: the client, when `CLIENT_DIR` is set |
 
 ### Environment
@@ -212,7 +210,7 @@ None new. The migration adds the event trigger to `integration_attachments` and
 
 - Backend, Jest:
   - the attachment routes: auth, the happy path, an unknown agent;
-  - the `agent_tools` event on attach and detach, and the trigger catalogue;
+  - the `agent_attachments` event on attach and detach, and the trigger catalogue;
   - static serving: the page at `/app/` and at a deep link, immutable assets, the API untouched,
     nothing served without `CLIENT_DIR`;
   - the dashboard gauges after work happened;

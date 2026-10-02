@@ -20,17 +20,38 @@ function upsertEntry(entries: TranscriptEntry[], entry: TranscriptEntry): Transc
   return upsertRow(entries, entry).sort((left, right) => left.seq - right.seq);
 }
 
-/** Writes a row into a loaded list, or removes it; a list not loaded yet is left to its fetch. */
+/**
+ * Updates loaded data in place. Data nobody loaded is left to its first fetch; data still loading
+ * loads again, as the answer in flight may have been read before this change.
+ */
+function writeLoaded<Data>(
+  client: QueryClient,
+  key: readonly unknown[],
+  update: (data: Data) => Data,
+): void {
+  const state = client.getQueryState<Data>(key);
+  if (state === undefined) return;
+  if (state.data === undefined) {
+    if (state.fetchStatus === 'fetching') {
+      // A first load is shared, not restarted, by a refetch; cancel it, then load again.
+      const filters = { queryKey: key, exact: true };
+      void client.cancelQueries(filters).then(() => client.refetchQueries(filters));
+    }
+    return;
+  }
+  client.setQueryData<Data>(key, (data) => (data === undefined ? data : update(data)));
+}
+
+/** Writes a row into a loaded list, or removes it. */
 function writeList<Row extends { id: string }>(
   client: QueryClient,
   key: readonly unknown[],
   id: string,
   row: Row | null,
 ): void {
-  client.setQueryData<Row[]>(key, (rows) => {
-    if (rows === undefined) return rows;
-    return row === null ? removeRow(rows, id) : upsertRow(rows, row);
-  });
+  writeLoaded<Row[]>(client, key, (rows) =>
+    row === null ? removeRow(rows, id) : upsertRow(rows, row),
+  );
 }
 
 function removeEverywhere(client: QueryClient, prefix: readonly unknown[], id: string): void {
@@ -45,7 +66,7 @@ function removeEverywhere(client: QueryClient, prefix: readonly unknown[], id: s
  * Writes one change straight into the query cache: a collection gets the row replaced, added or
  * removed; a transcript entry joins its agent's transcript in `seq` order; a provider's cap
  * windows, an agent's attachments and the preferences are replaced whole. Data no screen has
- * loaded yet is left alone, so its first fetch reads it fresh.
+ * loaded yet is left alone, so its first fetch reads it fresh, and data still loading loads again.
  */
 export function applyChange(client: QueryClient, event: ChangeEvent): void {
   switch (event.entity) {
@@ -55,8 +76,8 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
         return;
       }
       const entry = event.data;
-      client.setQueryData<TranscriptEntry[]>(queryKeys.transcript(entry.agent_id), (entries) =>
-        entries === undefined ? entries : upsertEntry(entries, entry),
+      writeLoaded<TranscriptEntry[]>(client, queryKeys.transcript(entry.agent_id), (entries) =>
+        upsertEntry(entries, entry),
       );
       return;
     }

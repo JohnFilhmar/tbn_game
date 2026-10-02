@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { usePreferences } from '@/lib/data/hooks';
+import { usePreferences } from '@/lib/data/queries';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 

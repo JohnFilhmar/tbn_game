@@ -62,6 +62,19 @@ describe('the realtime gateway', () => {
     await expect(client(owner.token).connect()).rejects.toThrow('unauthorized');
   });
 
+  it('lets a page on its own origin or the CORS list open the socket, and no other site', async () => {
+    const host = new URL(url).host;
+    const handshake = (origin: string | undefined) => {
+      const call = request(url).get('/socket.io/?EIO=4&transport=polling').set('Host', host);
+      return origin === undefined ? call : call.set('Origin', origin);
+    };
+    expect((await handshake(undefined)).status).toBe(200);
+    expect((await handshake(url)).status).toBe(200);
+    expect((await handshake(`https://${host}`)).status).toBe(200);
+    expect((await handshake('https://evil.example')).status).toBe(403);
+    expect((await handshake('not a url')).status).toBe(403);
+  });
+
   it('without a cursor says hello with the head and sends only what follows', async () => {
     const owner = await create_test_owner(app);
     await rule(owner, 'Before');
