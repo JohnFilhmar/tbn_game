@@ -89,7 +89,13 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/naming-convention': [
         'error',
-        { selector: 'variable', format: ['PascalCase'], suffix: ['Schema'] },
+        { selector: 'variable', format: ['snake_case', 'UPPER_CASE'] },
+        {
+          selector: 'variable',
+          filter: { regex: 'Schema$', match: true },
+          format: ['PascalCase'],
+        },
+        { selector: 'function', format: ['snake_case'] },
         { selector: 'typeLike', format: ['PascalCase'] },
       ],
     },
