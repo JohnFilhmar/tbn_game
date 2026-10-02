@@ -20,14 +20,14 @@ The system is online only. It runs as one monolith on one private server that on
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
 workload the owner gives the agents.
 
-## Current state (phase 1c)
+## Current state (phase 2)
 
 ```mermaid
 flowchart LR
-  owner["Owner: curl today, the browser from phase 3"] -->|"HTTPS inside the tailnet"| serve["tailscale serve on the host"]
+  owner["Owner: curl and the scripted client today, the browser from phase 3"] -->|"HTTPS and WebSocket inside the tailnet"| serve["tailscale serve on the host"]
   serve -->|"127.0.0.1:3000"| web
   subgraph backend_network["backend network"]
-    web["web: auth, providers, search providers, agents, tasks, repositories, merge requests, approvals, integrations, plugins, knowledge, transcripts, reports"]
+    web["web: REST routes, GET /events, the Socket.IO gateway, idempotent commands"]
     worker["worker: run loop, tools, caches, git jobs, notifications, sweep"]
     sandbox["sandbox launcher: the docker socket, one container per job"]
     postgres[("PostgreSQL 18: rows, transcripts, caches, pg-boss queue")]
@@ -38,7 +38,8 @@ flowchart LR
     egress_proxy["egress_proxy: public addresses on 80 and 443 only"]
   end
   web -->|"rows, agent_wake, sandbox_job and notify jobs"| postgres
-  worker -->|"rows, leases, checkpoints, delayed wakes"| postgres
+  postgres -.->|"LISTEN tbn_changes and tbn_stream"| web
+  worker -->|"rows, leases, checkpoints, delayed wakes, streamed output"| postgres
   sandbox -->|"sandbox_job rows and queue"| postgres
   sandbox -.->|"creates and removes"| jobs
   worker -->|"model calls through the adapters"| llm["LLM providers"]
@@ -50,11 +51,13 @@ flowchart LR
   jobs -->|"/work and /files by subpath"| workspace
 ```
 
-The company works over REST. The owner logs in, adds providers, search providers, repositories,
-integrations and plugins, recruits level 1 agents, assigns goals, decides the approval inbox, merges
-merge requests and downloads reports. A manager researches on the web, runs a team of interns that
-build and test code in the sandbox on feature branches, reviews and merges their work, and asks the
-owner to merge its branch into `development`.
+The company works over REST, and every change reaches the owner live. The owner logs in, adds
+providers, search providers, repositories, integrations and plugins, recruits level 1 agents,
+assigns goals, chats with any agent, decides the approval inbox, merges merge requests and downloads
+reports. A manager researches on the web, runs a team of interns that build and test code in the
+sandbox on feature branches, reviews and merges their work, and asks the owner to merge its branch
+into `development`. A client follows all of it over Socket.IO from its last sequence, with the model
+output as it is generated.
 
 - **Identity.** One owner account created with `dist/admin.js owner_create`, which also seeds the
   stack's SearXNG as a search provider; argon2id hashes, session tokens stored as hashes, a global
@@ -122,8 +125,30 @@ owner to merge its branch into `development`.
 - **Sweep.** Every `RUN_LEASE_SECONDS / 2` the worker re-wakes orphaned and resumable runs,
   returns unblocked tasks to the queue, wakes managers with undelivered results, terminates idle
   interns, and checks the workspace volume against the disk alert.
-- **Not yet.** The event log, idempotent commands and Socket.IO are phase 2, with Prometheus,
-  Grafana and backups. The clients start in phase 3.
+- **Event log.** A deferred constraint trigger on each of the 25 tables behind the API appends an
+  event when its transaction commits: the owner's next sequence from the `event_heads` row, the
+  entity, its id, the operation and the changed fields, then `NOTIFY tbn_changes` with the owner's
+  id. Columns nobody shows, such as lease timestamps, change nothing; a child row, such as a cap
+  window or a skill attachment, is an update of its parent. Because the head row is locked last in
+  every transaction, sequences become visible in order and without gaps.
+- **Realtime.** The web process listens on its own connection and serves Socket.IO at
+  `/socket.io`. A client authenticates with its session token and sends its cursor; it gets
+  `hello`, then every event after the cursor in order as `changes`, each with the entity's current
+  view, the same one its route returns. A cursor older than the log or ahead of its head gets
+  `resync_required`. `GET /events` reads the same log over HTTP. A socket is closed when its session
+  ends.
+- **Streamed output.** Both adapters stream. The worker publishes each agent call's text on
+  `tbn_stream`, gathered for 100 ms or 1,000 bytes, with a call id, the attempt and the transcript
+  entry the reply will follow; the gateway forwards it to the owner's sockets as `stream`. Chunks
+  are never stored: the finished reply arrives as a transcript entry event.
+- **Idempotent commands.** Every authenticated `POST`, `PUT`, `PATCH` and `DELETE` takes an
+  `Idempotency-Key`. The first request claims the key and runs; a repeat replays the stored answer
+  with `Idempotent-Replayed: true`, a different request under the key gets 422, a repeat while it
+  runs gets 409, and a 5xx frees the key.
+- **Retention.** Once the owner sets `EVENT_RETENTION_DAYS` or `COMMAND_RETENTION_HOURS`, the
+  worker prunes older events or commands once an hour. Both default to 0, which keeps everything.
+- **Not yet.** The first production deploy, Prometheus, Grafana and the backups come with the
+  deploy in phase 3 or 4. The clients start in phase 3.
 
 ## Backend
 
@@ -163,8 +188,14 @@ One process and one database are assumed in these places. Each carries a comment
 
 - One PostgreSQL server holds all state. Each web and worker process opens up to
   `DATABASE_POOL_MAX` connections, so processes times pool size must stay below `max_connections`.
-- From phase 2, `LISTEN` and `NOTIFY` carry events from the worker to the web process, which
-  assumes one database and a small number of web processes.
+- `LISTEN` and `NOTIFY` carry changes and streamed output to the web process, which assumes one
+  database. Every web process holds one listening connection beyond its pool.
+- Each owner's `event_heads` row is locked by every transaction that changes that owner's state,
+  from the trigger at commit to the end of the commit, so an owner's writes commit one at a time
+  there. The lock is held only for the commit itself.
+- Every socket reads the log on its own after a notification, so each change costs one read per
+  connected socket of its owner.
+- A notification carries at most 8,000 bytes, so a stream chunk carries at most 1,000 bytes of text.
 - A provider's parallel request limit is held in the worker process, so with several worker
   processes it holds per process.
 - Every worker process sweeps every owner. Sweeps overlap safely because each step is idempotent.
@@ -178,14 +209,20 @@ One process and one database are assumed in these places. Each carries a comment
 ## Events and realtime
 
 - Every state change the client cares about is appended to an event log table in the same
-  transaction as the change, with a sequence number that only increases.
+  transaction as the change, with a sequence number that only increases. A trigger writes it, so a
+  new table the client shows needs its trigger in the migration that creates it.
+- An event names the change and carries the entity's view as it is when the event is sent, so a
+  replayed event shows the latest state. Events are kept until the owner sets
+  `EVENT_RETENTION_DAYS`; then a client with an older cursor reloads its state over HTTP.
 - The gateway pushes events over Socket.IO. On connect or reconnect, a client sends its last
   sequence number and receives everything after it. Model output streams to the agent chat as
   transient events that are not replayed.
 - The client applies an event by writing into the TanStack Query cache directly. No polling, and no
   broad cache invalidation in response to an event.
-- Every command accepts a client-generated id and is idempotent on it, so a retry after a dropped
-  connection cannot recruit or assign twice.
+- Every command accepts a client-generated id in the `Idempotency-Key` header and is idempotent on
+  it, so a retry after a dropped connection cannot recruit or assign twice. A command runs at most
+  once: if the process dies between claiming the key and storing the answer, the key answers 409
+  and the log shows what happened.
 
 ## Twelve-factor rules
 
@@ -623,3 +660,23 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | A notification with no channel is logged and goes nowhere | The log shows what happened even before a channel exists. |
 | Plugin tool lists are cached for a minute per worker | Listing on every turn would call every plugin twice per model call; a minute keeps a new tool from waiting long. |
 | `report_finished` fires for tasks the owner assigned | An intern's report goes to its manager; the owner reads the manager's. |
+
+## Decisions made in phase 2
+
+| Decision | Why |
+| --- | --- |
+| The event log is written by deferred constraint triggers | Every write path is covered without a call in each service, and the event commits with its change. Deferring to commit keeps a transaction's events together and the head lock short. |
+| One head row per owner, locked last | Sequences become visible in commit order with no gap a reader could skip, without serialising the owners against each other. |
+| Events carry the view at send time, not a copy of the row | One schema per entity, the same as its route; a replayed event shows the latest state and the client's cache ends the same. |
+| Columns nobody shows are ignored by the trigger | Leases, heartbeats and idle timestamps change every few seconds and would flood the log. |
+| `LISTEN` on a dedicated connection in the web process | The pool's connections are shared and recycled; a listener needs one connection that stays open and reconnects with backoff. |
+| Each socket reads the log after a notification | The notification carries only the owner, so a lost one costs nothing: the next read catches up from the socket's cursor. |
+| Stream chunks go over `NOTIFY`, at most 1,000 bytes each | No new backing service; the cap keeps a worst-case escaped chunk inside the 8,000 byte limit. |
+| A model call's stream has its own id | A run that resumes after a failed call starts after the same transcript entry; the call id keeps the two apart. |
+| The stream closes before the reply is stored | A client sees the last chunk before the transcript entry, so it can swap one for the other. |
+| Command ids are optional and per owner | Scripts and `curl` keep working; the phase 3 client sends one with every command. |
+| At most once over exactly once | The key and the command commit separately; a crash between them leaves 409 rather than a second recruit. |
+| A 4xx answer is stored, a 5xx frees the key | A rejected command fails the same way on retry; a server failure may pass the next time. |
+| Nothing is pruned unless the owner sets a limit | The brief promises everything after a cursor and a command id that stays idempotent; the plan's 30 days and 24 hours wait for the owner's answer. |
+| Retention runs on the worker | The worker already owns periodic work; the web process stays request-driven. |
+| The deploy, Prometheus, Grafana and backups move to phase 3 or 4 | The owner's call: deploy once there is a UI to use. |

@@ -17,7 +17,7 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 1a | One agent, one task | Merged |
 | 1b | The team | Merged |
 | 1c | The outside world | Merged |
-| 2 | Realtime | In progress |
+| 2 | Realtime | In review |
 | 3 | Web app without 3D | Not started |
 | 4 | The 3D world | Not started |
 | 5 | Mobile | Not started |
@@ -135,7 +135,7 @@ running agent.
 
 The owner moved the first production deploy to phase 3 or 4, once there is a working UI, and the
 two items below go with it. Until then phase 2 shows the chat against the development stack on the
-owner's machine.
+owner's machine, with `scripts/demo_phase_2.sh`.
 
 Also proposed for this phase, because no phase names them and they belong with the first
 production deploy:
