@@ -2,6 +2,7 @@ export * from './approvals';
 export * from './caps';
 export * from './common';
 export * from './company';
+export * from './events';
 export * from './git';
 export * from './health';
 export * from './identity';

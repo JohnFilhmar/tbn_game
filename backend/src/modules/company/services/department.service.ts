@@ -27,6 +27,11 @@ export class DepartmentService {
     return (await this.departments.list(owner_id)).map(to_department_view);
   }
 
+  /** @throws NotFoundException when the department is missing. */
+  async get(owner_id: string, id: string): Promise<Department> {
+    return to_department_view(await this.require(owner_id, id));
+  }
+
   /**
    * The department row, for the runtime.
    *

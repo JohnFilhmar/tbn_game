@@ -25,7 +25,7 @@ describe('GET /health on the web process', () => {
       expect(HealthResponseSchema.parse(response.body)).toMatchObject({
         status: 'ok',
         process_type: 'web',
-        checks: { database: 'ok' },
+        checks: { database: 'ok', event_listener: 'ok' },
       });
       expect(response.headers['cache-control']).toBe('no-store');
     });
@@ -51,7 +51,7 @@ describe('GET /health on the web process', () => {
 
       expect(HealthResponseSchema.parse(response.body)).toMatchObject({
         status: 'unavailable',
-        checks: { database: 'unavailable' },
+        checks: { database: 'unavailable', event_listener: 'unavailable' },
       });
     });
   });

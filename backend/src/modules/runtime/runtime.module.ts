@@ -162,6 +162,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     SandboxJobService,
     RunSourceService,
     ApprovalService,
+    CapWindowService,
   ],
 })
 export class RuntimeModule {}

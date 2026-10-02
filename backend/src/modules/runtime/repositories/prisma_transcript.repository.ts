@@ -73,6 +73,13 @@ export class PrismaTranscriptRepository implements TranscriptRepository {
     });
   }
 
+  list_by_ids(owner_id: string, ids: string[]): Promise<TranscriptEntryRecord[]> {
+    return this.prisma.transcriptEntry.findMany({
+      where: { owner_id, id: { in: ids } },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
   async has_unread(owner_id: string, agent_id: string): Promise<boolean> {
     const last_answer = await this.prisma.transcriptEntry.findFirst({
       where: { owner_id, agent_id, kind: 'assistant' },

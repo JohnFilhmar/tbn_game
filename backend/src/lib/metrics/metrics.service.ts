@@ -39,6 +39,22 @@ export class MetricsService {
     });
   }
 
+  /**
+   * Registers a gauge of this process.
+   *
+   * @param name - The series name, prefixed `tbn_`.
+   * @param help - What it measures.
+   * @param label_names - The labels every value carries.
+   */
+  gauge<Label extends string>(name: string, help: string, label_names: Label[]): Gauge<Label> {
+    return new Gauge<Label>({
+      name,
+      help,
+      labelNames: label_names,
+      registers: [this.registry],
+    });
+  }
+
   /** Content type of the Prometheus text exposition format. */
   get content_type(): string {
     return this.registry.contentType;

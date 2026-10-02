@@ -154,6 +154,13 @@ export class GitRecordsService {
     return this.reviews.list(owner_id, query);
   }
 
+  /** @throws NotFoundException when the review is missing. */
+  async require_review(owner_id: string, id: string): Promise<BranchReviewRecord> {
+    const record = await this.reviews.find(owner_id, id);
+    if (record === null) throw new NotFoundException('Review not found');
+    return record;
+  }
+
   latest_review(
     owner_id: string,
     repository_id: string,

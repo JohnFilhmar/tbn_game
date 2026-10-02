@@ -56,6 +56,11 @@ describe('PrismaTranscriptRepository messages and results', () => {
     });
     expect([first.seq, other_key.seq, plain.seq]).toEqual([1, 2, 3]);
     expect(await transcripts.list_all(owner.owner_id, agent_id)).toHaveLength(3);
+
+    const picked = await transcripts.list_by_ids(owner.owner_id, [plain.id, first.id]);
+    expect(picked.map((entry) => entry.id)).toEqual([first.id, plain.id]);
+    expect(await transcripts.list_by_ids(other.owner_id, [plain.id, first.id])).toEqual([]);
+    expect(await transcripts.list_by_ids(owner.owner_id, [])).toEqual([]);
   });
 
   it('reports an owner message, an agent message or a subtask result after the last answer as unread', async () => {

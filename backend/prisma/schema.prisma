@@ -241,6 +241,21 @@ enum ReviewVerdict {
   @@map("review_verdict")
 }
 
+enum EventOp {
+  insert
+  update
+  delete
+
+  @@map("event_op")
+}
+
+enum CommandStatus {
+  running
+  done
+
+  @@map("command_status")
+}
+
 /// A process that is or was running, for restart detection. Not owner scoped: one stack, one host.
 model ProcessInstance {
   id           String      @id @default(uuid(7))
@@ -291,6 +306,7 @@ model Owner {
   repositories            Repository[]
   merge_requests          MergeRequest[]
   branch_reviews          BranchReview[]
+  commands                Command[]
 
   @@map("owners")
 }
@@ -967,4 +983,48 @@ model BranchReview {
 
   @@index([owner_id, repository_id, branch, created_at])
   @@map("branch_reviews")
+}
+
+/// The owner's event log. Only the `tbn_record_event` trigger writes it, at commit and in commit
+/// order; the migration that creates the trigger says how. No foreign key to the owner, because
+/// the trigger also records the deletes of an owner's rows.
+model Event {
+  owner_id   String
+  seq        BigInt
+  entity     String
+  entity_id  String
+  op         EventOp
+  /// The columns an update changed, as a JSON array, or null for an insert, a delete or a part.
+  changed    Json?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([owner_id, seq])
+  @@index([created_at])
+  @@map("events")
+}
+
+/// The last sequence number given out per owner. Its row lock orders the commits of one owner.
+model EventHead {
+  owner_id String @id
+  last_seq BigInt
+
+  @@map("event_heads")
+}
+
+/// A command the owner sent with an `Idempotency-Key`, and the answer it got.
+model Command {
+  owner_id        String
+  key             String
+  request_hash    String
+  status          CommandStatus @default(running)
+  response_status Int?
+  response_body   Json?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  finished_at     DateTime?     @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@id([owner_id, key])
+  @@index([created_at])
+  @@map("commands")
 }

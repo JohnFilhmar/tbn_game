@@ -76,6 +76,8 @@ describe('repositories, merge requests and branch reviews', () => {
       (await reviews.list(owner.owner_id, { branch: 'alice/thing-abc123' })).map((row) => row.id),
     ).toEqual([later.id, review.id]);
     expect(await reviews.list(other.owner_id, {})).toEqual([]);
+    expect((await reviews.find(owner.owner_id, review.id))?.findings).toBe('Fine.');
+    expect(await reviews.find(other.owner_id, review.id)).toBeNull();
 
     const request = await merge_requests.create(owner.owner_id, {
       repository_id: repository.id,
