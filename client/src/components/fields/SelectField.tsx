@@ -11,6 +11,7 @@ export interface SelectOption {
 /** Props of `SelectField`. */
 export interface SelectFieldProps {
   label: string;
+  labelSuffix?: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly SelectOption[];
@@ -27,6 +28,7 @@ export interface SelectFieldProps {
 /** A labelled select. */
 export function SelectField({
   label,
+  labelSuffix,
   value,
   onChange,
   options,
@@ -39,7 +41,14 @@ export function SelectField({
   className,
 }: SelectFieldProps) {
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      labelSuffix={labelSuffix}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      className={className}
+    >
       {({ id, describedBy, invalid }) => (
         <select
           id={id}

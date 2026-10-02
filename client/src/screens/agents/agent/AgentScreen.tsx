@@ -55,9 +55,16 @@ export function AgentScreen() {
             <StatusBadge status={agent.status} />
           </span>
         }
-        description={`${agent.level === 1 ? 'Manager' : 'Intern'} · ${agent.role}${
-          department === undefined ? '' : ` · ${department.name}`
-        } · ${agent.primary_model}`}
+        description={[
+          agent.level === 1 ? 'Manager' : 'Intern',
+          agent.role,
+          department !== undefined && department.name !== agent.role
+            ? `in ${department.name}`
+            : null,
+          agent.primary_model,
+        ]
+          .filter((part) => part !== null)
+          .join(' · ')}
         actions={
           isLive && (
             <Button variant="danger" onClick={() => setIsConfirming(true)}>

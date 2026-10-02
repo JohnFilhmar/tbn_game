@@ -41,7 +41,7 @@ export function ToolPolicyEditor({ rows, onChange, errors }: ToolPolicyEditorPro
         ))}
       </datalist>
       {rows.map((row, index) => (
-        <div key={index} className="flex flex-wrap items-end gap-2">
+        <div key={index} className="flex flex-wrap items-start gap-2">
           <TextField
             label={`Tool ${index + 1}`}
             className="min-w-48 flex-1"
@@ -62,6 +62,7 @@ export function ToolPolicyEditor({ rows, onChange, errors }: ToolPolicyEditorPro
           <Button
             variant="ghost"
             size="sm"
+            className="mt-7"
             onClick={() => onChange(rows.filter((_, at) => at !== index))}
           >
             Remove<span className="sr-only"> {row.tool || `tool ${index + 1}`}</span>

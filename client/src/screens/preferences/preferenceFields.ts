@@ -3,7 +3,11 @@ import type { PreferenceKey } from '@tbn/contracts';
 /** How a preference is edited. */
 export type PreferenceKind =
   | { type: 'choice'; options: ReadonlyArray<{ value: string; label: string }> }
-  | { type: 'number'; isOptional: boolean; unit: string }
+  | {
+      type: 'number';
+      isOptional: boolean;
+      /** Shown after the label; empty when the label says it. */ unit: string;
+    }
   | { type: 'text' };
 
 /** One preference as the screen shows it. */
@@ -65,13 +69,13 @@ export const PREFERENCE_GROUPS: readonly PreferenceGroup[] = [
         key: 'max_live_agents',
         label: 'Most live agents',
         hint: 'Empty for no limit.',
-        kind: { type: 'number', isOptional: true, unit: 'agents' },
+        kind: { type: 'number', isOptional: true, unit: '' },
       },
       {
         key: 'max_interns_per_manager',
         label: 'Most interns per manager',
         hint: 'Empty for no limit.',
-        kind: { type: 'number', isOptional: true, unit: 'interns' },
+        kind: { type: 'number', isOptional: true, unit: '' },
       },
       {
         key: 'intern_idle_ttl_minutes',
@@ -117,7 +121,7 @@ export const PREFERENCE_GROUPS: readonly PreferenceGroup[] = [
         key: 'sandbox_cpus',
         label: 'CPUs',
         hint: 'Per container, capped by the server.',
-        kind: { type: 'number', isOptional: false, unit: 'CPUs' },
+        kind: { type: 'number', isOptional: false, unit: '' },
       },
       {
         key: 'sandbox_memory_mb',

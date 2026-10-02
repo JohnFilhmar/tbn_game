@@ -69,7 +69,7 @@ export function PreferenceRow({
   }
   return (
     <form
-      className="flex items-end gap-2"
+      className="flex items-start gap-2"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
@@ -77,7 +77,11 @@ export function PreferenceRow({
       }}
     >
       <TextField
-        label={kind.type === 'number' ? `${field.label} (${kind.unit})` : field.label}
+        label={
+          kind.type === 'number' && kind.unit.length > 0
+            ? `${field.label} (${kind.unit})`
+            : field.label
+        }
         hint={field.hint}
         className="flex-1"
         inputMode={kind.type === 'number' ? 'decimal' : 'text'}
@@ -85,7 +89,7 @@ export function PreferenceRow({
         onChange={setText}
         error={error}
       />
-      <Button type="submit" size="sm" isBusy={isSaving} disabled={text === saved}>
+      <Button type="submit" size="sm" className="mt-7" isBusy={isSaving} disabled={text === saved}>
         Save<span className="sr-only"> {field.label}</span>
       </Button>
     </form>

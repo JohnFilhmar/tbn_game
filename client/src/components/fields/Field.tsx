@@ -11,6 +11,8 @@ export interface FieldControl {
 /** Props of `Field`. */
 export interface FieldProps {
   label: string;
+  /** Words added to the label for screen readers only, such as the row a field belongs to. */
+  labelSuffix?: string;
   hint?: ReactNode;
   error?: string | undefined;
   /** Hides the label visually and keeps it for screen readers. */
@@ -28,7 +30,15 @@ export function inputClasses(invalid: boolean): string {
 }
 
 /** A labelled control with its hint and its error, tied together for assistive technology. */
-export function Field({ label, hint, error, hideLabel = false, className, children }: FieldProps) {
+export function Field({
+  label,
+  labelSuffix,
+  hint,
+  error,
+  hideLabel = false,
+  className,
+  children,
+}: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -46,6 +56,7 @@ export function Field({ label, hint, error, hideLabel = false, className, childr
         )}
       >
         {label}
+        {labelSuffix !== undefined && <span className="sr-only"> {labelSuffix}</span>}
       </label>
       {children({ id, describedBy, invalid: error !== undefined })}
       {hint !== undefined && (

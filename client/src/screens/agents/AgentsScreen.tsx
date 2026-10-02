@@ -65,7 +65,7 @@ function DepartmentRoster(props: {
     (left, right) => left.level - right.level || left.name.localeCompare(right.name),
   );
   return (
-    <Panel title={department.name} description={`${agents.length} shown`}>
+    <Panel title={department.name}>
       <ul className="divide-y divide-slate-200 dark:divide-slate-800">
         {sorted.map((agent) => (
           <AgentRow key={agent.id} agent={agent} tasks={tasks} />

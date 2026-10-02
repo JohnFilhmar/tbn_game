@@ -45,7 +45,8 @@ export function ModelsEditor({ models, onChange, errors }: ModelsEditorProps) {
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <TextField
-                label={`Model id ${index + 1}`}
+                label="Model id"
+                labelSuffix={String(index + 1)}
                 className="md:col-span-2"
                 placeholder="claude-sonnet-5-5"
                 value={model.model_id}
@@ -53,7 +54,8 @@ export function ModelsEditor({ models, onChange, errors }: ModelsEditorProps) {
                 error={at('model_id')}
               />
               <SelectField
-                label={`Cost tier of ${name}`}
+                label="Cost tier"
+                labelSuffix={`of ${name}`}
                 value={model.cost_tier}
                 options={TIER_OPTIONS}
                 onChange={(value) => update(index, 'cost_tier', value)}
@@ -64,7 +66,8 @@ export function ModelsEditor({ models, onChange, errors }: ModelsEditorProps) {
               {PRICES.map((price) => (
                 <TextField
                   key={price.key}
-                  label={`${price.label} of ${name}`}
+                  label={price.label}
+                  labelSuffix={`of ${name}`}
                   inputMode="decimal"
                   value={model[price.key]}
                   onChange={(value) => update(index, price.key, value)}
@@ -72,7 +75,8 @@ export function ModelsEditor({ models, onChange, errors }: ModelsEditorProps) {
                 />
               ))}
               <TextField
-                label={`Max output tokens of ${name}`}
+                label="Max output tokens"
+                labelSuffix={`of ${name}`}
                 inputMode="numeric"
                 placeholder="8192"
                 value={model.max_output_tokens}
@@ -80,7 +84,8 @@ export function ModelsEditor({ models, onChange, errors }: ModelsEditorProps) {
                 error={at('max_output_tokens')}
               />
               <TextField
-                label={`Context window of ${name}`}
+                label="Context window"
+                labelSuffix={`of ${name}`}
                 inputMode="numeric"
                 placeholder="128000"
                 value={model.context_window_tokens}

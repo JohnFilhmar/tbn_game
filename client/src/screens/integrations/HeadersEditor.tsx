@@ -17,7 +17,7 @@ export function HeadersEditor({ rows, onChange, error }: HeadersEditorProps) {
     <fieldset className="flex flex-col gap-3">
       <legend className="text-sm font-medium text-slate-800 dark:text-slate-200">Headers</legend>
       {rows.map((row, index) => (
-        <div key={index} className="flex flex-wrap items-end gap-2">
+        <div key={index} className="flex flex-wrap items-start gap-2">
           <TextField
             label={`Header ${index + 1} name`}
             className="min-w-40 flex-1"
@@ -33,6 +33,7 @@ export function HeadersEditor({ rows, onChange, error }: HeadersEditorProps) {
           <Button
             size="sm"
             variant="ghost"
+            className="mt-7"
             onClick={() => onChange(rows.filter((_, at) => at !== index))}
           >
             Remove<span className="sr-only"> header {index + 1}</span>

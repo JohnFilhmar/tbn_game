@@ -3,6 +3,7 @@ import { Field, inputClasses } from './Field';
 
 interface Common {
   label: string;
+  labelSuffix?: string;
   value: string;
   onChange: (value: string) => void;
   hint?: ReactNode;
@@ -18,6 +19,7 @@ export type TextFieldProps = Common &
 /** A labelled one-line text input. */
 export function TextField({
   label,
+  labelSuffix,
   value,
   onChange,
   hint,
@@ -27,7 +29,14 @@ export function TextField({
   ...rest
 }: TextFieldProps) {
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      labelSuffix={labelSuffix}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      className={className}
+    >
       {({ id, describedBy, invalid }) => (
         <input
           id={id}
@@ -53,6 +62,7 @@ export type TextAreaFieldProps = Common &
 /** A labelled text area. */
 export function TextAreaField({
   label,
+  labelSuffix,
   value,
   onChange,
   hint,
@@ -64,7 +74,14 @@ export function TextAreaField({
   ...rest
 }: TextAreaFieldProps) {
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      labelSuffix={labelSuffix}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      className={className}
+    >
       {({ id, describedBy, invalid }) => (
         <textarea
           id={id}
