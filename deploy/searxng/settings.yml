@@ -1,0 +1,22 @@
+# SearXNG settings for the self-hosted backup search provider. The secret key comes from the
+# SEARXNG_SECRET environment variable. Only the worker reaches this instance.
+use_default_settings:
+  engines:
+    # Tor engines need a Tor proxy, which this stack does not run.
+    remove:
+      - ahmia
+      - torch
+
+general:
+  instance_name: tbn search
+
+server:
+  limiter: false
+  public_instance: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json

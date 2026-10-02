@@ -1,0 +1,196 @@
+# Development stack. One command brings it up healthy:
+#   docker compose -f docker-compose.development.yml up --build --wait
+# Same services, networks, healthchecks and limits as docker-compose.production.yml. The values in
+# this file are for development only. Every published port binds to 127.0.0.1 because Docker
+# bypasses host firewall rules for published ports.
+name: tbn_development
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  tmpfs:
+    - /tmp:size=64m
+
+# Web and worker share one image and one environment.
+x-backend: &backend
+  <<: *hardening
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: tbn/backend:development
+  init: true
+  restart: unless-stopped
+  logging: *logging
+  environment:
+    NODE_ENV: development
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    DATABASE_URL: postgresql://tbn:${POSTGRES_PASSWORD:-tbn_development_only}@postgres:5432/tbn
+    WEB_PORT: '3000'
+    WORKER_PORT: '3001'
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks: [backend]
+
+# Placeholder until phase 1c designs the sandbox and the egress proxy. It runs nothing, listens on
+# nothing and sits only on the internal sandbox network, so sandbox egress fails closed.
+x-placeholder: &placeholder
+  <<: *hardening
+  image: debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+  command: ['sleep', 'infinity']
+  user: '65534:65534'
+  init: true
+  restart: unless-stopped
+  logging: *logging
+  networks: [sandbox]
+  healthcheck:
+    # Healthy only while it runs as non-root, on a read-only root, with no capabilities.
+    test:
+      - CMD-SHELL
+      - >-
+        test "$$(id -u)" -ne 0
+        && awk '$$2 == "/" && $$4 ~ /^ro(,|$$)/ { found = 1 } END { exit !found }' /proc/mounts
+        && grep -Eq '^CapBnd:[[:space:]]+0+$$' /proc/self/status
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 5s
+    start_interval: 1s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.25'
+        memory: 64M
+        pids: 32
+
+services:
+  web:
+    <<: *backend
+    command: ['dist/web.js']
+    ports:
+      - '127.0.0.1:3000:3000'
+    healthcheck:
+      test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'web']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 256
+
+  worker:
+    <<: *backend
+    command: ['dist/worker.js']
+    ports:
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - workspace:/workspace
+    healthcheck:
+      test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'worker']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+          pids: 512
+
+  postgres:
+    image: postgres:18.6-trixie@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+    restart: unless-stopped
+    logging: *logging
+    security_opt: ['no-new-privileges:true']
+    environment:
+      POSTGRES_USER: tbn
+      POSTGRES_DB: tbn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tbn_development_only}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - '127.0.0.1:5432:5432'
+    shm_size: 128m
+    networks: [backend]
+    healthcheck:
+      test: ['CMD', 'pg_isready', '--username=tbn', '--dbname=tbn']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+      start_interval: 1s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  sandbox:
+    <<: *placeholder
+
+  egress_proxy:
+    <<: *placeholder
+
+  searxng:
+    <<: *hardening
+    image: searxng/searxng:2026.9.30-a9d990033@sha256:a07a5cd2da2c63d66e559f9e4d3a3db106cfc6c32fb0ac70abe91cc28bcd7350
+    user: '977:977'
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-searxng_development_only}
+      GRANIAN_HOST: 0.0.0.0
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_cache:/var/cache/searxng
+    networks: [backend]
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '-q',
+          '--spider',
+          '--header',
+          'X-Real-IP: 127.0.0.1',
+          'http://127.0.0.1:8080/healthz',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 256
+
+networks:
+  backend: {}
+  # No gateway: containers on it reach only each other, never the host, the app or the internet.
+  sandbox:
+    internal: true
+
+volumes:
+  postgres_data: {}
+  workspace: {}
+  searxng_cache: {}
