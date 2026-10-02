@@ -156,7 +156,11 @@ export class SandboxJobService {
       argv: request.argv,
       env: {
         ...this.base_env(),
-        ...(request.origin !== undefined && this.proxy_env(request.origin)),
+        ...(request.origin !== undefined
+          ? this.proxy_env({ run_id: request.origin.run_id, agent_id: request.origin.agent.id })
+          : request.network === 'proxy'
+            ? this.proxy_env({ run_id: 'owner', agent_id: request.owner_id })
+            : {}),
         ...request.env,
       },
       working_dir: '/tmp',
@@ -216,7 +220,7 @@ export class SandboxJobService {
   private agent_env(origin: JobOrigin): Record<string, string> {
     return {
       ...this.base_env(),
-      ...this.proxy_env(origin),
+      ...this.proxy_env({ run_id: origin.run_id, agent_id: origin.agent.id }),
       TBN_AGENT: origin.agent.name,
     };
   }
@@ -233,10 +237,10 @@ export class SandboxJobService {
   }
 
   /** The proxy with the run's identity, in every spelling the usual tools read. */
-  private proxy_env(origin: JobOrigin): Record<string, string> {
+  private proxy_env(identity: { run_id: string; agent_id: string }): Record<string, string> {
     const url = new URL(this.config.egress.url);
-    url.username = origin.run_id;
-    url.password = origin.agent.id;
+    url.username = identity.run_id;
+    url.password = identity.agent_id;
     const proxy = url.toString();
     return {
       HTTP_PROXY: proxy,

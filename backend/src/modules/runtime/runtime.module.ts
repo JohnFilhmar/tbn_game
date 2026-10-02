@@ -5,6 +5,11 @@ import { CompanyModule } from '@/modules/company/company.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
 import { CacheController } from './controllers/cache.controller';
 import { CapWindowController } from './controllers/cap_window.controller';
+import {
+  BranchReviewController,
+  MergeRequestController,
+  RepositoryController,
+} from './controllers/repository.controller';
 import { RunController } from './controllers/run.controller';
 import { SandboxJobController } from './controllers/sandbox_job.controller';
 import { TranscriptController } from './controllers/transcript.controller';
@@ -21,6 +26,9 @@ import { PrismaWebCacheRepository } from './repositories/prisma_web_cache.reposi
 import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
 import { CapWindowService } from './services/caps/cap_window.service';
+import { AgentBranchesService } from './services/git/agent_branches.service';
+import { GitJobService } from './services/git/git_job.service';
+import { GitRepositoryService } from './services/git/git_repository.service';
 import { PromptBuilderService } from './services/prompt_builder.service';
 import { CompactionService } from './services/run_loop/compaction.service';
 import { RunGateService } from './services/run_loop/run_gate.service';
@@ -42,6 +50,12 @@ import { DelegateTaskTool } from './tools/delegate_task.tool';
 import { FetchUrlTool } from './tools/fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './tools/file_tools';
 import { FinishTaskTool } from './tools/finish_task.tool';
+import { GitCheckoutTool } from './tools/git/git_checkout.tool';
+import { GitPublishTool } from './tools/git/git_publish.tool';
+import { GitDiffTool, GitLogTool, GitReadSupport } from './tools/git/git_read.tools';
+import { MergeFeatureBranchTool } from './tools/git/merge_feature_branch.tool';
+import { OpenMergeRequestTool } from './tools/git/open_merge_request.tool';
+import { ReviewBranchTool } from './tools/git/review_branch.tool';
 import { ListRosterTool } from './tools/list_roster.tool';
 import { LoadSkillTool } from './tools/load_skill.tool';
 import { RunCommandTool } from './tools/run_command.tool';
@@ -65,6 +79,9 @@ import { WebSearchTool } from './tools/web_search.tool';
     CapWindowController,
     SandboxJobController,
     CacheController,
+    RepositoryController,
+    MergeRequestController,
+    BranchReviewController,
   ],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
@@ -78,6 +95,9 @@ import { WebSearchTool } from './tools/web_search.tool';
     FetchUrlService,
     LibraryService,
     CacheStatsService,
+    GitJobService,
+    AgentBranchesService,
+    GitRepositoryService,
     ListFilesTool,
     ReadFileTool,
     WriteFileTool,
@@ -87,6 +107,14 @@ import { WebSearchTool } from './tools/web_search.tool';
     DelegateTaskTool,
     FinishTaskTool,
     RunCommandTool,
+    GitCheckoutTool,
+    GitPublishTool,
+    GitReadSupport,
+    GitDiffTool,
+    GitLogTool,
+    ReviewBranchTool,
+    MergeFeatureBranchTool,
+    OpenMergeRequestTool,
     SearchLibraryTool,
     WebSearchTool,
     FetchUrlTool,

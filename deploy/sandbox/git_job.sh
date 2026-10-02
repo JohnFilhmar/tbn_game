@@ -118,6 +118,9 @@ case "$operation" in
     git -C "$WORK" fetch --quiet --no-tags "$REPO" '+refs/heads/*:refs/remotes/canonical/*'
     if git -C "$WORK" rev-parse --verify --quiet "refs/heads/$1" >/dev/null; then
       git -C "$WORK" checkout --quiet "$1"
+      if git -C "$WORK" rev-parse --verify --quiet "refs/remotes/canonical/$1" >/dev/null; then
+        git -C "$WORK" merge --quiet --ff-only "refs/remotes/canonical/$1" >/dev/null 2>&1 || true
+      fi
     elif git -C "$WORK" rev-parse --verify --quiet "refs/remotes/canonical/$1" >/dev/null; then
       git -C "$WORK" checkout --quiet -b "$1" "refs/remotes/canonical/$1"
     else

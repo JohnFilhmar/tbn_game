@@ -74,6 +74,7 @@ export interface TaskWrite {
   assignee_agent_id: string;
   delegator_agent_id: string | null;
   repository_id?: string | null;
+  feature_branch?: string | null;
   parent_task_id: string | null;
 }
 
@@ -146,4 +147,7 @@ export interface DelegationWrite {
   assignee_agent_id: string;
   delegator_agent_id: string;
   parent_task_id: string | null;
+  /** The repository of the manager's task, when it has one, and the intern's branch in it. */
+  repository_id?: string | null;
+  feature_branch?: string | null;
 }

@@ -202,6 +202,13 @@ describe('run loop', () => {
       'delegate_task',
       'finish_task',
       'run_command',
+      'git_checkout',
+      'git_publish',
+      'git_diff',
+      'git_log',
+      'review_branch',
+      'merge_feature_branch',
+      'open_merge_request',
     ]);
   });
 

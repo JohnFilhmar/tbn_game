@@ -34,10 +34,10 @@ export function render_job(record: SandboxJobRecord): string {
       : null;
   const header =
     record.status === 'done' || record.status === 'failed'
-      ? `Exit code ${record.exit_code ?? 'unknown'}${seconds === null ? '' : ` after ${seconds} s`}`
+      ? `Exit code ${record.exit_code ?? 'unknown'}${seconds === null ? '' : ` after ${seconds} s`} (job ${record.id})`
       : record.status === 'timed_out'
-        ? `${record.error ?? 'Timed out'}. The command was killed.`
-        : `The command could not run: ${record.error ?? record.status}`;
+        ? `${record.error ?? 'Timed out'}. The command was killed. (job ${record.id})`
+        : `The command could not run: ${record.error ?? record.status} (job ${record.id})`;
   const parts = [header];
   if (record.stdout.length > 0) parts.push(`--- stdout ---\n${excerpt(record.stdout)}`);
   if (record.stderr.length > 0) parts.push(`--- stderr ---\n${excerpt(record.stderr)}`);

@@ -7,6 +7,7 @@ import {
 } from '@/modules/company/repositories/interface/task_repository.interface';
 import type { DelegationWrite, TaskRecord } from '@/modules/company/types/company_records';
 import { AgentService, is_live } from './agent.service';
+import { GitRecordsService } from './git_records.service';
 
 const CANCELLED_WITH_PARENT = 'Its parent task was cancelled';
 
@@ -42,6 +43,7 @@ export class TaskService {
     @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
     private readonly agents: AgentService,
     private readonly queue: QueueService,
+    private readonly git_records: GitRecordsService,
   ) {}
 
   async list(owner_id: string, query: TaskListQuery): Promise<Task[]> {
@@ -56,12 +58,16 @@ export class TaskService {
   async create(owner_id: string, input: CreateTask): Promise<Task> {
     const agent = await this.agents.require(owner_id, input.assignee_agent_id);
     if (!is_live(agent.status)) throw new ConflictException(`Agent is ${agent.status}`);
+    if (input.repository_id !== undefined && input.repository_id !== null) {
+      await this.git_records.require_repository(owner_id, input.repository_id);
+    }
     const record = await this.tasks.create(owner_id, {
       title: input.title,
       instructions: input.instructions,
       assignee_agent_id: agent.id,
       delegator_agent_id: null,
       parent_task_id: null,
+      repository_id: input.repository_id ?? null,
     });
     await this.queue.send_agent_wake({ owner_id, agent_id: agent.id });
     return to_task_view(record);
@@ -101,6 +107,11 @@ export class TaskService {
     }
     for (const agent_id of to_wake) await this.queue.send_agent_wake({ owner_id, agent_id });
     return to_task_view(record);
+  }
+
+  /** Every open task of the owner as rows, for the branch rules. */
+  list_open_records(owner_id: string): Promise<TaskRecord[]> {
+    return this.tasks.list_open(owner_id);
   }
 
   /** Moves a started task to `blocked` while its key cannot be used. Null when it is not open. */

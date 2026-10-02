@@ -6,6 +6,12 @@ import { DelegateTaskTool } from './delegate_task.tool';
 import { FetchUrlTool } from './fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './file_tools';
 import { FinishTaskTool } from './finish_task.tool';
+import { GitCheckoutTool } from './git/git_checkout.tool';
+import { GitPublishTool } from './git/git_publish.tool';
+import { GitDiffTool, GitLogTool } from './git/git_read.tools';
+import { MergeFeatureBranchTool } from './git/merge_feature_branch.tool';
+import { OpenMergeRequestTool } from './git/open_merge_request.tool';
+import { ReviewBranchTool } from './git/review_branch.tool';
 import { ListRosterTool } from './list_roster.tool';
 import { LoadSkillTool } from './load_skill.tool';
 import { RunCommandTool } from './run_command.tool';
@@ -32,6 +38,13 @@ export class ToolRegistryService {
     delegate_task: DelegateTaskTool,
     finish_task: FinishTaskTool,
     run_command: RunCommandTool,
+    git_checkout: GitCheckoutTool,
+    git_publish: GitPublishTool,
+    git_diff: GitDiffTool,
+    git_log: GitLogTool,
+    review_branch: ReviewBranchTool,
+    merge_feature_branch: MergeFeatureBranchTool,
+    open_merge_request: OpenMergeRequestTool,
   ) {
     const all: Tool[] = [
       list_files,
@@ -46,6 +59,13 @@ export class ToolRegistryService {
       delegate_task,
       finish_task,
       run_command,
+      git_checkout,
+      git_publish,
+      git_diff,
+      git_log,
+      review_branch,
+      merge_feature_branch,
+      open_merge_request,
     ];
     this.tools = new Map(all.map((tool) => [tool.name, tool]));
   }
