@@ -1,0 +1,45 @@
+{
+  "name": "tbn_game",
+  "private": true,
+  "description": "A company of AI agents shown as a semi low poly 3D world.",
+  "license": "UNLICENSED",
+  "packageManager": "npm@11.19.0",
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "npm": ">=11.19.0"
+  },
+  "workspaces": [
+    "packages/contracts",
+    "backend"
+  ],
+  "scripts": {
+    "codegen": "npm run build --workspace @tbn/contracts && npm run db:generate --workspace @tbn/backend",
+    "build": "npm run build --workspace @tbn/contracts && npm run build --workspace @tbn/backend",
+    "typecheck": "npm run codegen && npm run typecheck --workspace @tbn/backend",
+    "lint": "npm run codegen && eslint --max-warnings 0 .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run codegen && npm run test --workspace @tbn/backend",
+    "stack:up": "docker compose -f docker-compose.development.yml up --build --wait",
+    "stack:down": "docker compose -f docker-compose.development.yml down"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.11.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.5"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "@parcel/watcher": false,
+    "@swc/core": false,
+    "prisma": false,
+    "unrs-resolver": false
+  }
+}
