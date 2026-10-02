@@ -16,6 +16,8 @@ import type { ApprovalRecord } from '@/modules/runtime/types/approval_record';
 import type { ToolUseBlock } from '@/modules/runtime/types/model_request';
 import type { RunRecord } from '@/modules/runtime/types/run_record';
 import { RunControlService } from './run_control.service';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
+import { AgentService } from '@/modules/company/services/agent.service';
 
 const SourcesSchema = z.array(RunSourceSchema.pick({ kind: true, reference: true, cached: true }));
 
@@ -59,6 +61,8 @@ export class ApprovalService {
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     private readonly sources: RunSourceService,
     private readonly control: RunControlService,
+    private readonly notifications: NotificationService,
+    private readonly agents: AgentService,
   ) {}
 
   async list(owner_id: string, query: ApprovalListQuery): Promise<Approval[]> {
@@ -100,6 +104,13 @@ export class ApprovalService {
     this.logger.log(
       `Approval ${created.id} waits for the owner: ${call.name} in run ${context.run_id}`,
     );
+    await this.notifications.emit(context.owner_id, {
+      event_type: 'approval_waiting',
+      title: `${context.agent.name} asks to call ${call.name}`,
+      message: `${context.agent.name} wants to call ${call.name}. Approve or deny it in the inbox.`,
+      priority: 'high',
+      values: { agent_name: context.agent.name, tool_name: call.name, approval_id: created.id },
+    });
     return created;
   }
 
@@ -110,7 +121,7 @@ export class ApprovalService {
     // The loop counts turns on its copy of the run; the row has the count it stored.
     const guard_turns =
       (await this.runs.find(run.owner_id, run.id))?.guard_turns ?? run.guard_turns;
-    return this.approvals.create(run.owner_id, {
+    const created = await this.approvals.create(run.owner_id, {
       run_id: run.id,
       agent_id: run.agent_id,
       task_id: task?.id ?? null,
@@ -121,6 +132,15 @@ export class ApprovalService {
       preview: null,
       sources: [],
     });
+    const agent = await this.agents.require(run.owner_id, run.agent_id);
+    await this.notifications.emit(run.owner_id, {
+      event_type: 'approval_waiting',
+      title: `${agent.name} hit the runaway guard`,
+      message: `${agent.name} took ${guard_turns} turns without its task changing status. Continue or stop it in the inbox.`,
+      priority: 'high',
+      values: { agent_name: agent.name, tool_name: 'runaway_guard', approval_id: created.id },
+    });
+    return created;
   }
 
   /** The owner's decision on a call, `pending` while it waits, null when it was never asked. */

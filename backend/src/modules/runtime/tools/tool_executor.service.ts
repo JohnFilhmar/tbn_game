@@ -3,7 +3,7 @@ import type { ToolPolicies } from '@tbn/contracts';
 import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
 import type { ToolUseBlock } from '@/modules/runtime/types/model_request';
 import type { FinishedTask, Tool, ToolContext } from './tool.interface';
-import { ToolRegistryService } from './tool_registry.service';
+import { ToolRegistryService, type AgentToolSet } from './tool_registry.service';
 
 /** The result of one tool call, as the transcript stores it. */
 export interface ExecutedToolCall {
@@ -50,8 +50,11 @@ export class ToolExecutorService {
     context: ToolContext,
     tainted: boolean,
   ): Promise<ToolPhase> {
+    const tool_set = await this.registry.for_agent(context.agent);
     const plans: Plan[] = [];
-    for (const call of calls) plans.push(await this.plan(call, policies, context, tainted));
+    for (const call of calls) {
+      plans.push(await this.plan(tool_set, call, policies, context, tainted));
+    }
     const awaiting = plans.flatMap((plan) =>
       'awaiting' in plan ? [{ tool_use_id: plan.call.id, name: plan.call.name }] : [],
     );
@@ -77,13 +80,14 @@ export class ToolExecutorService {
   }
 
   private async plan(
+    tool_set: AgentToolSet,
     call: ToolUseBlock,
     policies: ToolPolicies,
     context: ToolContext,
     tainted: boolean,
   ): Promise<Plan> {
     const base = { tool_use_id: call.id, name: call.name };
-    const tool = this.registry.get(call.name);
+    const tool = tool_set.get(call.name);
     if (tool === undefined) {
       return { call, refusal: { ...base, content: `Unknown tool: ${call.name}`, is_error: true } };
     }

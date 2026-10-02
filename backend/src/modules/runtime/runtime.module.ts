@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
 import { CompanyModule } from '@/modules/company/company.module';
+import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
 import { ApprovalController } from './controllers/approval.controller';
 import { CacheController } from './controllers/cache.controller';
@@ -30,6 +31,7 @@ import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
 import { ApprovalService } from './services/approvals/approval.service';
 import { RunControlService } from './services/approvals/run_control.service';
+import { CapNotifierService } from './services/caps/cap_notifier.service';
 import { CapWindowService } from './services/caps/cap_window.service';
 import { AgentBranchesService } from './services/git/agent_branches.service';
 import { GitJobService } from './services/git/git_job.service';
@@ -77,7 +79,14 @@ import { WebSearchTool } from './tools/web_search.tool';
  * only serves the routes.
  */
 @Module({
-  imports: [DatabaseModule, QueueModule, RuntimeProvidersModule, CompanyModule, KnowledgeModule],
+  imports: [
+    DatabaseModule,
+    QueueModule,
+    RuntimeProvidersModule,
+    CompanyModule,
+    KnowledgeModule,
+    IntegrationsModule,
+  ],
   controllers: [
     RunController,
     TranscriptController,
@@ -142,6 +151,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     RunService,
     TranscriptService,
     CapWindowService,
+    CapNotifierService,
   ],
   exports: [
     RuntimeProvidersModule,

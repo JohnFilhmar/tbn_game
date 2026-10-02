@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
+import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { RuntimeProvidersModule } from '@/modules/runtime/runtime_providers.module';
 import { AgentController } from './controllers/agent.controller';
+import { AgentAttachmentController } from './controllers/agent_attachment.controller';
 import { DepartmentController } from './controllers/department.controller';
 import { ReportController } from './controllers/report.controller';
 import { TaskController } from './controllers/task.controller';
@@ -36,8 +38,14 @@ import { TaskService } from './services/task.service';
  * queue; the runtime does the rest and reports back through the exported services.
  */
 @Module({
-  imports: [DatabaseModule, QueueModule, RuntimeProvidersModule],
-  controllers: [AgentController, DepartmentController, TaskController, ReportController],
+  imports: [DatabaseModule, QueueModule, RuntimeProvidersModule, IntegrationsModule],
+  controllers: [
+    AgentController,
+    AgentAttachmentController,
+    DepartmentController,
+    TaskController,
+    ReportController,
+  ],
   providers: [
     { provide: AGENT_REPOSITORY, useClass: PrismaAgentRepository },
     { provide: DEPARTMENT_REPOSITORY, useClass: PrismaDepartmentRepository },

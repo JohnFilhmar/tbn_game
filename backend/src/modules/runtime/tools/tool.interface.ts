@@ -42,6 +42,8 @@ export interface Tool<I = unknown> {
   /** True for integrations and plugins: the call leaves the server. */
   readonly outward?: boolean;
   readonly input_schema: ZodType<I>;
+  /** The definition the model sees, when it is not derived from `input_schema`: plugin tools. */
+  readonly json_schema?: Record<string, unknown>;
   execute(input: I, context: ToolContext): Promise<ToolOutcome>;
   /** What the call would send, with secrets redacted, for the owner's inbox. */
   preview?(input: I, context: ToolContext): Promise<string | null>;

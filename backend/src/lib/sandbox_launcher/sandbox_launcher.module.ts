@@ -8,6 +8,7 @@ import { EXTRA_HEALTH_CHECKS, type ExtraHealthChecks } from '@/lib/health/health
 import { LoggingModule } from '@/lib/logging/logging.module';
 import { OpsServerModule } from '@/lib/ops_server/ops_server.module';
 import { QueueModule } from '@/lib/queue/queue.module';
+import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { SandboxJobStore } from './sandbox_job_store';
 import { DOCKER_ENGINE, SandboxLauncherService } from './sandbox_launcher.service';
 
@@ -32,6 +33,7 @@ export class SandboxLauncherModule {
         DatabaseModule,
         QueueModule,
         OpsServerModule,
+        IntegrationsModule,
       ],
       providers: [
         {

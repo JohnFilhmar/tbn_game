@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CryptoModule } from '@/lib/crypto/crypto.module';
 import { DatabaseModule } from '@/lib/database/database.module';
+import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { AnthropicMessagesAdapter } from './adapters/anthropic_messages.adapter';
 import { OpenAiChatCompletionsAdapter } from './adapters/openai_chat_completions.adapter';
 import { ProviderController } from './controllers/provider.controller';
@@ -25,7 +26,7 @@ import { SearchProviderService } from './services/search/search_provider.service
  * callers pass the owner's threshold defaults.
  */
 @Module({
-  imports: [DatabaseModule, CryptoModule],
+  imports: [DatabaseModule, CryptoModule, IntegrationsModule],
   controllers: [ProviderController, SearchProviderController],
   providers: [
     { provide: PROVIDER_REPOSITORY, useClass: PrismaProviderRepository },

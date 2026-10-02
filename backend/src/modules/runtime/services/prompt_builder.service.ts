@@ -9,7 +9,10 @@ import { SkillService } from '@/modules/knowledge/services/skill.service';
 import type { SkillSummary } from '@/modules/knowledge/types/knowledge_records';
 import { select_context } from '@/modules/runtime/services/transcript/transcript_context';
 import { transcript_to_messages } from '@/modules/runtime/services/transcript/transcript_messages';
-import { ToolRegistryService } from '@/modules/runtime/tools/tool_registry.service';
+import {
+  ToolRegistryService,
+  type AgentToolSet,
+} from '@/modules/runtime/tools/tool_registry.service';
 import type { ModelRequest } from '@/modules/runtime/types/model_request';
 import type { TranscriptEntryRecord } from '@/modules/runtime/types/run_record';
 
@@ -110,18 +113,20 @@ export class PromptBuilderService {
     agent: AgentRecord,
     entries: TranscriptEntryRecord[],
     context_window_tokens: number,
+    tool_set?: AgentToolSet,
   ): Promise<ModelRequest> {
-    const [instructions, skills, preferences, team] = await Promise.all([
+    const [instructions, skills, preferences, team, tools] = await Promise.all([
       this.instructions.for_prompt(agent.owner_id, agent.role, agent.id),
       this.skills.attached_to(agent.owner_id, agent.role, agent.id),
       this.preferences.get(agent.owner_id),
       this.team_of(agent),
+      tool_set ?? this.registry.for_agent(agent),
     ]);
     const policies = ToolPoliciesSchema.safeParse(agent.tool_policy);
     const context = select_context(entries);
     return {
       system: render_system_prompt(agent, { instructions, skills, preferences, team }),
-      tools: this.registry.definitions_for(policies.success ? policies.data : {}, agent.level),
+      tools: tools.definitions_for(policies.success ? policies.data : {}, agent.level),
       messages: transcript_to_messages(context.live, {
         summary: context.summary,
         max_tool_result_chars: Math.floor(
