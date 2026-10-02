@@ -7,6 +7,7 @@ import { ListFilesTool, ReadFileTool, WriteFileTool } from './file_tools';
 import { FinishTaskTool } from './finish_task.tool';
 import { ListRosterTool } from './list_roster.tool';
 import { LoadSkillTool } from './load_skill.tool';
+import { RunCommandTool } from './run_command.tool';
 import { SendMessageTool } from './send_message.tool';
 import type { Tool } from './tool.interface';
 
@@ -24,6 +25,7 @@ export class ToolRegistryService {
     send_message: SendMessageTool,
     delegate_task: DelegateTaskTool,
     finish_task: FinishTaskTool,
+    run_command: RunCommandTool,
   ) {
     const all: Tool[] = [
       list_files,
@@ -34,6 +36,7 @@ export class ToolRegistryService {
       send_message,
       delegate_task,
       finish_task,
+      run_command,
     ];
     this.tools = new Map(all.map((tool) => [tool.name, tool]));
   }

@@ -1,0 +1,22 @@
+# The image every sandbox container runs from: a toolchain for agent code and the fixed git script
+# for system jobs. The launcher creates one container per job from it, as uid 65532, the uid the
+# worker runs as, so files the two write on the workspace volume belong to the same user. Nothing
+# in it listens, and it holds no credential.
+FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe
+LABEL org.opencontainers.image.source="https://github.com/JohnFilhmar/tbn_game" \
+      org.opencontainers.image.description="tbn_game sandbox: the toolchain agent code runs in"
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    bash ca-certificates curl git jq make python3 python3-venv \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --gid 65532 agent \
+  && useradd --uid 65532 --gid 65532 --create-home --home-dir /home/agent --shell /bin/bash agent \
+  && install -d -m 0755 /opt/tbn /work /files
+COPY --chmod=0755 deploy/sandbox/git_job.sh /opt/tbn/git_job.sh
+ENV HOME=/home/agent \
+    GIT_TERMINAL_PROMPT=0 \
+    npm_config_update_notifier=false \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+USER 65532:65532
+WORKDIR /work
+CMD ["bash"]

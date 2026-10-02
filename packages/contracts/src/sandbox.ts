@@ -46,7 +46,7 @@ export type SandboxLimits = z.infer<typeof SandboxLimitsSchema>;
 /** Everything the launcher needs to run one container. The worker writes it, the launcher reads it. */
 export const SandboxJobSpecSchema = z.strictObject({
   argv: z.array(z.string().max(100_000)).min(1).max(64),
-  env: z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), z.string().max(10_000)),
+  env: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().max(10_000)),
   working_dir: z.string().startsWith('/').max(500),
   mounts: z.array(SandboxMountSchema).max(8),
   limits: SandboxLimitsSchema,

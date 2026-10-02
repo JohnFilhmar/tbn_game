@@ -5,10 +5,13 @@ import { CompanyModule } from '@/modules/company/company.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
 import { CapWindowController } from './controllers/cap_window.controller';
 import { RunController } from './controllers/run.controller';
+import { SandboxJobController } from './controllers/sandbox_job.controller';
 import { TranscriptController } from './controllers/transcript.controller';
 import { RUN_REPOSITORY } from './repositories/interface/run_repository.interface';
+import { SANDBOX_JOB_REPOSITORY } from './repositories/interface/sandbox_job_repository.interface';
 import { TRANSCRIPT_REPOSITORY } from './repositories/interface/transcript_repository.interface';
 import { PrismaRunRepository } from './repositories/prisma_run.repository';
+import { PrismaSandboxJobRepository } from './repositories/prisma_sandbox_job.repository';
 import { PrismaTranscriptRepository } from './repositories/prisma_transcript.repository';
 import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
@@ -21,6 +24,7 @@ import { RunLoopService } from './services/run_loop/run_loop.service';
 import { SubtaskDeliveryService } from './services/run_loop/subtask_delivery.service';
 import { TaskCompletionService } from './services/run_loop/task_completion.service';
 import { TurnService } from './services/run_loop/turn.service';
+import { SandboxJobService } from './services/sandbox/sandbox_job.service';
 import { RunService } from './services/run.service';
 import { TranscriptService } from './services/transcript.service';
 import { WorkerSweepService } from './services/worker_sweep.service';
@@ -29,6 +33,7 @@ import { ListFilesTool, ReadFileTool, WriteFileTool } from './tools/file_tools';
 import { FinishTaskTool } from './tools/finish_task.tool';
 import { ListRosterTool } from './tools/list_roster.tool';
 import { LoadSkillTool } from './tools/load_skill.tool';
+import { RunCommandTool } from './tools/run_command.tool';
 import { SendMessageTool } from './tools/send_message.tool';
 import { ToolExecutorService } from './tools/tool_executor.service';
 import { ToolRegistryService } from './tools/tool_registry.service';
@@ -41,10 +46,12 @@ import { ToolRegistryService } from './tools/tool_registry.service';
  */
 @Module({
   imports: [DatabaseModule, QueueModule, RuntimeProvidersModule, CompanyModule, KnowledgeModule],
-  controllers: [RunController, TranscriptController, CapWindowController],
+  controllers: [RunController, TranscriptController, CapWindowController, SandboxJobController],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
     { provide: TRANSCRIPT_REPOSITORY, useClass: PrismaTranscriptRepository },
+    { provide: SANDBOX_JOB_REPOSITORY, useClass: PrismaSandboxJobRepository },
+    SandboxJobService,
     ListFilesTool,
     ReadFileTool,
     WriteFileTool,
@@ -53,6 +60,7 @@ import { ToolRegistryService } from './tools/tool_registry.service';
     SendMessageTool,
     DelegateTaskTool,
     FinishTaskTool,
+    RunCommandTool,
     ToolRegistryService,
     ToolExecutorService,
     PromptBuilderService,
@@ -75,6 +83,7 @@ import { ToolRegistryService } from './tools/tool_registry.service';
     TranscriptService,
     AgentWakeService,
     WorkerSweepService,
+    SandboxJobService,
   ],
 })
 export class RuntimeModule {}

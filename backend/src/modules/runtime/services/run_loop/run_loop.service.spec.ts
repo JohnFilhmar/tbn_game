@@ -198,6 +198,7 @@ describe('run loop', () => {
       'send_message',
       'delegate_task',
       'finish_task',
+      'run_command',
     ]);
   });
 

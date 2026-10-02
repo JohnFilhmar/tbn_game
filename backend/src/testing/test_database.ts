@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { promisify } from 'node:util';
-import type { AppConfig } from '@/config/config.schema';
+import { require_database_url, type AppConfig } from '@/config/config.schema';
 import { PrismaService } from '@/lib/database/prisma.service';
 
 const exec_file = promisify(execFile);
@@ -24,7 +24,7 @@ export async function create_test_database(config: AppConfig): Promise<TestDatab
   const name = `tbn_test_${randomBytes(4).toString('hex')}`;
   const admin = new PrismaService(config);
   await admin.$executeRawUnsafe(`CREATE DATABASE ${name}`);
-  const url = new URL(config.database.url);
+  const url = new URL(require_database_url(config));
   url.pathname = `/${name}`;
   return {
     url: url.toString(),

@@ -10,6 +10,7 @@ backend/src/generated
 .git
 .github
 docs
-deploy
+deploy/*
+!deploy/sandbox
 *.md
 docker-compose.*.yml

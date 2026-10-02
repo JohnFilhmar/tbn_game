@@ -33,7 +33,7 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | Command                                                            | What it does                                                |
 | ------------------------------------------------------------------ | ----------------------------------------------------------- |
 | `npm ci`                                                           | Install. Only approved install scripts run (`allowScripts`). |
-| `docker compose -f docker-compose.development.yml up --build --wait` | Bring the stack up healthy. Also `npm run stack:up`.      |
+| `scripts/stack_up.sh`                                              | Build the sandbox image and bring the stack up healthy. Also `npm run stack:up`. |
 | `scripts/smoke_test_stack.sh`                                      | Check a running development stack, as CI does.              |
 | `npm run format:check`, `npm run lint`, `npm run typecheck`        | Static checks. Each first builds contracts and Prisma code. |
 | `npm run build`                                                    | Build `@tbn/contracts` and `@tbn/backend`.                  |

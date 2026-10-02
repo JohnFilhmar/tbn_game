@@ -1,8 +1,8 @@
 # Continuous integration. Every gate runs on each pull request and on each push to main:
 # checks and tests, dependency scanning, Semgrep, gitleaks, workflow lint and the compose smoke
-# test. Only when all of them pass does the image job build the image, scan it with Trivy, push it,
-# sign it with cosign and attach a CycloneDX SBOM attestation. The deploy workflow trusts only
-# images signed by this workflow on main.
+# test. Only when all of them pass does the image job build the backend and sandbox images, scan
+# them with Trivy, push them, sign them with cosign and attach a CycloneDX SBOM attestation to
+# each. The deploy workflow trusts only images signed by this workflow on main.
 name: ci
 
 on:
@@ -58,6 +58,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - name: Sandbox image for the tests
+        run: docker build --file Dockerfile.sandbox --tag tbn/sandbox:test .
       - run: npm test
 
   dependencies:
@@ -152,7 +154,7 @@ jobs:
           SECRETS_ENCRYPTION_KEY: compose_validation_only
         run: scripts/check_compose_ports.sh docker-compose.development.yml docker-compose.production.yml
       - name: One command brings the stack up healthy
-        run: docker compose -f docker-compose.development.yml up --build --wait --wait-timeout 300
+        run: scripts/stack_up.sh --wait-timeout 300
       - name: Smoke test
         run: scripts/smoke_test_stack.sh
       - name: Stack logs
@@ -163,7 +165,7 @@ jobs:
         run: docker compose -f docker-compose.development.yml down --volumes
 
   image:
-    name: image build, Trivy, push, cosign signature and SBOM
+    name: ${{ matrix.image }} image build, Trivy, push, cosign signature and SBOM
     needs: [checks, dependencies, semgrep, gitleaks, workflow_lint, compose_smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -171,31 +173,41 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            dockerfile: Dockerfile
+          - image: sandbox
+            dockerfile: Dockerfile.sandbox
     env:
       # Pull requests from forks and from Dependabot get a read-only token, so their images are
       # built and scanned but not pushed or signed.
       PUBLISH: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
-      LOCAL_IMAGE: tbn/backend:ci
+      IMAGE_NAME: ${{ matrix.image }}
+      LOCAL_IMAGE: tbn/${{ matrix.image }}:ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/backend" >> "$GITHUB_ENV"
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/$IMAGE_NAME" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           load: true
           push: false
           provenance: false
           sbom: false
           tags: ${{ env.LOCAL_IMAGE }}
-          build-args: GIT_COMMIT_SHA=${{ github.sha }}
+          build-args: ${{ matrix.image == 'backend' && format('GIT_COMMIT_SHA={0}', github.sha) || '' }}
           labels: org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: ${{ env.TRIVY_VERSION }}
@@ -203,13 +215,14 @@ jobs:
         run: >-
           trivy image --no-progress --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed
           --exit-code 1 "$LOCAL_IMAGE"
-      - name: Trivy, high and critical misconfigurations in the Dockerfile
+      - name: Trivy, high and critical misconfigurations in both Dockerfiles
+        if: matrix.image == 'backend'
         run: trivy config --severity HIGH,CRITICAL --exit-code 1 .
       - name: SBOM
         run: trivy image --no-progress --format cyclonedx --output sbom.cdx.json "$LOCAL_IMAGE"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom
+          name: sbom-${{ matrix.image }}
           path: sbom.cdx.json
           if-no-files-found: error
       - name: Log in to GitHub Container Registry
@@ -251,15 +264,17 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           {
-            echo "### Signed image"
+            echo "### Signed $IMAGE_NAME image"
             echo
             echo "\`$IMAGE@$DIGEST\`"
             echo
-            if [[ "$GITHUB_REF" == refs/heads/main ]]; then
-              echo "Deploy it with:"
-              echo
-              echo "\`gh workflow run deploy.yml --ref main -f image_digest=$DIGEST\`"
-            else
+            if [[ "$GITHUB_REF" != refs/heads/main ]]; then
               echo "Signed with the pull request identity. The deploy workflow accepts only images signed on main."
+            elif [[ "$IMAGE_NAME" == backend ]]; then
+              echo "Deploy it together with the sandbox image digest from the other job:"
+              echo
+              echo "\`gh workflow run deploy.yml --ref main -f image_digest=$DIGEST -f sandbox_image_digest=<sandbox digest>\`"
+            else
+              echo "Pass it to the deploy workflow as \`sandbox_image_digest\`."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
