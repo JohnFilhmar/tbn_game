@@ -87,8 +87,7 @@ describe('the approval inbox', () => {
       payload: { path: 'approved/note.md', content: 'approved\n' },
       sources: [{ kind: 'fetch', reference: `http://${ALLOWED_HOST}/page`, cached: false }],
     });
-    const [run] = await team.runs(manager.id);
-    expect(run).toMatchObject({ status: 'paused', pause_reason: 'awaiting_approval' });
+    await team.wait_for_pause(manager.id, 'awaiting_approval');
     const waiting = await team.task(task.id);
     expect(waiting.status).toBe('awaiting_approval');
     expect(waiting.status_reason).toContain('write_file');

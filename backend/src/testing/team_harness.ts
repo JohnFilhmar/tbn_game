@@ -45,6 +45,16 @@ export interface TeamHarness {
   runs(agent_id: string): Promise<Run[]>;
   transcript(agent_id: string): Promise<TranscriptEntry[]>;
   wait_for_task(id: string, status: Task['status'], timeout_ms?: number): Promise<Task>;
+  /**
+   * Polls the agent's newest run until it is paused for `pause_reason`. An approval row appears
+   * before the loop pauses the run, so a test that saw the approval waits here before it reads
+   * the run.
+   */
+  wait_for_pause(
+    agent_id: string,
+    pause_reason: NonNullable<Run['pause_reason']>,
+    timeout_ms?: number,
+  ): Promise<Run>;
   close(): Promise<void>;
 }
 
@@ -138,6 +148,15 @@ export async function start_team_harness(
         async () => {
           const task = await harness.task(id);
           return task.status === status ? task : undefined;
+        },
+        { timeout_ms },
+      ),
+    wait_for_pause: (agent_id, pause_reason, timeout_ms = 30_000) =>
+      wait_for(
+        `a run of agent ${agent_id} paused for ${pause_reason}`,
+        async () => {
+          const [run] = await harness.runs(agent_id);
+          return run?.status === 'paused' && run.pause_reason === pause_reason ? run : undefined;
         },
         { timeout_ms },
       ),

@@ -250,7 +250,7 @@ describe('phase 1c, the outside world', () => {
       ['fetch', false],
       ['fetch', true],
     ]);
-    expect((await team.task(task.id)).status).toBe('awaiting_approval');
+    await team.wait_for_task(task.id, 'awaiting_approval');
     expect(webhook.requests).toHaveLength(0);
 
     await team.api().post(`/approvals/${approval.id}/approve`).set(auth()).expect(200);

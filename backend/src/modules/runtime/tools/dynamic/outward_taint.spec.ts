@@ -119,8 +119,7 @@ describe('outward tools in tainted runs', () => {
     expect(approval.preview).toContain('Authorization: Bearer [redacted]');
     expect(approval.preview).toContain('"summary": "tainted call"');
     expect(approval.preview).not.toContain(TOKEN);
-    const [run] = await team.runs(manager.id);
-    expect(run).toMatchObject({ status: 'paused', pause_reason: 'awaiting_approval' });
+    await team.wait_for_pause(manager.id, 'awaiting_approval');
 
     await team.api().post(`/approvals/${approval.id}/approve`).set(auth()).expect(200);
     const done = await team.wait_for_task(task.id, 'done');
