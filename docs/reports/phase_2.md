@@ -63,11 +63,16 @@ at the owner's request.
 - **Tests.** 403 Jest tests in 80 files, 60 of them new in this phase. Every new repository
   method has an integration test, and the new route a supertest test for auth, the happy path and
   a rejection.
-- **CI** passed on every push of this phase to the draft pull request
-  [JohnFilhmar/tbn_game#8](https://github.com/JohnFilhmar/tbn_game/pull/8), most recently
-  [run 37059903992](https://github.com/JohnFilhmar/tbn_game/actions/runs/37059903992) on the
-  commit that added the exit story: the whole suite, the compose smoke test with the real sandbox
-  image, and both images built, scanned, signed and attested.
+- **CI is green on the draft pull request**,
+  [JohnFilhmar/tbn_game#8](https://github.com/JohnFilhmar/tbn_game/pull/8), on every push of this
+  phase. In [run 37062352099](https://github.com/JohnFilhmar/tbn_game/actions/runs/37062352099),
+  on the commit that added this report, the test job ran the whole suite, the compose job brought
+  the six services up and passed the smoke test with the real sandbox image, and the image jobs
+  pushed
+  `ghcr.io/johnfilhmar/tbn_game/backend@sha256:dd7fecf311b40575dfefe0586495f2bc3bb94d81ab12735de73d9a9b7b6d216b`
+  and
+  `ghcr.io/johnfilhmar/tbn_game/sandbox@sha256:ec2ac786db2991798d731fe7fd133234e39fa48342c8e0877a1c3a3794c45852`,
+  signed both with cosign under the pull request identity and attested their SBOMs.
 
 ## What could not be run here
 
