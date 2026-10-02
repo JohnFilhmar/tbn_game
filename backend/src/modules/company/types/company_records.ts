@@ -83,3 +83,54 @@ export interface ReportRecord {
   body_md: string;
   created_at: Date;
 }
+
+/** Fields of a new intern. The repository names it after its manager. */
+export interface InternWrite {
+  role: string;
+  job_description: string;
+  department_id: string;
+  provider_id: string;
+  primary_model: string;
+  tool_policy: ToolPolicies;
+}
+
+/** An idle intern as the worker's sweep sees it, with the status of its manager. */
+export interface IdleInternRecord {
+  id: string;
+  owner_id: string;
+  idle_since: Date | null;
+  /** Null when the department has no manager any more. */
+  manager_status: AgentStatus | null;
+}
+
+/** A live agent with the name of its department, for the roster. */
+export interface RosterAgentRecord {
+  agent: AgentRecord;
+  department_name: string;
+}
+
+/** One line of the roster: a live agent, its department, and what it works on. */
+export interface RosterEntry {
+  agent: AgentRecord;
+  department_name: string;
+  /** The task the agent holds: in progress, blocked or awaiting approval. */
+  current_task: TaskRecord | null;
+  queued_task_count: number;
+}
+
+/** What a new intern is for and where it runs. */
+export interface InternSpec {
+  role: string;
+  job_description: string;
+  provider_id: string;
+  primary_model: string;
+}
+
+/** A task a manager hands to an intern. */
+export interface DelegationWrite {
+  title: string;
+  instructions: string;
+  assignee_agent_id: string;
+  delegator_agent_id: string;
+  parent_task_id: string | null;
+}

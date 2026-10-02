@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AgentSchema, DepartmentSchema, TaskSchema, type Provider } from '@tbn/contracts';
 import request from 'supertest';
+import { AgentService } from '@/modules/company/services/agent.service';
 import { ValidationErrorBodySchema } from '@/testing/http';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import {
@@ -95,6 +96,56 @@ describe('agent and department routes', () => {
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(200);
     expect(AgentSchema.parse(read.body).id).toBe(agent.id);
+  });
+
+  it('lists interns by level and counts only live members of a department', async () => {
+    const created = await api()
+      .post('/agents')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send(recruit_body('lead_with_interns'))
+      .expect(201);
+    const lead = AgentSchema.parse(created.body);
+    const agents = app.get(AgentService);
+    const record = await agents.require(owner.owner_id, lead.id);
+    const spec = {
+      role: 'Helper',
+      job_description: 'Helps.',
+      provider_id: lead.provider_id,
+      primary_model: lead.intern_model,
+    };
+    const kept = await agents.spawn_intern(owner.owner_id, record, spec);
+    const gone = await agents.spawn_intern(owner.owner_id, record, spec);
+    await agents.terminate_idle_intern(owner.owner_id, gone.id, null);
+
+    const interns = await api()
+      .get('/agents')
+      .query({ department_id: lead.department_id, level: 2 })
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(
+      AgentSchema.array()
+        .parse(interns.body)
+        .map((item) => [item.id, item.level, item.status]),
+    ).toEqual([
+      [kept.id, 2, 'idle'],
+      [gone.id, 2, 'terminated'],
+    ]);
+
+    const departments = await api()
+      .get('/departments')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(
+      DepartmentSchema.array()
+        .parse(departments.body)
+        .find((item) => item.id === lead.department_id)?.member_count,
+    ).toBe(2);
+
+    await api()
+      .get('/agents')
+      .query({ level: 3 })
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(400);
   });
 
   it('edits an agent and validates the models on the provider', async () => {

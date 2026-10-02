@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
 import type { INestApplicationContext } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { z } from 'zod';
 import type { AppConfig } from '@/config/config.schema';
 import { PrismaService } from '@/lib/database/prisma.service';
 import { WorkerModule } from '@/worker.module';
@@ -25,6 +26,16 @@ export async function start_test_worker(config: AppConfig): Promise<INestApplica
 export async function clear_queued_wakes(app: INestApplicationContext): Promise<void> {
   await app.get(PrismaService)
     .$executeRaw`DELETE FROM pgboss.job WHERE name = 'agent_wake' AND state IN ('created', 'retry')`;
+}
+
+const CountSchema = z.array(z.object({ count: z.bigint() }));
+
+/** How many `agent_wake` jobs were ever sent for an agent. */
+export async function count_wakes(app: INestApplicationContext, agent_id: string): Promise<number> {
+  const rows: unknown = await app.get(PrismaService).$queryRaw`
+    SELECT count(*)::bigint AS count FROM pgboss.job
+    WHERE name = 'agent_wake' AND data->>'agent_id' = ${agent_id}`;
+  return Number(CountSchema.parse(rows)[0]?.count ?? 0);
 }
 
 /** A worker running as a separate OS process from `dist/worker.js`. */

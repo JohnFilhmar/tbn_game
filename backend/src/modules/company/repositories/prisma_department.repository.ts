@@ -3,7 +3,14 @@ import { PrismaService } from '@/lib/database/prisma.service';
 import type { DepartmentRecord } from '@/modules/company/types/company_records';
 import type { DepartmentRepository } from './interface/department_repository.interface';
 
-const with_member_count = { _count: { select: { members: true } } };
+/** Members that are neither dismissed nor terminated. */
+const with_member_count = {
+  _count: {
+    select: {
+      members: { where: { status: { notIn: ['dismissed' as const, 'terminated' as const] } } },
+    },
+  },
+};
 
 /** `DepartmentRepository` on Prisma. */
 @Injectable()

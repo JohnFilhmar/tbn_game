@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import {
   AppearanceSchema,
   ToolPoliciesSchema,
+  type AgentStatus,
   type Agent,
   type AgentListQuery,
   type RecruitAgent,
@@ -10,13 +11,30 @@ import {
 import {
   AGENT_REPOSITORY,
   type AgentRepository,
+  type LiveAgentFilter,
 } from '@/modules/company/repositories/interface/agent_repository.interface';
 import {
   TASK_REPOSITORY,
   type TaskRepository,
 } from '@/modules/company/repositories/interface/task_repository.interface';
-import type { AgentRecord } from '@/modules/company/types/company_records';
+import type {
+  AgentRecord,
+  IdleInternRecord,
+  InternSpec,
+  RosterEntry,
+  TaskRecord,
+} from '@/modules/company/types/company_records';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
+
+const INTERN_LEVEL = 2;
+
+/** Statuses a task can hold an agent in. */
+const HELD_STATUSES = new Set(['in_progress', 'blocked', 'awaiting_approval']);
+
+/** True when an agent can take work: neither dismissed nor terminated. */
+export function is_live(status: AgentStatus): boolean {
+  return status !== 'dismissed' && status !== 'terminated';
+}
 
 /** Maps an agent row to the API shape, parsing the JSON columns. */
 export function to_agent_view(record: AgentRecord): Agent {
@@ -27,7 +45,7 @@ export function to_agent_view(record: AgentRecord): Agent {
     name: record.name,
     role: record.role,
     job_description: record.job_description,
-    level: record.level === 2 ? 2 : 1,
+    level: record.level === INTERN_LEVEL ? INTERN_LEVEL : 1,
     department_id: record.department_id,
     provider_id: record.provider_id,
     primary_model: record.primary_model,
@@ -41,7 +59,7 @@ export function to_agent_view(record: AgentRecord): Agent {
   };
 }
 
-/** Level 1 agents, their departments, and the run lock on each agent. */
+/** Managers and their interns, their departments, the roster, and the run lock on each agent. */
 @Injectable()
 export class AgentService {
   constructor(
@@ -118,6 +136,85 @@ export class AgentService {
     const record = await this.agents.update(owner_id, id, input);
     if (record === null) throw new NotFoundException('Agent not found');
     return to_agent_view(record);
+  }
+
+  /**
+   * Spawns an intern in the manager's department, with the manager's tool policy.
+   *
+   * @throws ConflictException when `manager` is not a live manager.
+   * @throws NotFoundException when the provider does not offer the model.
+   */
+  async spawn_intern(
+    owner_id: string,
+    manager: AgentRecord,
+    spec: InternSpec,
+  ): Promise<AgentRecord> {
+    if (manager.level !== 1 || !is_live(manager.status)) {
+      throw new ConflictException('Only a live manager can spawn interns');
+    }
+    if (!(await this.providers.has_model(owner_id, spec.provider_id, spec.primary_model))) {
+      throw new NotFoundException('Provider does not offer the model');
+    }
+    const policies = ToolPoliciesSchema.safeParse(manager.tool_policy);
+    return this.agents.spawn_intern(owner_id, manager.name, {
+      role: spec.role,
+      job_description: spec.job_description,
+      department_id: manager.department_id,
+      provider_id: spec.provider_id,
+      primary_model: spec.primary_model,
+      tool_policy: policies.success ? policies.data : {},
+    });
+  }
+
+  /** Interns of a department with no active run and no open task, oldest first. */
+  idle_interns(owner_id: string, department_id: string): Promise<AgentRecord[]> {
+    return this.agents.idle_interns(owner_id, department_id);
+  }
+
+  /** How many agents are neither dismissed nor terminated. */
+  count_live(owner_id: string, filter: LiveAgentFilter): Promise<number> {
+    return this.agents.count_live(owner_id, filter);
+  }
+
+  /** Live agents on a provider, for blocking every task on a key that ran out of credit. */
+  list_on_provider(owner_id: string, provider_id: string): Promise<AgentRecord[]> {
+    return this.agents.list_on_provider(owner_id, provider_id);
+  }
+
+  /** Every live agent with its department and the task it holds, oldest agent first. */
+  async roster(owner_id: string): Promise<RosterEntry[]> {
+    const [agents, open] = await Promise.all([
+      this.agents.list_live(owner_id),
+      this.tasks.list_open(owner_id),
+    ]);
+    const by_agent = new Map<string, TaskRecord[]>();
+    for (const task of open) {
+      const list = by_agent.get(task.assignee_agent_id) ?? [];
+      list.push(task);
+      by_agent.set(task.assignee_agent_id, list);
+    }
+    return agents.map(({ agent, department_name }) => {
+      const tasks = by_agent.get(agent.id) ?? [];
+      return {
+        agent,
+        department_name,
+        current_task: tasks.find((task) => HELD_STATUSES.has(task.status)) ?? null,
+        queued_task_count: tasks.filter((task) => task.status === 'queued').length,
+      };
+    });
+  }
+
+  /**
+   * Terminates an idle intern with no open task, idle since before `idle_before` when given.
+   * Returns false when it is not idle or not an intern.
+   */
+  terminate_idle_intern(owner_id: string, id: string, idle_before: Date | null): Promise<boolean> {
+    return this.agents.terminate_idle_intern(owner_id, id, idle_before);
+  }
+
+  /** Idle interns of every owner, for the worker's sweep. */
+  find_idle_interns(): Promise<IdleInternRecord[]> {
+    return this.agents.find_idle_interns();
   }
 
   /** Dismisses an agent. Its queued tasks are cancelled and a running task stops at its next turn. */

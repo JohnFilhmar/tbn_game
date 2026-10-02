@@ -129,6 +129,14 @@ export const TaskStatusSchema = z.enum([
 /** A task status. */
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
+/** The statuses of a task that is not finished yet. */
+export const OPEN_TASK_STATUSES: readonly TaskStatus[] = [
+  'queued',
+  'in_progress',
+  'blocked',
+  'awaiting_approval',
+];
+
 /**
  * A unit of work for one agent. `delegator_agent_id` is null when the owner assigned it, and
  * `parent_task_id` points at the task a manager delegated it from. `status_reason` says why a task
