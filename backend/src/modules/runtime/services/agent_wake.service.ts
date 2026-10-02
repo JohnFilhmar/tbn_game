@@ -7,7 +7,8 @@ import {
   type OnApplicationBootstrap,
 } from '@nestjs/common';
 import { OPEN_TASK_STATUSES, type ProcessType } from '@tbn/contracts';
-import { PROCESS_TYPE } from '@/config/config.tokens';
+import type { AppConfig } from '@/config/config.schema';
+import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 import { QueueService } from '@/lib/queue/queue.service';
 import type { AgentWakeJob } from '@/lib/queue/queues';
 import { AgentService, is_live } from '@/modules/company/services/agent.service';
@@ -37,6 +38,7 @@ export class AgentWakeService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AgentWakeService.name);
 
   constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(PROCESS_TYPE) private readonly process_type: ProcessType,
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     @Inject(TRANSCRIPT_REPOSITORY) private readonly transcripts: TranscriptRepository,
@@ -181,12 +183,17 @@ export class AgentWakeService implements OnApplicationBootstrap {
     }
   }
 
-  /** A run that was created but never became the agent's active run cannot be driven. */
+  /**
+   * A run that was created but never became the agent's active run cannot be driven. One younger
+   * than a lease is left alone: the handler that created it, perhaps in another worker process, may
+   * be about to claim the agent for it.
+   */
   private async cancel_stale_runs(agent: AgentRecord): Promise<void> {
+    const created_before = Date.now() - this.config.worker.run_lease_seconds * 1_000;
     for (const status of ['running', 'paused'] as const) {
       const runs = await this.runs.list(agent.owner_id, { agent_id: agent.id, status });
       for (const run of runs) {
-        if (run.id === agent.active_run_id) continue;
+        if (run.id === agent.active_run_id || run.started_at.getTime() > created_before) continue;
         await this.runs.finish(agent.owner_id, run.id, 'cancelled', 'Run never became active');
       }
     }

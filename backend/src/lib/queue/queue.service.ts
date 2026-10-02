@@ -166,7 +166,8 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
   /**
    * Asks the worker to look at an agent. A wake due now is skipped while another one for the same
    * agent is queued and due, because that one will see the change; wakes never pile up behind a
-   * busy worker. A delayed wake is always sent.
+   * busy worker. A delayed wake is always sent. The agent is the wake's group, so a worker handles
+   * one wake per agent at a time.
    *
    * @param job - The agent to wake.
    * @param delay_seconds - Optional delay before the wake becomes available.
@@ -174,7 +175,10 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
   async send_agent_wake(job: AgentWakeJob, delay_seconds = 0): Promise<void> {
     await this.ensure_started();
     if (delay_seconds === 0 && (await this.has_due_wake(job.agent_id))) return;
-    await this.boss.send(AGENT_WAKE_QUEUE, job, { startAfter: delay_seconds });
+    await this.boss.send(AGENT_WAKE_QUEUE, job, {
+      startAfter: delay_seconds,
+      group: { id: job.agent_id },
+    });
   }
 
   /** True when a wake for the agent is queued and due. */
@@ -188,8 +192,13 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
   }
 
   /**
-   * Registers the worker's handler for `agent_wake` jobs, `WORKER_CONCURRENCY` at a time. On the
-   * worker this resolves once the queue is reachable, which may be after the release step.
+   * Registers the worker's handler for `agent_wake` jobs, `WORKER_CONCURRENCY` at a time and one
+   * per agent at a time, so two wakes of one agent never race in this process. On the worker this
+   * resolves once the queue is reachable, which may be after the release step.
+   *
+   * Ceiling: the one-per-agent limit is held in this process. With several worker processes two
+   * wakes of one agent can run at once; the run lease still keeps either from driving the other's
+   * run.
    *
    * @param handler - Called once per job. A throw fails the job, which pg-boss retries.
    */
@@ -199,6 +208,7 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
       AGENT_WAKE_QUEUE,
       {
         localConcurrency: this.config.worker.concurrency,
+        localGroupConcurrency: 1,
         pollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
         notifyPollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
       },
