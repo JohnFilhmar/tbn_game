@@ -9,6 +9,13 @@ const comma_list_schema = z.string().transform((value) =>
     .filter((item) => item.length > 0),
 );
 
+const base64_key_schema = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9+/]{43}=$/,
+    'must be 32 bytes encoded as base64, for example openssl rand -base64 32',
+  );
+
 const env_schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -23,6 +30,13 @@ const env_schema = z.object({
     .string()
     .regex(/^(?:[0-9a-f]{7,40}|unknown)$/)
     .default('unknown'),
+  SECRETS_ENCRYPTION_KEY: base64_key_schema,
+  SESSION_TTL_MINUTES: z.coerce.number().int().min(5).max(43_200).default(720),
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(4),
+  WORKSPACE_DIR: z.string().min(1).default('/workspace'),
+  PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(1_800_000).default(300_000),
+  PROVIDER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(4),
+  RUN_LEASE_SECONDS: z.coerce.number().int().min(10).max(3_600).default(120),
 });
 
 /**
@@ -34,6 +48,7 @@ export const config_schema = env_schema.transform((env) => ({
   log_level: env.LOG_LEVEL,
   git_commit_sha: env.GIT_COMMIT_SHA,
   shutdown_timeout_ms: env.SHUTDOWN_TIMEOUT_MS,
+  secrets_encryption_key: env.SECRETS_ENCRYPTION_KEY,
   database: {
     url: env.DATABASE_URL,
     pool_max: env.DATABASE_POOL_MAX,
@@ -45,6 +60,18 @@ export const config_schema = env_schema.transform((env) => ({
   },
   worker: {
     port: env.WORKER_PORT,
+    concurrency: env.WORKER_CONCURRENCY,
+    run_lease_seconds: env.RUN_LEASE_SECONDS,
+  },
+  auth: {
+    session_ttl_minutes: env.SESSION_TTL_MINUTES,
+  },
+  workspace: {
+    dir: env.WORKSPACE_DIR,
+  },
+  providers: {
+    timeout_ms: env.PROVIDER_TIMEOUT_MS,
+    max_attempts: env.PROVIDER_MAX_ATTEMPTS,
   },
 }));
 

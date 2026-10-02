@@ -51,6 +51,12 @@ export default tseslint.config(
         'error',
         { selector: 'default', format: ['snake_case'], leadingUnderscore: 'allow' },
         { selector: 'variable', format: ['snake_case', 'UPPER_CASE'] },
+        // Zod schemas keep the contracts naming everywhere: PascalCase with a Schema suffix.
+        {
+          selector: 'variable',
+          filter: { regex: 'Schema$', match: true },
+          format: ['PascalCase'],
+        },
         { selector: 'typeLike', format: ['PascalCase'] },
         { selector: 'enumMember', format: ['PascalCase', 'UPPER_CASE'] },
         { selector: 'import', format: null },
@@ -67,6 +73,18 @@ export default tseslint.config(
     },
   },
   {
+    // Decorator factories read as annotations, so they keep Nest's PascalCase: @Public(), @ZodBody().
+    files: ['backend/src/**/*.decorator.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        { selector: 'function', format: ['PascalCase'] },
+        { selector: 'variable', format: ['snake_case', 'PascalCase', 'UPPER_CASE'] },
+        { selector: 'typeLike', format: ['PascalCase'] },
+      ],
+    },
+  },
+  {
     files: ['packages/contracts/src/**/*.ts'],
     rules: {
       '@typescript-eslint/naming-convention': [
@@ -77,7 +95,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ['backend/src/config/load_config.ts', 'backend/prisma.config.ts'],
+    files: [
+      'backend/src/config/load_config.ts',
+      'backend/prisma.config.ts',
+      'backend/src/testing/jest_setup.ts',
+    ],
     rules: { 'no-restricted-syntax': 'off' },
   },
   {

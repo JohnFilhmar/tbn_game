@@ -11,18 +11,21 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start:web": "node --env-file-if-exists=../.env dist/web.js",
     "start:worker": "node --env-file-if-exists=../.env dist/worker.js",
-    "test": "NODE_OPTIONS='--experimental-vm-modules --disable-warning=ExperimentalWarning' jest"
+    "test": "prisma migrate deploy && nest build && NODE_OPTIONS='--experimental-vm-modules --disable-warning=ExperimentalWarning' jest",
+    "start:admin": "node --env-file-if-exists=../.env dist/admin.js"
   },
   "dependencies": {
     "@nestjs/common": "12.1.0",
     "@nestjs/core": "12.1.0",
     "@nestjs/platform-express": "12.1.0",
+    "@node-rs/argon2": "2.2.1",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@prometheus-io/client": "0.16.1",
     "@tbn/contracts": "0.0.0",
     "helmet": "8.3.0",
     "nestjs-pino": "5.2.0",
+    "pg-boss": "12.34.0",
     "pino": "10.3.1",
     "pino-http": "11.0.0",
     "prisma": "7.10.0",

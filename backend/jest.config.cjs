@@ -2,6 +2,10 @@
 module.exports = {
   rootDir: '.',
   testEnvironment: 'node',
+  // One worker: every test file shares one database and one pg-boss queue.
+  maxWorkers: 1,
+  testTimeout: 60_000,
+  setupFiles: ['<rootDir>/src/testing/jest_setup.ts'],
   testRegex: 'src/.*\\.spec\\.ts$',
   moduleFileExtensions: ['ts', 'js', 'json'],
   transform: {

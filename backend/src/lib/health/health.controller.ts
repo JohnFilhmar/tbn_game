@@ -1,9 +1,11 @@
 import { Controller, Get, Header, HttpStatus, Res } from '@nestjs/common';
 import type { HealthResponse } from '@tbn/contracts';
 import type { Response } from 'express';
+import { Public } from '@/lib/auth/public.decorator';
 import { HealthService } from './health.service';
 
 /** `GET /health` on the web process. The worker serves the same body from its ops server. */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health_service: HealthService) {}
