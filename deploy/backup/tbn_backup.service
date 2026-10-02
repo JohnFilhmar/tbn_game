@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up the tbn database and workspace
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# BACKUP_DIR and BACKUP_KEEP; the defaults are /var/backups/tbn and 4.
+EnvironmentFile=-/etc/tbn/backup.env
+ExecStart=/usr/local/sbin/tbn_backup
+Nice=10
+IOSchedulingClass=idle

@@ -153,6 +153,7 @@ jobs:
           POSTGRES_PASSWORD: compose_validation_only
           SEARXNG_SECRET: compose_validation_only
           SECRETS_ENCRYPTION_KEY: compose_validation_only
+          GRAFANA_ADMIN_PASSWORD: compose_validation_only
         run: scripts/check_compose_ports.sh docker-compose.development.yml docker-compose.production.yml
       - name: One command brings the stack up healthy
         run: scripts/stack_up.sh --wait-timeout 300

@@ -1,0 +1,20 @@
+# Prometheus scrapes the four backend processes on the backend network. Each process serves its
+# own /metrics; every sample carries a process_type label. The compose files set the retention.
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 1m
+
+scrape_configs:
+  - job_name: web
+    static_configs:
+      - targets: ['web:3000']
+  - job_name: worker
+    static_configs:
+      - targets: ['worker:3001']
+  - job_name: sandbox
+    static_configs:
+      - targets: ['sandbox:3002']
+  - job_name: egress_proxy
+    static_configs:
+      - targets: ['egress_proxy:3003']

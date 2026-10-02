@@ -1,0 +1,13 @@
+# The one data source: the stack's Prometheus, read-only in the UI.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: tbn_prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s

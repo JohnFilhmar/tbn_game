@@ -7,6 +7,11 @@
 **/*.enc.env
 **/*.dec.env
 backend/src/generated
+backend/.workspace_test
+.workspace_e2e
+client/e2e
+client/test-results
+client/playwright-report
 .git
 .github
 docs
