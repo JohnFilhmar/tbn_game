@@ -16,8 +16,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 0 | Foundations | Merged |
 | 1a | One agent, one task | Merged |
 | 1b | The team | Merged |
-| 1c | The outside world | In review |
-| 2 | Realtime | Not started |
+| 1c | The outside world | Merged |
+| 2 | Realtime | In review |
 | 3 | Web app without 3D | Not started |
 | 4 | The 3D world | Not started |
 | 5 | Mobile | Not started |
@@ -133,6 +133,10 @@ Exit: a scripted client receives every event in order, disconnects mid-run, reco
 with no gap and no duplicate. From the owner's laptop on the VPN, the owner can chat with a
 running agent.
 
+The owner moved the first production deploy to phase 3 or 4, once there is a working UI, and the
+two items below go with it. Until then phase 2 shows the chat against the development stack on the
+owner's machine, with `scripts/demo_phase_2.sh`.
+
 Also proposed for this phase, because no phase names them and they belong with the first
 production deploy:
 - Prometheus and Grafana inside the VPN, with dashboards for queue depth, run failures, spend,
@@ -142,7 +146,8 @@ production deploy:
 
 ## Phase 3, web app without 3D
 
-The Vite client, sign in, and the full virtual desktop as 2D screens.
+The Vite client, sign in, and the full virtual desktop as 2D screens. The first production deploy,
+with Prometheus, Grafana and the backups, lands here or in phase 4, as the owner decides.
 
 Exit: the owner can run the whole company from the browser over the VPN.
 

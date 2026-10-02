@@ -147,5 +147,20 @@ describe('the web caches, the library index and run sources', () => {
       { kind: 'fetch', reference: 'https://example.com/', cached: false },
     ]);
     expect(await sources.list(other.owner_id, run.id)).toEqual([]);
+
+    const second = await sources.record(owner.owner_id, {
+      run_id: run.id,
+      kind: 'search',
+      reference: 'pelicans',
+      cached: true,
+    });
+    const [first_source] = await sources.list(owner.owner_id, run.id);
+    if (first_source === undefined) throw new Error('No source');
+    expect(
+      (await sources.list_by_ids(owner.owner_id, [second.id, first_source.id])).map(
+        (source) => source.reference,
+      ),
+    ).toEqual(['https://example.com/', 'pelicans']);
+    expect(await sources.list_by_ids(other.owner_id, [second.id])).toEqual([]);
   });
 });

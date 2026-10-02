@@ -4,8 +4,10 @@ import type { ProviderConnection } from '@/modules/runtime/types/provider_record
 
 /** Options for one adapter call. */
 export interface AdapterCallOptions {
-  /** Abort the HTTP request after this long. */
+  /** Abort the HTTP request after this long, streamed body included. */
   timeout_ms: number;
+  /** When set, the answer streams and each piece of text is passed here as it arrives. */
+  on_text?: (text: string) => void;
 }
 
 /**

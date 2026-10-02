@@ -47,6 +47,7 @@ export interface MergeRequestRepository {
 /** Branch review rows, scoped by owner. */
 export interface BranchReviewRepository {
   list(owner_id: string, query: BranchReviewListQuery): Promise<BranchReviewRecord[]>;
+  find(owner_id: string, id: string): Promise<BranchReviewRecord | null>;
   /** The newest review of a branch, when there is one. */
   latest(
     owner_id: string,

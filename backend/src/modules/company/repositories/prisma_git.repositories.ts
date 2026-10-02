@@ -117,6 +117,10 @@ export class PrismaBranchReviewRepository implements BranchReviewRepository {
     });
   }
 
+  find(owner_id: string, id: string): Promise<BranchReviewRecord | null> {
+    return this.prisma.branchReview.findFirst({ where: { owner_id, id } });
+  }
+
   latest(
     owner_id: string,
     repository_id: string,

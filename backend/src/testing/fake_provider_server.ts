@@ -1,20 +1,37 @@
-import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { ApiFormat } from '@tbn/contracts';
+import { z } from 'zod';
+import { anthropic_body, openai_body } from './fake_provider/bodies';
+import { stream_reply } from './fake_provider/streams';
 
-/** What the fake model answers next, in the neutral shape. */
+/**
+ * What the fake model answers next, in the neutral shape. A streamed request gets the same answer
+ * as server-sent events, `chunk_delay_ms` apart; `stream_usage: false` leaves the usage out of an
+ * OpenAI stream, and `stream_error` sends `text` and then fails the stream.
+ */
 export type ScriptedReply =
-  | { type: 'text'; text: string; stop_reason?: 'end_turn' | 'max_tokens'; delay_ms?: number }
+  | {
+      type: 'text';
+      text: string;
+      stop_reason?: 'end_turn' | 'max_tokens';
+      delay_ms?: number;
+      chunk_delay_ms?: number;
+      stream_usage?: false;
+    }
   | {
       type: 'tool_use';
       name: string;
       input: Record<string, unknown>;
       text?: string;
       delay_ms?: number;
+      chunk_delay_ms?: number;
     }
+  | { type: 'stream_error'; text: string }
   | { type: 'status'; status: number; body?: unknown; headers?: Record<string, string> }
   | { type: 'hold' };
+
+const StreamFlagSchema = z.looseObject({ stream: z.literal(true) });
 
 /** One request the fake server received. */
 export interface RecordedRequest {
@@ -44,75 +61,6 @@ export interface FakeProviderServer {
   /** Lets held requests through. */
   release(): void;
   close(): Promise<void>;
-}
-
-const INPUT_TOKENS = 120;
-const OUTPUT_TOKENS = 30;
-const CACHED_TOKENS = 100;
-
-function anthropic_body(reply: ScriptedReply, cached: boolean): unknown {
-  const content: unknown[] = [];
-  let stop_reason = 'end_turn';
-  if (reply.type === 'text') {
-    content.push({ type: 'text', text: reply.text });
-    stop_reason = reply.stop_reason ?? 'end_turn';
-  } else if (reply.type === 'tool_use') {
-    if (reply.text !== undefined) content.push({ type: 'text', text: reply.text });
-    content.push({
-      type: 'tool_use',
-      id: `toolu_${randomUUID()}`,
-      name: reply.name,
-      input: reply.input,
-    });
-    stop_reason = 'tool_use';
-  }
-  return {
-    id: `msg_${randomUUID()}`,
-    type: 'message',
-    role: 'assistant',
-    content,
-    stop_reason,
-    usage: {
-      input_tokens: INPUT_TOKENS,
-      output_tokens: OUTPUT_TOKENS,
-      cache_read_input_tokens: cached ? CACHED_TOKENS : 0,
-      cache_creation_input_tokens: cached ? 0 : CACHED_TOKENS,
-    },
-  };
-}
-
-function openai_body(reply: ScriptedReply, cached: boolean): unknown {
-  let content: string | null = null;
-  const tool_calls: unknown[] = [];
-  let finish_reason = 'stop';
-  if (reply.type === 'text') {
-    content = reply.text;
-    finish_reason = reply.stop_reason === 'max_tokens' ? 'length' : 'stop';
-  } else if (reply.type === 'tool_use') {
-    content = reply.text ?? null;
-    tool_calls.push({
-      id: `call_${randomUUID()}`,
-      type: 'function',
-      function: { name: reply.name, arguments: JSON.stringify(reply.input) },
-    });
-    finish_reason = 'tool_calls';
-  }
-  return {
-    id: `chatcmpl_${randomUUID()}`,
-    object: 'chat.completion',
-    choices: [
-      {
-        index: 0,
-        message: { role: 'assistant', content, ...(tool_calls.length > 0 && { tool_calls }) },
-        finish_reason,
-      },
-    ],
-    usage: {
-      prompt_tokens: INPUT_TOKENS,
-      completion_tokens: OUTPUT_TOKENS,
-      prompt_tokens_details: { cached_tokens: cached ? CACHED_TOKENS : 0 },
-    },
-  };
 }
 
 function read_body(request: IncomingMessage): Promise<unknown> {
@@ -173,8 +121,13 @@ export async function start_fake_provider_server(
       };
       requests.push(recorded);
       const reply = script.shift() ?? responder?.(recorded) ?? { type: 'text', text: '' };
+      const streamed = StreamFlagSchema.safeParse(body).success;
       if (reply.type === 'hold') {
         if (!release_held) await new Promise<void>((resolve) => holds.push(resolve));
+        if (streamed) {
+          await stream_reply(response, api_format, { type: 'text', text: 'held reply' }, true);
+          return;
+        }
         send(
           response,
           200,
@@ -193,10 +146,18 @@ export async function start_fake_provider_server(
         );
         return;
       }
-      if (reply.delay_ms !== undefined) {
+      if (reply.type !== 'stream_error' && reply.delay_ms !== undefined) {
         await new Promise((resolve) => setTimeout(resolve, reply.delay_ms));
       }
       const cached = requests.length > 1;
+      if (streamed) {
+        await stream_reply(response, api_format, reply, cached);
+        return;
+      }
+      if (reply.type === 'stream_error') {
+        send(response, 500, { error: { message: 'fake stream error' } });
+        return;
+      }
       send(
         response,
         200,

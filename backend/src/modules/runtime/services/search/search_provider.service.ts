@@ -38,6 +38,13 @@ export class SearchProviderService {
     return (await this.providers.list(owner_id)).map(to_search_provider_view);
   }
 
+  /** @throws NotFoundException when the search provider is missing. */
+  async get(owner_id: string, id: string): Promise<SearchProvider> {
+    const record = await this.providers.find(owner_id, id);
+    if (record === null) throw new NotFoundException('Search provider not found');
+    return to_search_provider_view(record);
+  }
+
   /** @throws ConflictException when the name is taken. */
   async create(owner_id: string, input: CreateSearchProvider): Promise<SearchProvider> {
     if ((await this.providers.find_by_name(owner_id, input.name)) !== null) {

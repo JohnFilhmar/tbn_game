@@ -42,6 +42,7 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `scripts/demo_phase_1a.sh`                                         | The phase 1a demo over HTTP against a running stack.        |
 | `scripts/demo_phase_1b.sh`                                         | The phase 1b demo: one goal, a manager and its interns.     |
 | `scripts/demo_phase_1c.sh`                                         | The phase 1c demo: research, a branch, a merge request, an approval, a restart. |
+| `scripts/demo_phase_2.sh`                                          | The phase 2 demo: a scripted client drops and resumes mid-run while the owner chats with the agent. |
 
 Tests use a real PostgreSQL. With the development stack up:
 `DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
@@ -67,16 +68,18 @@ After a Prisma upgrade, approve the new engine install script with
 ```
 backend/            NestJS monolith, four process types: web, worker, sandbox and egress_proxy
   src/
-    web.ts          web entry: HTTP and, from phase 2, WebSocket
+    web.ts          web entry: HTTP and the Socket.IO gateway
     worker.ts       worker entry: agent runs, notification delivery, health and metrics listener
     sandbox.ts      sandbox launcher entry: the one process holding the docker socket
     egress_proxy.ts egress proxy entry: no database, no key
     admin.ts        one-off commands in the same image: owner_create
+    realtime_client.ts the scripted realtime client of the phase 2 demo
     healthcheck.ts  container healthcheck probe
     config/         env schema, parsed once at bootstrap
     lib/            reusable infrastructure: auth decorators, crypto, database, queue, validation,
                     workspace paths, health, metrics, logging, http, process, docker_engine,
-                    sandbox_launcher, egress_proxy, html_text, disk
+                    sandbox_launcher, egress_proxy, html_text, disk, realtime, realtime_client,
+                    idempotency
     modules/        identity, company, runtime, knowledge, integrations, world, events
     utils/          generic helpers
     testing/        test helpers and fakes, excluded from the build
@@ -125,8 +128,10 @@ docs/               architecture, roadmap, plans, reports, runbook
   comment naming the ceiling wherever one process or one database is assumed.
 - Every row carries `owner_id`, and the repository layer applies that scope on every query.
 - Every state change the client cares about is appended to the event log in the same transaction
-  as the change, with a sequence number that only increases. Every command accepts a
-  client-generated id and is idempotent on it.
+  as the change, with a sequence number that only increases. The `tbn_events` trigger writes it, so
+  a new table the client shows gets its trigger, and its ignored columns, in the migration that
+  creates it, and an entity in `ChangeEventSchema` with a loader in the event hydrator. Every
+  command accepts a client-generated id in the `Idempotency-Key` header and is idempotent on it.
 - Config only from environment variables, parsed once at bootstrap by the schema in
   `backend/src/config/` into a typed object injected as `APP_CONFIG`. No `process.env` reads
   anywhere else. `backend/prisma.config.ts` is Prisma CLI configuration and the one exception.
@@ -201,9 +206,10 @@ and `process.env` rules. Prettier formats.
   each, so `jest.config.cjs` runs the files one at a time in one child worker that is recycled
   past 1 GB; an in-band run reaches the heap limit before the suite ends.
 - Model providers are never called in tests. `testing/fake_provider_server.ts` speaks both API
-  formats with scripted replies, or a responder that answers from the request, so the real
-  adapters, retries and usage accounting run. `testing/team_harness.ts` starts a web app, a worker
-  and an owner for flows across several agents.
+  formats with scripted replies, or a responder that answers from the request, and streams them
+  when the request asks, so the real adapters, retries and usage accounting run.
+  `testing/team_harness.ts` starts a web app, a worker and an owner for flows across several
+  agents. A test that connects `lib/realtime_client` calls `app.listen(0, '127.0.0.1')` first.
 - In Jest's VM realm `instanceof Error` is false for a `DOMException`; read `error.name` instead.
 
 ## Delivery

@@ -19,15 +19,22 @@ export async function start_test_worker(config: AppConfig): Promise<INestApplica
 }
 
 /**
- * Clears what earlier test files left for a worker or a launcher: queued wakes and sandbox jobs,
- * runs still running or paused, open tasks and undelivered subtask results. It also dismisses their agents, because the sweep
- * would otherwise wake them and keep a test's worker busy calling fake providers that are gone.
+ * Clears what earlier test files left for a worker or a launcher: queued wakes, sandbox jobs and
+ * notifications, runs still running or paused, open tasks and undelivered subtask results. It
+ * also dismisses their agents, because the sweep would otherwise wake them and keep a test's
+ * worker busy calling fake providers that are gone, and disables their notification channels,
+ * whose webhooks are gone too: a worker that boots after an unclean stop notifies every channel
+ * for `process_restarted`, and the retries would queue ahead of the test's own notifications.
  * Test files run one at a time and each creates its own owner afterwards, so nothing of this
  * file's own is touched.
  */
 export async function reset_worker_state(app: INestApplicationContext): Promise<void> {
   const prisma = app.get(PrismaService);
-  await prisma.$executeRaw`DELETE FROM pgboss.job WHERE name IN ('agent_wake', 'sandbox_job') AND state IN ('created', 'retry')`;
+  await prisma.$executeRaw`DELETE FROM pgboss.job WHERE name IN ('agent_wake', 'sandbox_job', 'notify') AND state IN ('created', 'retry')`;
+  await prisma.notificationChannel.updateMany({
+    where: { enabled: true },
+    data: { enabled: false },
+  });
   await prisma.run.updateMany({
     where: { status: { in: ['running', 'paused'] } },
     data: {

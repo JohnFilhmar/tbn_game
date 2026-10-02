@@ -72,6 +72,9 @@ const env_schema = z.object({
   FETCH_MAX_BYTES: z.coerce.number().int().min(1_024).max(104_857_600).default(2_097_152),
   INTEGRATION_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(15_000),
   SEARXNG_URL: z.url({ protocol: /^https?$/ }).optional(),
+  // 0 keeps every event and every command id, as the brief asks until the owner sets a limit.
+  EVENT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3_650).default(0),
+  COMMAND_RETENTION_HOURS: z.coerce.number().int().min(0).max(8_760).default(0),
 });
 
 /**
@@ -140,6 +143,10 @@ export const config_schema = env_schema.transform((env) => ({
   },
   search: {
     searxng_url: env.SEARXNG_URL,
+  },
+  retention: {
+    event_days: env.EVENT_RETENTION_DAYS,
+    command_hours: env.COMMAND_RETENTION_HOURS,
   },
 }));
 

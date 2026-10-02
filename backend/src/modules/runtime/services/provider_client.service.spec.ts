@@ -398,4 +398,95 @@ describe('ProviderClientService', () => {
     expect(retry_delay_ms(0, 2_500)).toBe(2_500);
     expect(retry_delay_ms(0, 120_000)).toBe(60_000);
   });
+  describe('streaming', () => {
+    const StreamFlagSchema = z.looseObject({
+      stream: z.literal(true),
+      stream_options: z.looseObject({ include_usage: z.literal(true) }).optional(),
+    });
+
+    function collector(): {
+      pieces: Array<[string, number]>;
+      on_text: (text: string, attempt: number) => void;
+    } {
+      const pieces: Array<[string, number]> = [];
+      return { pieces, on_text: (text, attempt) => pieces.push([text, attempt]) };
+    }
+
+    it.each(['anthropic_messages', 'openai_chat_completions'] as const)(
+      'streams %s text as it arrives and assembles the same answer',
+      async (api_format) => {
+        const { server, context } = await connect(api_format);
+        server.enqueue({
+          type: 'tool_use',
+          name: 'read_file',
+          input: { path: 'notes/a long path.md', lines: [1, 2] },
+          text: 'Let me read the notes first.',
+        });
+        const { pieces, on_text } = collector();
+
+        const response = await client.complete(context, request_fixture, { on_text });
+
+        expect(pieces.length).toBeGreaterThan(1);
+        expect(pieces.map(([text]) => text).join('')).toBe('Let me read the notes first.');
+        expect(pieces.every(([, attempt]) => attempt === 1)).toBe(true);
+        expect(response.stop_reason).toBe('tool_use');
+        expect(response.content).toMatchObject([
+          { type: 'text', text: 'Let me read the notes first.' },
+          {
+            type: 'tool_use',
+            name: 'read_file',
+            input: { path: 'notes/a long path.md', lines: [1, 2] },
+          },
+        ]);
+        expect(response.usage.input_tokens).toBe(120);
+        expect(response.usage.output_tokens).toBe(30);
+        const flags = StreamFlagSchema.parse(server.requests[0]?.body);
+        expect(flags.stream_options !== undefined).toBe(api_format === 'openai_chat_completions');
+      },
+    );
+
+    it.each(['anthropic_messages', 'openai_chat_completions'] as const)(
+      'retries a %s stream that fails midway, as a new attempt',
+      async (api_format) => {
+        const { server, context } = await connect(api_format);
+        server.enqueue({ type: 'stream_error', text: 'Half an answer and then' });
+        server.enqueue({ type: 'text', text: 'A whole answer.' });
+        const { pieces, on_text } = collector();
+
+        const response = await client.complete(context, request_fixture, { on_text });
+
+        expect(response.content).toEqual([{ type: 'text', text: 'A whole answer.' }]);
+        expect(pieces.filter(([, attempt]) => attempt === 1).length).toBeGreaterThan(0);
+        expect(
+          pieces
+            .filter(([, attempt]) => attempt === 2)
+            .map(([text]) => text)
+            .join(''),
+        ).toBe('A whole answer.');
+        expect(server.requests).toHaveLength(2);
+      },
+    );
+
+    it('records zero tokens when an OpenAI-compatible server sends no usage', async () => {
+      const { server, context } = await connect('openai_chat_completions');
+      server.enqueue({ type: 'text', text: 'No usage here.', stream_usage: false });
+
+      const response = await client.complete(context, request_fixture, collector());
+
+      expect(response).toEqual({
+        content: [{ type: 'text', text: 'No usage here.' }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 },
+      });
+    });
+
+    it('classifies an error status the same way with or without a stream', async () => {
+      const { server, context } = await connect('anthropic_messages');
+      server.enqueue({ type: 'status', status: 401, body: { error: { message: 'bad key' } } });
+
+      await expect(client.complete(context, request_fixture, collector())).rejects.toMatchObject({
+        kind: 'authentication',
+      });
+    });
+  });
 });

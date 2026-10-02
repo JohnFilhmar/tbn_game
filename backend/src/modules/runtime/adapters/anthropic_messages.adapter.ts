@@ -10,11 +10,13 @@ import type {
   ModelMessage,
   ModelRequest,
   ModelResponse,
-  StopReason,
 } from '@/modules/runtime/types/model_request';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderConnection } from '@/modules/runtime/types/provider_record';
-import { error_excerpt, post_json, retry_after_ms } from './http_call';
+import { assemble_anthropic_stream, to_stop_reason } from './anthropic_stream';
+import { error_excerpt, retry_after_ms, stream_failure } from './http/failures';
+import { post_json, post_stream, type PostJsonOptions } from './http/post';
+import { read_sse } from './sse';
 
 const ANTHROPIC_VERSION = '2023-06-01';
 const CACHE_CONTROL = { type: 'ephemeral' };
@@ -65,20 +67,6 @@ function to_wire_messages(messages: ModelMessage[]): unknown[] {
   }));
 }
 
-function to_stop_reason(reason: string | null): StopReason {
-  switch (reason) {
-    case 'end_turn':
-    case 'stop_sequence':
-      return 'end_turn';
-    case 'tool_use':
-      return 'tool_use';
-    case 'max_tokens':
-      return 'max_tokens';
-    default:
-      return 'other';
-  }
-}
-
 function classify(status: number, body: unknown, text: string, headers: Headers): ProviderError {
   const parsed = ErrorBodySchema.safeParse(body);
   const message = parsed.success ? (parsed.data.error.message ?? '') : '';
@@ -101,7 +89,8 @@ function classify(status: number, body: unknown, text: string, headers: Headers)
 
 /**
  * The Anthropic Messages API. The system prompt and the last tool carry `cache_control`, so the
- * stable prefix is cached by the provider.
+ * stable prefix is cached by the provider. With `on_text` the answer streams as server-sent
+ * events and each piece of text is passed on as it arrives.
  */
 @Injectable()
 export class AnthropicMessagesAdapter implements LlmAdapter {
@@ -118,7 +107,7 @@ export class AnthropicMessagesAdapter implements LlmAdapter {
       input_schema: tool.input_schema,
       ...(index === request.tools.length - 1 && { cache_control: CACHE_CONTROL }),
     }));
-    const result = await post_json({
+    const call = {
       url: `${connection.base_url.replace(/\/$/, '')}/v1/messages`,
       headers: { 'x-api-key': connection.api_key, 'anthropic-version': ANTHROPIC_VERSION },
       body: {
@@ -127,9 +116,13 @@ export class AnthropicMessagesAdapter implements LlmAdapter {
         system: [{ type: 'text', text: request.system, cache_control: CACHE_CONTROL }],
         ...(tools.length > 0 && { tools }),
         messages: to_wire_messages(request.messages),
+        ...(options.on_text !== undefined && { stream: true }),
       },
       timeout_ms: options.timeout_ms,
-    });
+    };
+    if (options.on_text !== undefined) return this.stream(call, options.on_text);
+
+    const result = await post_json(call);
     if (result.status !== 200)
       throw classify(result.status, result.body, result.text, result.headers);
 
@@ -154,5 +147,20 @@ export class AnthropicMessagesAdapter implements LlmAdapter {
         cache_write_tokens: parsed.data.usage.cache_creation_input_tokens ?? 0,
       },
     };
+  }
+
+  private async stream(
+    call: PostJsonOptions,
+    on_text: (text: string) => void,
+  ): Promise<ModelResponse> {
+    const result = await post_stream(call);
+    if (result.body === null) {
+      throw classify(result.status, result.error_body, result.error_text, result.headers);
+    }
+    try {
+      return await assemble_anthropic_stream(read_sse(result.body), on_text);
+    } catch (error: unknown) {
+      throw stream_failure(error, call.timeout_ms);
+    }
   }
 }

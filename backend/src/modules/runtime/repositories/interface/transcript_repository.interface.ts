@@ -31,6 +31,8 @@ export interface TranscriptRepository {
   ): Promise<TranscriptEntryRecord[]>;
   /** Every entry of the agent in order. The run loop rebuilds its request from this. */
   list_all(owner_id: string, agent_id: string): Promise<TranscriptEntryRecord[]>;
+  /** The entries with these ids, oldest first. Ids of another owner are left out. */
+  list_by_ids(owner_id: string, ids: string[]): Promise<TranscriptEntryRecord[]>;
   /** True when a message or a subtask result came after the agent's last answer. */
   has_unread(owner_id: string, agent_id: string): Promise<boolean>;
 }

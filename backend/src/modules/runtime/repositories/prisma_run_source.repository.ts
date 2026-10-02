@@ -21,4 +21,11 @@ export class PrismaRunSourceRepository implements RunSourceRepository {
       take: LIST_LIMIT,
     });
   }
+
+  list_by_ids(owner_id: string, ids: string[]): Promise<RunSourceRecord[]> {
+    return this.prisma.runSource.findMany({
+      where: { owner_id, id: { in: ids } },
+      orderBy: { read_at: 'asc' },
+    });
+  }
 }

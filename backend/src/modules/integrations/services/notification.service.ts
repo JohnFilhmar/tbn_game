@@ -112,6 +112,13 @@ export class NotificationService implements OnApplicationBootstrap {
     return (await this.notifications.list_channels(owner_id)).map(to_channel_view);
   }
 
+  /** @throws NotFoundException when the channel is missing. */
+  async get_channel(owner_id: string, id: string): Promise<NotificationChannel> {
+    const record = await this.notifications.find_channel(owner_id, id);
+    if (record === null) throw new NotFoundException('Channel not found');
+    return to_channel_view(record);
+  }
+
   async create_channel(
     owner_id: string,
     input: CreateNotificationChannel,
@@ -152,6 +159,13 @@ export class NotificationService implements OnApplicationBootstrap {
 
   async list(owner_id: string, query: NotificationListQuery): Promise<Notification[]> {
     return (await this.notifications.list(owner_id, query)).map(to_notification_view);
+  }
+
+  /** @throws NotFoundException when the notification is missing. */
+  async get(owner_id: string, id: string): Promise<Notification> {
+    const record = await this.notifications.find(owner_id, id);
+    if (record === null) throw new NotFoundException('Notification not found');
+    return to_notification_view(record);
   }
 
   /** Records the event for the owner and queues a send on every enabled channel. */

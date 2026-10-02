@@ -50,4 +50,9 @@ export class RunSourceService {
   async list(owner_id: string, run_id: string): Promise<RunSource[]> {
     return (await this.sources.list(owner_id, run_id)).map(to_run_source_view);
   }
+
+  /** The sources with these ids, for the event log. */
+  async views_by_ids(owner_id: string, ids: string[]): Promise<RunSource[]> {
+    return (await this.sources.list_by_ids(owner_id, ids)).map(to_run_source_view);
+  }
 }

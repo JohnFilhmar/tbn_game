@@ -44,6 +44,14 @@ export class TranscriptService {
       .filter((entry): entry is TranscriptEntry => entry !== null);
   }
 
+  /** The entries with these ids that still fit the contract, for the event log. */
+  async views_by_ids(owner_id: string, ids: string[]): Promise<TranscriptEntry[]> {
+    const records = await this.transcripts.list_by_ids(owner_id, ids);
+    return records
+      .map(to_transcript_entry_view)
+      .filter((entry): entry is TranscriptEntry => entry !== null);
+  }
+
   /**
    * Appends a message from the owner and wakes the agent. A working agent reads it at its next
    * model turn; an idle one starts a run to answer it.
