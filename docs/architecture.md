@@ -20,45 +20,54 @@ The system is online only. It runs as one monolith on one private server that on
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
 workload the owner gives the agents.
 
-## Current state (phase 0)
+## Current state (phase 1a)
 
 ```mermaid
 flowchart LR
-  owner["Owner: browser, desktop or mobile shell"] -->|"HTTPS inside the tailnet"| serve["tailscale serve on the host"]
+  owner["Owner: curl today, the browser from phase 3"] -->|"HTTPS inside the tailnet"| serve["tailscale serve on the host"]
   serve -->|"127.0.0.1:3000"| web
   subgraph backend_network["backend network"]
-    web["web: HTTP, /health, /metrics"]
-    worker["worker: application context, /health and /metrics on 3001"]
-    postgres[("PostgreSQL 18")]
-    searxng["SearXNG"]
+    web["web: auth, providers, agents, tasks, knowledge, transcripts, reports"]
+    worker["worker: agent_wake handler, run loop, tools"]
+    postgres[("PostgreSQL 18: rows, transcripts, pg-boss queue")]
+    searxng["SearXNG, unused until 1c"]
   end
   subgraph sandbox_network["sandbox network, internal: no gateway"]
     sandbox["sandbox: idle placeholder"]
     egress_proxy["egress_proxy: idle placeholder"]
   end
-  web --> postgres
-  worker --> postgres
+  web -->|"rows and agent_wake jobs"| postgres
+  worker -->|"rows, leases, checkpoints"| postgres
+  worker -->|"model calls through the adapters"| llm["LLM providers"]
+  worker -->|"file tools"| workspace[("workspace volume")]
 ```
 
-- One image, `ghcr.io/johnfilhmar/tbn_game/backend`, built from the root `Dockerfile`. It runs
-  `dist/web.js`, `dist/worker.js`, the healthcheck probe `dist/healthcheck.js <process_type>`, and
-  the Prisma CLI for the migration release step. The runtime base is distroless Node 24, with no
-  shell, running as uid 65532.
-- `web` serves `GET /health` and `GET /metrics` with helmet, an explicit CORS origin list and body
-  size limits.
-- `worker` runs as a Nest application context, so no controller is ever mounted in it. A small
-  `node:http` listener in `lib/ops_server` serves its `/health` and `/metrics`.
-- `/health` answers 200 when PostgreSQL answers `SELECT 1` within 2 seconds and 503 otherwise. Its
-  body matches `HealthResponseSchema` in `@tbn/contracts`.
-- Both processes log JSON lines to stdout, with `process_type`, `commit_sha`, a request id taken
-  from a safe `x-request-id` header or generated, and redaction of credentials in headers.
-- Both close cleanly on SIGTERM: Nest shutdown hooks run, the process exits 0, and it exits 1 when
-  closing takes longer than `SHUTDOWN_TIMEOUT_MS`.
-- The seven domain modules exist and are empty. Prisma has an empty schema and no migrations.
-- `sandbox` and `egress_proxy` are idle, locked-down placeholders on the internal `sandbox`
-  network. Their healthchecks assert that they run as non-root, on a read-only root, with no
-  capabilities. Nothing listens, so sandbox egress fails closed until phase 1c replaces both.
-- `searxng` runs the upstream image with `deploy/searxng/settings.yml`. It is not used yet.
+The company works over REST. The owner logs in, adds providers, recruits level 1 agents, assigns
+tasks, chats with agents and downloads reports. The worker drives one run per agent at a time.
+
+- **Identity.** One owner account created with `dist/admin.js owner_create`, argon2id hashes,
+  session tokens stored as hashes, a global guard with `@Public()` on `/health`, `/metrics` and
+  `POST /auth/login`.
+- **Providers.** Both API formats behind one interface. Keys are sealed with AES-256-GCM under
+  `SECRETS_ENCRYPTION_KEY` and never returned. Calls time out, retry with backoff and jitter on
+  rate limits, server errors, timeouts and network errors, honour `retry-after`, and write a usage
+  row with cost after every call. The Anthropic adapter marks the system prompt and the last tool
+  with `cache_control`; the OpenAI adapter reads `cached_tokens`.
+- **Company.** Recruiting a level 1 agent creates the department it heads, named after its role.
+  Tasks queue per agent and send an `agent_wake` job. Reports are one Markdown document per task.
+- **Knowledge.** Instructions for every agent, a role or one agent; skills with a one-line
+  description in the prompt and a body behind `load_skill`, imported and exported as `SKILL.md`;
+  typed preferences with defaults.
+- **Runs.** The wake handler resumes the agent's running run or starts one for its next queued
+  task or an unanswered owner message. The loop appends every model turn and tool result to
+  `transcript_entries` before going on, so the transcript is the checkpoint. A run carries a lease
+  that the worker extends during model calls; a lapsed lease is re-woken on boot and on a timer.
+  Tools: `list_files`, `read_file`, `write_file` inside the owner's workspace directory,
+  `load_skill`, `finish_task`. Policies `auto` and `deny` apply; `ask` answers the model with an
+  error until the approval inbox arrives in 1c.
+- **Not yet.** Interns, caps, the breaker and out-of-credit blocking, compaction and the runaway
+  guard are phase 1b. The sandbox, proxy, web tools, git, integrations, plugins, taint and approvals
+  are phase 1c. The event log, idempotent commands and Socket.IO are phase 2.
 
 ## Backend
 
@@ -485,3 +494,19 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | Deploy copies stack files to `/opt/tbn` | The running stack must not depend on the runner's checkout directory. |
 | Keyless cosign signing on pull requests and on main | Proves the signing gate before merge. Only the identity of `ci.yml` on `main` can deploy. |
 | npm `min-release-age=7`, Dependabot cooldown, `allowScripts` | Supply chain: no release younger than a week and no unreviewed install script. |
+
+## Decisions made in phase 1a
+
+| Decision | Why |
+| --- | --- |
+| The transcript is the checkpoint | One table holds the conversation and the resume point, so a restarted worker needs no separate run state. |
+| Leases on runs, orphan recovery by wake | pg-boss keeps a dead worker's job active for hours; the lease plus a periodic scan resumes a run within `RUN_LEASE_SECONDS`. |
+| No `singletonKey` on wakes | A singleton would be blocked by the dead worker's active job. Wakes are idempotent, so duplicates are cheap. |
+| The worker waits for the queue schema | `docker compose up --wait` on a fresh database must report every service healthy before the migration release step runs. The worker logs a warning every 5 s until the schema exists instead of crash looping. |
+| `company` sends a wake instead of calling the loop | Breaks the cycle between tasks and runs. Cancel and dismiss only change a status the loop reads before every turn. |
+| `RuntimeProvidersModule` split from `RuntimeModule` | Agents validate their provider without the company module depending on the loop. |
+| Owner account from a one-off command | An endpoint that creates the only account would have to be public. |
+| `finish_task` ends a task; one nudge, then a fallback report | The model must report; a forgotten call still yields a report from its last message rather than a failed task. |
+| 100 turns per run as a hard cap | Stops a loop until the runaway guard in 1b asks the owner instead. |
+| Fake provider servers in tests | The adapters, retries and usage accounting run for real against scripted HTTP replies. |
+| Jest runs test files one at a time | One database and one queue are shared; owner scoping keeps data apart without truncation. |

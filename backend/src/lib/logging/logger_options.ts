@@ -36,10 +36,16 @@ function is_probe(request: IncomingMessage): boolean {
  *
  * @param config - Parsed configuration.
  * @param process_type - Added to every line so web and worker logs can be told apart.
+ * @param destination - Where lines go: stdout, or a buffer in tests.
  */
-export function build_logger_options(config: AppConfig, process_type: ProcessType): Params {
+export function build_logger_options(
+  config: AppConfig,
+  process_type: ProcessType,
+  destination: NodeJS.WritableStream,
+): Params {
   return {
     pinoHttp: {
+      stream: destination,
       level: config.log_level,
       base: { process_type, commit_sha: config.git_commit_sha },
       timestamp: stdTimeFunctions.isoTime,

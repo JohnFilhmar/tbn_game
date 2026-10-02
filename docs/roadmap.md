@@ -13,8 +13,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 
 | Phase | Name | Status |
 | --- | --- | --- |
-| 0 | Foundations | In review: [JohnFilhmar/tbn_game#1](https://github.com/JohnFilhmar/tbn_game/pull/1) |
-| 1a | One agent, one task | Not started |
+| 0 | Foundations | Merged |
+| 1a | One agent, one task | In review |
 | 1b | The team | Not started |
 | 1c | The outside world | Not started. Needs owner approval of the sandbox and proxy design before coding. |
 | 2 | Realtime | Not started |

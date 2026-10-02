@@ -51,6 +51,12 @@ export default tseslint.config(
         'error',
         { selector: 'default', format: ['snake_case'], leadingUnderscore: 'allow' },
         { selector: 'variable', format: ['snake_case', 'UPPER_CASE'] },
+        // Zod schemas keep the contracts naming everywhere: PascalCase with a Schema suffix.
+        {
+          selector: 'variable',
+          filter: { regex: 'Schemas?$', match: true },
+          format: ['PascalCase'],
+        },
         { selector: 'typeLike', format: ['PascalCase'] },
         { selector: 'enumMember', format: ['PascalCase', 'UPPER_CASE'] },
         { selector: 'import', format: null },
@@ -67,17 +73,41 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/contracts/src/**/*.ts'],
+    // Decorator factories read as annotations, so they keep Nest's PascalCase: @Public(), @ZodBody().
+    files: ['backend/src/**/*.decorator.ts'],
     rules: {
       '@typescript-eslint/naming-convention': [
         'error',
-        { selector: 'variable', format: ['PascalCase'], suffix: ['Schema'] },
+        { selector: 'function', format: ['PascalCase'] },
+        { selector: 'variable', format: ['snake_case', 'PascalCase', 'UPPER_CASE'] },
         { selector: 'typeLike', format: ['PascalCase'] },
       ],
     },
   },
   {
-    files: ['backend/src/config/load_config.ts', 'backend/prisma.config.ts'],
+    files: ['packages/contracts/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        { selector: 'variable', format: ['snake_case', 'UPPER_CASE'] },
+        {
+          selector: 'variable',
+          filter: { regex: 'Schemas?$', match: true },
+          format: ['PascalCase'],
+        },
+        { selector: 'function', format: ['snake_case'] },
+        { selector: 'typeLike', format: ['PascalCase'] },
+      ],
+    },
+  },
+  {
+    files: [
+      'backend/src/config/load_config.ts',
+      'backend/prisma.config.ts',
+      'backend/src/testing/jest_setup.ts',
+      'backend/src/testing/test_database.ts',
+      'backend/src/testing/test_worker.ts',
+    ],
     rules: { 'no-restricted-syntax': 'off' },
   },
   {

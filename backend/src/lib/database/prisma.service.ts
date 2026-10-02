@@ -1,4 +1,4 @@
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
@@ -15,7 +15,7 @@ const DATABASE_CONNECT_TIMEOUT_MS = 5_000;
  * `max_connections` (100 by default).
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleDestroy {
+export class PrismaService extends PrismaClient implements OnApplicationShutdown {
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
     super({
       adapter: new PrismaPg({
@@ -26,8 +26,11 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     });
   }
 
-  /** Closes the connection pool when the application shuts down. */
-  async onModuleDestroy(): Promise<void> {
+  /**
+   * Closes the connection pool in the last shutdown phase, after the queue has drained its active
+   * handlers, so a run in flight can still write its checkpoint.
+   */
+  async onApplicationShutdown(): Promise<void> {
     await this.$disconnect();
   }
 }

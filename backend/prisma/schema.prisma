@@ -1,4 +1,5 @@
-// Models arrive in phase 1a. Every schema change ships with its migration in the same commit.
+// Every table carries owner_id and every repository query is scoped by it. Every schema change
+// ships with its migration in the same commit. Tables are plural snake_case, ids are UUID v7.
 
 generator client {
   provider     = "prisma-client"
@@ -8,4 +9,380 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ApiFormat {
+  anthropic_messages
+  openai_chat_completions
+
+  @@map("api_format")
+}
+
+enum CostTier {
+  cheap
+  standard
+  premium
+
+  @@map("cost_tier")
+}
+
+enum AgentStatus {
+  idle
+  working
+  dismissed
+
+  @@map("agent_status")
+}
+
+enum InstructionScope {
+  global
+  role
+  agent
+
+  @@map("instruction_scope")
+}
+
+enum SkillTargetType {
+  role
+  agent
+
+  @@map("skill_target_type")
+}
+
+enum TaskStatus {
+  queued
+  in_progress
+  blocked
+  awaiting_approval
+  done
+  failed
+  cancelled
+
+  @@map("task_status")
+}
+
+enum RunStatus {
+  running
+  done
+  failed
+  cancelled
+
+  @@map("run_status")
+}
+
+enum TranscriptEntryKind {
+  owner_message
+  task_assignment
+  assistant
+  tool_result
+  system_note
+
+  @@map("transcript_entry_kind")
+}
+
+model Owner {
+  id            String   @id @default(uuid(7))
+  username      String   @unique
+  password_hash String
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  sessions           Session[]
+  providers          Provider[]
+  provider_models    ProviderModel[]
+  departments        Department[]
+  agents             Agent[]
+  instructions       Instruction[]
+  skills             Skill[]
+  skill_attachments  SkillAttachment[]
+  preferences        Preference[]
+  tasks              Task[]
+  runs               Run[]
+  transcript_entries TranscriptEntry[]
+  usage_records      UsageRecord[]
+  reports            Report[]
+
+  @@map("owners")
+}
+
+model Session {
+  id           String   @id @default(uuid(7))
+  owner_id     String
+  token_hash   String   @unique
+  expires_at   DateTime @db.Timestamptz(6)
+  last_seen_at DateTime @default(now()) @db.Timestamptz(6)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id])
+  @@map("sessions")
+}
+
+model Provider {
+  id                 String    @id @default(uuid(7))
+  owner_id           String
+  name               String
+  api_format         ApiFormat
+  base_url           String
+  api_key_ciphertext String
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+
+  owner         Owner           @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  models        ProviderModel[]
+  agents        Agent[]
+  usage_records UsageRecord[]
+
+  @@unique([owner_id, name])
+  @@map("providers")
+}
+
+model ProviderModel {
+  id                            String   @id @default(uuid(7))
+  owner_id                      String
+  provider_id                   String
+  model_id                      String
+  cost_tier                     CostTier
+  input_price_per_million       Float?
+  output_price_per_million      Float?
+  cache_read_price_per_million  Float?
+  cache_write_price_per_million Float?
+  max_output_tokens             Int      @default(8192)
+  created_at                    DateTime @default(now()) @db.Timestamptz(6)
+
+  owner    Owner    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider_id, model_id])
+  @@map("provider_models")
+}
+
+model Department {
+  id               String   @id @default(uuid(7))
+  owner_id         String
+  name             String
+  manager_agent_id String?  @unique
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @updatedAt @db.Timestamptz(6)
+
+  owner   Owner   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  manager Agent?  @relation("department_manager", fields: [manager_agent_id], references: [id], onDelete: SetNull)
+  members Agent[] @relation("department_members")
+
+  @@index([owner_id])
+  @@map("departments")
+}
+
+model Agent {
+  id              String      @id @default(uuid(7))
+  owner_id        String
+  name            String
+  role            String
+  job_description String
+  level           Int
+  department_id   String
+  provider_id     String
+  primary_model   String
+  intern_model    String
+  appearance      Json        @default("{}")
+  tool_policy     Json        @default("{}")
+  status          AgentStatus @default(idle)
+  active_run_id   String?
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime    @updatedAt @db.Timestamptz(6)
+
+  owner              Owner             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  department         Department        @relation("department_members", fields: [department_id], references: [id], onDelete: Restrict)
+  heads_department   Department?       @relation("department_manager")
+  provider           Provider          @relation(fields: [provider_id], references: [id], onDelete: Restrict)
+  instructions       Instruction[]
+  skill_attachments  SkillAttachment[]
+  assigned_tasks     Task[]            @relation("task_assignee")
+  delegated_tasks    Task[]            @relation("task_delegator")
+  runs               Run[]
+  transcript_entries TranscriptEntry[]
+  usage_records      UsageRecord[]
+  reports            Report[]
+
+  @@unique([owner_id, name])
+  @@index([owner_id, status])
+  @@map("agents")
+}
+
+model Instruction {
+  id         String           @id @default(uuid(7))
+  owner_id   String
+  scope      InstructionScope
+  role       String?
+  agent_id   String?
+  title      String
+  body       String
+  position   Int              @default(0)
+  enabled    Boolean          @default(true)
+  created_at DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at DateTime         @updatedAt @db.Timestamptz(6)
+
+  owner Owner  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  agent Agent? @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, scope])
+  @@map("instructions")
+}
+
+model Skill {
+  id          String   @id @default(uuid(7))
+  owner_id    String
+  name        String
+  description String
+  body        String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  owner       Owner             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  attachments SkillAttachment[]
+
+  @@unique([owner_id, name])
+  @@map("skills")
+}
+
+model SkillAttachment {
+  id          String          @id @default(uuid(7))
+  owner_id    String
+  skill_id    String
+  target_type SkillTargetType
+  role        String?
+  agent_id    String?
+  created_at  DateTime        @default(now()) @db.Timestamptz(6)
+
+  owner Owner  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  skill Skill  @relation(fields: [skill_id], references: [id], onDelete: Cascade)
+  agent Agent? @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, agent_id])
+  @@index([owner_id, role])
+  @@map("skill_attachments")
+}
+
+model Preference {
+  id         String   @id @default(uuid(7))
+  owner_id   String
+  key        String
+  value      Json
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([owner_id, key])
+  @@map("preferences")
+}
+
+model Task {
+  id                 String     @id @default(uuid(7))
+  owner_id           String
+  title              String
+  instructions       String
+  assignee_agent_id  String
+  delegator_agent_id String?
+  parent_task_id     String?
+  status             TaskStatus @default(queued)
+  result             String?
+  started_at         DateTime?  @db.Timestamptz(6)
+  finished_at        DateTime?  @db.Timestamptz(6)
+  created_at         DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime   @updatedAt @db.Timestamptz(6)
+
+  owner     Owner   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  assignee  Agent   @relation("task_assignee", fields: [assignee_agent_id], references: [id], onDelete: Restrict)
+  delegator Agent?  @relation("task_delegator", fields: [delegator_agent_id], references: [id], onDelete: SetNull)
+  parent    Task?   @relation("task_children", fields: [parent_task_id], references: [id], onDelete: SetNull)
+  children  Task[]  @relation("task_children")
+  runs      Run[]
+  report    Report?
+
+  @@index([owner_id, assignee_agent_id, status])
+  @@map("tasks")
+}
+
+model Run {
+  id               String    @id @default(uuid(7))
+  owner_id         String
+  agent_id         String
+  task_id          String?
+  status           RunStatus @default(running)
+  turn_count       Int       @default(0)
+  lease_owner      String?
+  lease_expires_at DateTime? @db.Timestamptz(6)
+  error            String?
+  started_at       DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at      DateTime? @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+
+  owner              Owner             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  agent              Agent             @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  task               Task?             @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  transcript_entries TranscriptEntry[]
+  usage_records      UsageRecord[]
+
+  @@index([owner_id, agent_id, status])
+  @@index([status, lease_expires_at])
+  @@map("runs")
+}
+
+model TranscriptEntry {
+  id         String              @id @default(uuid(7))
+  owner_id   String
+  agent_id   String
+  run_id     String?
+  seq        Int
+  kind       TranscriptEntryKind
+  content    Json
+  created_at DateTime            @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  run   Run?  @relation(fields: [run_id], references: [id], onDelete: SetNull)
+
+  @@unique([agent_id, seq])
+  @@map("transcript_entries")
+}
+
+model UsageRecord {
+  id                String   @id @default(uuid(7))
+  owner_id          String
+  provider_id       String
+  model_id          String
+  agent_id          String
+  run_id            String?
+  input_tokens      Int
+  output_tokens     Int
+  cache_read_tokens Int      @default(0)
+  cache_write_tokens Int     @default(0)
+  cost              Float    @default(0)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  owner    Owner    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+  agent    Agent    @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  run      Run?     @relation(fields: [run_id], references: [id], onDelete: SetNull)
+
+  @@index([owner_id, provider_id, created_at])
+  @@map("usage_records")
+}
+
+model Report {
+  id         String   @id @default(uuid(7))
+  owner_id   String
+  task_id    String   @unique
+  agent_id   String
+  body_md    String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  task  Task  @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, created_at])
+  @@map("reports")
 }
