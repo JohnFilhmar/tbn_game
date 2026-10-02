@@ -19,7 +19,6 @@ const YEAR_SECONDS = 31_536_000;
  * @param client_dir - The client's build output, holding `index.html` and `assets/`.
  */
 export function serve_client(app: NestExpressApplication, client_dir: string): void {
-  const index = join(client_dir, 'index.html');
   app.useStaticAssets(join(client_dir, 'assets'), {
     prefix: `${CLIENT_PATH}/assets`,
     index: false,
@@ -40,7 +39,8 @@ export function serve_client(app: NestExpressApplication, client_dir: string): v
       return;
     }
     response.setHeader('Cache-Control', NO_CACHE);
-    response.sendFile(index);
+    // A fixed file name under `root`, so no request can name another file.
+    response.sendFile('index.html', { root: client_dir });
   });
   app.use((request: Request, response: Response, next: NextFunction) => {
     if (request.path === '/' && (request.method === 'GET' || request.method === 'HEAD')) {
