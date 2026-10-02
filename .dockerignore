@@ -1,0 +1,15 @@
+# Only what the image build needs. Secrets and local state never enter the build context.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.enc.env
+**/*.dec.env
+backend/src/generated
+.git
+.github
+docs
+deploy
+*.md
+docker-compose.*.yml

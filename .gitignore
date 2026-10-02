@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+backend/src/generated/
+
+# Local secrets never enter git. Only the example file is tracked.
+.env
+.env.*
+!.env.example
+*.dec.env
+
+# Scan and build outputs
+sbom*.json
+trivy*.json

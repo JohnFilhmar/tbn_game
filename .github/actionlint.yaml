@@ -1,0 +1,4 @@
+# The self-hosted runner on the production server carries this label. See docs/server_setup.md.
+self-hosted-runner:
+  labels:
+    - tbn-production

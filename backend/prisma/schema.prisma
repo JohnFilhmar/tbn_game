@@ -1,0 +1,11 @@
+// Models arrive in phase 1a. Every schema change ships with its migration in the same commit.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

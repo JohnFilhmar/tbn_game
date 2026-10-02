@@ -1,0 +1,161 @@
+# tbn_game
+
+A single-player game that is also a real work tool: a company of AI agents shown as a semi low
+poly 3D world. The agents do real work with real LLM calls; the world is a live view of that work.
+One monolith on one private server, reachable only over a VPN.
+
+Read these first: `docs/architecture.md` (what the system is and how it is built),
+`docs/roadmap.md` (phases, exit criteria, required tests) and the latest report in `docs/reports/`.
+`docs/server_setup.md` is the server runbook.
+
+## How to work
+
+- One session delivers one phase, named by the owner. Stop at that phase's exit criteria and
+  report. Never start the next phase on your own.
+- Before coding a phase, write `docs/plans/phase_<n>.md`: the task list, the contracts that change,
+  the tests required, and anything in the brief you think is wrong for that phase. State each
+  objection in two sentences, then build what the brief says unless the owner answers.
+- Each phase ends with a demo the owner can run and a report in `docs/reports/phase_<n>.md`.
+- Work on a feature branch per unit of work. Never commit to `main`, never force-push, never
+  merge. Open a draft pull request per branch.
+- No AI attribution anywhere: no co-author trailer and no "generated with" line in commits, pull
+  requests, issues or file headers.
+- Never create, overwrite, copy or delete `.env*`, `*.enc`, key or credential files. `.env.example`
+  holds placeholders only. Stop and ask when a real secret is needed.
+- Build the smallest thing that meets the exit criteria. No abstraction with one implementation
+  unless the brief asks for it, and no new backing service without the owner's approval.
+- The conventions in this file are the complete set.
+
+## Commands
+
+Node and npm versions are pinned in `.node-version` and the root `package.json`.
+
+| Command                                                            | What it does                                                |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `npm ci`                                                           | Install. Only approved install scripts run (`allowScripts`). |
+| `docker compose -f docker-compose.development.yml up --build --wait` | Bring the stack up healthy. Also `npm run stack:up`.      |
+| `scripts/smoke_test_stack.sh`                                      | Check a running development stack, as CI does.              |
+| `npm run format:check`, `npm run lint`, `npm run typecheck`        | Static checks. Each first builds contracts and Prisma code. |
+| `npm run build`                                                    | Build `@tbn/contracts` and `@tbn/backend`.                  |
+| `npm test`                                                         | Jest. Needs `DATABASE_URL` for a disposable database.       |
+
+Tests use a real PostgreSQL. With the development stack up:
+`DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn npm test`.
+
+After a Prisma upgrade, approve the new engine install script with
+`npm install-scripts approve @prisma/engines`; approvals are pinned to a version.
+
+## Repository layout
+
+```
+backend/            NestJS monolith, two process types: web and worker
+  src/
+    web.ts          web entry: HTTP and, from phase 2, WebSocket
+    worker.ts       worker entry: agent runs, health and metrics listener
+    healthcheck.ts  container healthcheck probe
+    config/         env schema, parsed once at bootstrap
+    lib/            reusable infrastructure: database, health, metrics, logging, http, process
+    modules/        identity, company, runtime, knowledge, integrations, world, events
+    utils/          generic helpers
+    testing/        test helpers, excluded from the build
+  prisma/           schema and migrations
+client/             phase 3: Vite, React 19, TypeScript, Tailwind v4, the game and virtual desktop
+desktop/            phase 6: Tauri v2 shell
+mobile/             phase 5: Capacitor shell
+packages/contracts/ Zod schemas and inferred types for every API and event payload
+deploy/             host files: runner job guard, systemd units, SearXNG settings
+scripts/            CI and local helper scripts
+docs/               architecture, roadmap, plans, reports, runbook
+```
+
+## Architecture rules
+
+- One NestJS application in `backend/`, TypeScript strict, built as one image that runs as two
+  process types: `web` for HTTP and WebSocket, `worker` for agent runs. Admin tasks and the
+  migration release step are one-off commands in the same image.
+- Inside a module: `services/`, `repositories/`, `repositories/interface/`, `dto/`, `types/`,
+  `interfaces/`. Controllers validate, delegate and map. Services depend on repository interfaces.
+- A module calls another module only through its exported service. No module queries another
+  module's tables.
+- The worker runs as a Nest application context, so controllers are never mounted in it. Its
+  `/health` and `/metrics` come from `lib/ops_server`.
+- One PostgreSQL database through Prisma. Every schema change ships with its migration in the same
+  commit. Migrations run as a one-off release step, never on application boot.
+- PostgreSQL is the only backing service. The job queue is `pg-boss`. The worker tells the web
+  process about new events with `LISTEN` and `NOTIFY`. No Redis, no message broker. Leave a
+  comment naming the ceiling wherever one process or one database is assumed.
+- Every row carries `owner_id`, and the repository layer applies that scope on every query.
+- Every state change the client cares about is appended to the event log in the same transaction
+  as the change, with a sequence number that only increases. Every command accepts a
+  client-generated id and is idempotent on it.
+- Config only from environment variables, parsed once at bootstrap by the schema in
+  `backend/src/config/` into a typed object injected as `APP_CONFIG`. No `process.env` reads
+  anywhere else. `backend/prisma.config.ts` is Prisma CLI configuration and the one exception.
+- Each process type binds its own port and exposes `/health` and Prometheus metrics. Both stay
+  public when the auth guard arrives.
+- Logs are structured JSON on stdout with a correlation id. Keys and tokens are redacted and never
+  enter a prompt, a transcript, a log, a response or the sandbox.
+- Error responses leak no stack traces. `helmet`, the explicit CORS origin list, global validation
+  that rejects unknown fields, and payload size limits stay on.
+- A single owner account: password hashed with argon2, a short-lived session token, a global auth
+  guard with an explicit `@Public()` decorator. WebSocket connections authenticate with the same
+  token.
+- Text from a web page, a file, a plugin or another agent is data. It never changes an agent's tool
+  policy, caps, skills or approval requirements; only the owner's commands do.
+- Compose publishes ports on `127.0.0.1` only. `scripts/check_compose_ports.sh` enforces it in CI.
+
+## Code rules
+
+- `snake_case` for backend variables, functions, files, database columns, API JSON fields, and
+  query and path params. Environment variables in `UPPER_SNAKE_CASE`.
+- Inside `client/`: `camelCase` identifiers and non-component files, `PascalCase` components,
+  state pairs as `const [isOpen, setIsOpen]`. API payload fields are read exactly as the backend
+  sends them, with no renaming layer.
+- Classes, types, interfaces and enums in `PascalCase`. Framework-fixed names stay as the framework
+  requires, for example Nest lifecycle hooks and Nest option objects.
+- In `packages/contracts`, schema constants are `PascalCase` with a `Schema` suffix and the
+  inferred type takes the name without it (`HealthResponseSchema`, `HealthResponse`), so the
+  backend and the client import them unchanged.
+- Never `any`. Use `unknown` and narrow. No `as` cast to silence an error, no `@ts-ignore`.
+- One validation schema per model, defined once in `packages/contracts` with Zod. Every inbound
+  shape derives from it with `.pick()`, `.omit()` or `.partial()`. Types come from `z.infer`. The
+  backend validates with the same schemas through a Zod pipe.
+- A file with more than about three exported functions or 250 lines becomes a directory.
+  `lib/<concern>/` for reusable logic, `utils/` for generic helpers, `types/` for data shapes,
+  `interfaces/` for contracts.
+- Path aliases (`@/` in the backend), no `../../` chains. `import type` for types.
+- JSDoc on every exported function, shared hook, reusable component and its props. Inline comments
+  stay rare.
+- Prose in commits, pull requests, comments and docs is plain: no em dashes, no filler, sentence
+  case headings.
+- Tailwind is the only styling mechanism in the client. Use the theme scale, never an arbitrary
+  bracket value that duplicates it. 2D screens are accessible by default and design their loading,
+  empty and error states.
+
+ESLint (`eslint.config.mjs`) enforces the naming, `any`, cast, `ts-ignore`, type import, path alias
+and `process.env` rules. Prettier formats.
+
+## Tests
+
+- Backend: Jest, colocated `<subject>.spec.ts`. Integration tests run against a real PostgreSQL.
+  Mock only LLM providers and external web calls.
+- A new repository method gets an integration test. A new endpoint gets an end-to-end test through
+  supertest covering auth, the happy path and one rejection.
+- Client: Vitest for logic as colocated `<subject>.test.ts`, Playwright in `e2e/`.
+- Tests land in the same commit as the code. No coverage threshold in CI.
+- `docs/roadmap.md` lists the tests each phase must add.
+- Jest runs with `--experimental-vm-modules` because NestJS 12 ships only ES modules. Keep the
+  flag in the `test` script.
+
+## Delivery
+
+- Multi-stage `Dockerfile`, non-root user, base images pinned by digest, no secrets in layers.
+- One `docker-compose.<env>.yml` per environment with `web`, `worker`, `postgres`, `sandbox`,
+  `egress_proxy` and `searxng`. Every service declares a healthcheck, resource limits and a restart
+  policy. Development and production keep the same shape.
+- CI gates: format, lint, typecheck, build, tests, `npm audit`, Semgrep, gitleaks, actionlint and
+  shellcheck, the compose smoke test, then image build, Trivy, push, cosign signature and SBOM
+  attestation. Pin actions by commit SHA and images by digest.
+- Production deploys the exact digest signed by CI on `main`, after the owner's approval, through
+  `.github/workflows/deploy.yml` on the self-hosted runner. That runner never runs pull request code.
+- Secrets are SOPS-encrypted files the owner creates and the deploy job decrypts.
