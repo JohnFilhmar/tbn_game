@@ -29,7 +29,8 @@ async function owner_create(username_arg: string | undefined): Promise<void> {
       throw new Error('An owner already exists. This system has a single owner account.');
     }
     const owner = await owners.create(username.data, password.data);
-    process.stdout.write(`${JSON.stringify({ owner_id: owner.id, username: owner.username })}\n`);
+    const line = JSON.stringify({ owner_id: owner.id, username: owner.username });
+    process.stdout.write(`${line}\n`);
   } finally {
     await app.close();
   }

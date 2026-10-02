@@ -20,6 +20,7 @@ import type { AppConfig } from '@/config/config.schema';
 import {
   start_fake_provider_server,
   type FakeProviderServer,
+  type RecordedRequest,
 } from '@/testing/fake_provider_server';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
@@ -43,6 +44,11 @@ const finish = {
     open_questions: '',
   },
 };
+
+/** The whole request body as text, to check what the model was told. */
+function request_text(recorded: RecordedRequest | undefined): string {
+  return recorded === undefined ? '' : JSON.stringify(recorded.body);
+}
 
 describe('run loop', () => {
   let config: AppConfig;
@@ -295,10 +301,8 @@ describe('run loop', () => {
     fake.release();
 
     await wait_for_task(task.id, 'done');
-    expect(JSON.stringify(fake.requests[1]?.body)).toContain(
-      'Change of plan: make it about winter.',
-    );
-    expect(JSON.stringify(fake.requests[0]?.body)).not.toContain('Change of plan');
+    expect(request_text(fake.requests[1])).toContain('Change of plan: make it about winter.');
+    expect(request_text(fake.requests[0])).not.toContain('Change of plan');
   });
 
   it('stops a run whose task was cancelled', async () => {

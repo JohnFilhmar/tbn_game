@@ -36,7 +36,7 @@ export class SecretBoxService {
   /** Seals a plaintext. Every call uses a fresh random nonce. */
   seal(plaintext: string): string {
     const iv = randomBytes(IV_BYTES);
-    const cipher = createCipheriv(ALGORITHM, this.key, iv);
+    const cipher = createCipheriv(ALGORITHM, this.key, iv, { authTagLength: TAG_BYTES });
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
     return [
@@ -64,7 +64,7 @@ export class SecretBoxService {
     if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) {
       throw new SecretBoxError('Malformed sealed value');
     }
-    const decipher = createDecipheriv(ALGORITHM, this.key, iv);
+    const decipher = createDecipheriv(ALGORITHM, this.key, iv, { authTagLength: TAG_BYTES });
     decipher.setAuthTag(tag);
     try {
       return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
