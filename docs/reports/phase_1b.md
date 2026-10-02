@@ -34,7 +34,12 @@ interns after the timeout, and return one condensed report.
   | An intern is terminated after the idle timeout | `worker_sweep.service.spec.ts`, `team.spec.ts` |
   | The runaway guard pauses a looping run | `pauses.spec.ts` |
 
-- **CI** runs on the draft pull request; its result is recorded below once it finishes.
+- **CI is green on the draft pull request**,
+  [JohnFilhmar/tbn_game#5](https://github.com/JohnFilhmar/tbn_game/pull/5), with every gate on the
+  first run. In [run 37006694502](https://github.com/JohnFilhmar/tbn_game/actions/runs/37006694502)
+  the image job pushed
+  `ghcr.io/johnfilhmar/tbn_game/backend@sha256:e6d179de385855ad45910915e128a9ed777d2506b976c24b83b3e821937db14b`,
+  signed it with cosign under the pull request identity and attested its SBOM.
 
 ## Demo
 
