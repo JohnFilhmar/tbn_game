@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import type { AppConfig } from '@/config/config.schema';
+import { require_secrets_key, type AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
 
 const FORMAT_VERSION = 'v1';
@@ -27,7 +27,7 @@ export class SecretBoxService {
   private readonly key: Buffer;
 
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
-    this.key = Buffer.from(config.secrets_encryption_key, 'base64');
+    this.key = Buffer.from(require_secrets_key(config), 'base64');
     if (this.key.length !== KEY_BYTES) {
       throw new SecretBoxError(`SECRETS_ENCRYPTION_KEY must decode to ${KEY_BYTES} bytes`);
     }

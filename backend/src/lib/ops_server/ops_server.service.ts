@@ -6,8 +6,9 @@ import {
   type BeforeApplicationShutdown,
   type OnApplicationBootstrap,
 } from '@nestjs/common';
-import type { AppConfig } from '@/config/config.schema';
-import { APP_CONFIG } from '@/config/config.tokens';
+import type { ProcessType } from '@tbn/contracts';
+import { ops_port, type AppConfig } from '@/config/config.schema';
+import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 import { HealthService } from '@/lib/health/health.service';
 import { MetricsService } from '@/lib/metrics/metrics.service';
 
@@ -22,8 +23,8 @@ function json_reply(status: number, payload: unknown): OpsReply {
 }
 
 /**
- * Small HTTP listener for processes without Nest HTTP routes, today the worker. It serves only
- * `GET /health` and `GET /metrics` on `WORKER_PORT`.
+ * Small HTTP listener for processes without Nest HTTP routes: the worker, the sandbox launcher
+ * and the egress proxy. It serves only `GET /health` and `GET /metrics` on the process's ops port.
  */
 @Injectable()
 export class OpsServerService implements OnApplicationBootstrap, BeforeApplicationShutdown {
@@ -32,6 +33,7 @@ export class OpsServerService implements OnApplicationBootstrap, BeforeApplicati
 
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(PROCESS_TYPE) private readonly process_type: ProcessType,
     private readonly health_service: HealthService,
     private readonly metrics_service: MetricsService,
   ) {}
@@ -43,7 +45,7 @@ export class OpsServerService implements OnApplicationBootstrap, BeforeApplicati
     });
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
-      server.listen(this.config.worker.port, '0.0.0.0', () => {
+      server.listen(ops_port(this.config, this.process_type), '0.0.0.0', () => {
         server.off('error', reject);
         resolve();
       });

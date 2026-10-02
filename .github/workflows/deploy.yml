@@ -11,6 +11,10 @@ on:
         description: Digest of the backend image that CI signed on main, as sha256:<64 hex>
         required: true
         type: string
+      sandbox_image_digest:
+        description: Digest of the sandbox image that CI signed on main, as sha256:<64 hex>
+        required: true
+        type: string
 
 permissions: {}
 
@@ -30,6 +34,7 @@ jobs:
       packages: read
     env:
       IMAGE_DIGEST: ${{ inputs.image_digest }}
+      SANDBOX_IMAGE_DIGEST: ${{ inputs.sandbox_image_digest }}
       SIGNER: https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main
       ISSUER: https://token.actions.githubusercontent.com
       SECRETS_FILE: deploy/secrets/production.enc.env
@@ -37,13 +42,20 @@ jobs:
       STACK_DIR: /opt/tbn
       COMPOSE_FILE: /opt/tbn/docker-compose.production.yml
     steps:
-      - name: Check the digest format
+      - name: Check the digest formats
         run: |
-          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::image_digest must look like sha256:<64 lowercase hex characters>"
-            exit 1
-          fi
-          echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/backend@$IMAGE_DIGEST" >> "$GITHUB_ENV"
+          for digest in "$IMAGE_DIGEST" "$SANDBOX_IMAGE_DIGEST"; do
+            if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::each digest must look like sha256:<64 lowercase hex characters>"
+              exit 1
+            fi
+          done
+          {
+            echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/backend@$IMAGE_DIGEST"
+            echo "SANDBOX_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/sandbox@$SANDBOX_IMAGE_DIGEST"
+            # The launcher joins the host's docker group to use the socket.
+            echo "DOCKER_GID=$(stat -c %g /var/run/docker.sock)"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -54,14 +66,18 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify the signature and the SBOM attestation from CI on main
+      - name: Verify the signatures and the SBOM attestations from CI on main
         run: |
-          cosign verify --certificate-identity "$SIGNER" --certificate-oidc-issuer "$ISSUER" \
-            "$BACKEND_IMAGE" > /dev/null
-          cosign verify-attestation --type cyclonedx --certificate-identity "$SIGNER" \
-            --certificate-oidc-issuer "$ISSUER" "$BACKEND_IMAGE" > /dev/null
-      - name: Pull the verified image
-        run: docker pull "$BACKEND_IMAGE"
+          for image in "$BACKEND_IMAGE" "$SANDBOX_IMAGE"; do
+            cosign verify --certificate-identity "$SIGNER" --certificate-oidc-issuer "$ISSUER" \
+              "$image" > /dev/null
+            cosign verify-attestation --type cyclonedx --certificate-identity "$SIGNER" \
+              --certificate-oidc-issuer "$ISSUER" "$image" > /dev/null
+          done
+      - name: Pull the verified images
+        run: |
+          docker pull "$BACKEND_IMAGE"
+          docker pull "$SANDBOX_IMAGE"
       - name: Decrypt the secrets
         run: |
           if [[ ! -f "$SECRETS_FILE" ]]; then
@@ -96,7 +112,7 @@ jobs:
             echo "::error::Unexpected health after deploy: $body"
             exit 1
           fi
-          echo "Deployed $BACKEND_IMAGE (commit $expected)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed $BACKEND_IMAGE with $SANDBOX_IMAGE (commit $expected)" >> "$GITHUB_STEP_SUMMARY"
       - name: Remove the decrypted secrets
         if: always()
         run: rm -f "$RUNNER_TEMP/production.env"

@@ -180,4 +180,11 @@ export class PrismaRunRepository implements RunRepository {
       orderBy: { started_at: 'asc' },
     });
   }
+
+  async mark_tainted(owner_id: string, id: string, at: Date): Promise<void> {
+    await this.prisma.run.updateMany({
+      where: { id, owner_id, tainted_at: null },
+      data: { tainted_at: at },
+    });
+  }
 }

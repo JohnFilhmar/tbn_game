@@ -78,6 +78,7 @@ enum RunPauseReason {
   breaker_open
   out_of_credit
   runaway_guard
+  awaiting_approval
 
   @@map("run_pause_reason")
 }
@@ -119,6 +120,139 @@ enum CapUnit {
   @@map("cap_unit")
 }
 
+enum ProcessKind {
+  web
+  worker
+  sandbox
+  egress_proxy
+
+  @@map("process_kind")
+}
+
+enum SandboxJobKind {
+  agent
+  system
+
+  @@map("sandbox_job_kind")
+}
+
+enum SandboxJobStatus {
+  queued
+  running
+  done
+  failed
+  timed_out
+  lost
+
+  @@map("sandbox_job_status")
+}
+
+enum SearchProviderType {
+  brave
+  searxng
+
+  @@map("search_provider_type")
+}
+
+enum RunSourceKind {
+  fetch
+  search
+  library
+  plugin
+
+  @@map("run_source_kind")
+}
+
+enum ApprovalKind {
+  tool_call
+  runaway_guard
+
+  @@map("approval_kind")
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  denied
+
+  @@map("approval_status")
+}
+
+enum IntegrationMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+
+  @@map("integration_method")
+}
+
+enum IntegrationBodyFormat {
+  json
+  form
+  text
+  none
+
+  @@map("integration_body_format")
+}
+
+enum NotificationEventType {
+  process_restarted
+  runs_resumed
+  run_failed
+  cap_threshold_passed
+  provider_out_of_credit
+  backup_failed
+  disk_nearly_full
+  approval_waiting
+  report_finished
+
+  @@map("notification_event_type")
+}
+
+enum NotificationPriority {
+  normal
+  high
+
+  @@map("notification_priority")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+enum MergeRequestStatus {
+  open
+  merged
+  closed
+
+  @@map("merge_request_status")
+}
+
+enum ReviewVerdict {
+  approve
+  request_changes
+
+  @@map("review_verdict")
+}
+
+/// A process that is or was running, for restart detection. Not owner scoped: one stack, one host.
+model ProcessInstance {
+  id           String      @id @default(uuid(7))
+  process_type ProcessKind
+  instance_id  String
+  started_at   DateTime    @default(now()) @db.Timestamptz(6)
+  stopped_at   DateTime?   @db.Timestamptz(6)
+
+  @@index([process_type, stopped_at])
+  @@map("process_instances")
+}
+
 model Owner {
   id            String   @id @default(uuid(7))
   username      String   @unique
@@ -126,21 +260,37 @@ model Owner {
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   updated_at    DateTime @updatedAt @db.Timestamptz(6)
 
-  sessions           Session[]
-  providers          Provider[]
-  provider_models    ProviderModel[]
-  departments        Department[]
-  agents             Agent[]
-  instructions       Instruction[]
-  skills             Skill[]
-  skill_attachments  SkillAttachment[]
-  preferences        Preference[]
-  tasks              Task[]
-  runs               Run[]
-  transcript_entries TranscriptEntry[]
-  usage_records      UsageRecord[]
-  reports            Report[]
-  cap_windows        CapWindow[]
+  sessions                Session[]
+  providers               Provider[]
+  provider_models         ProviderModel[]
+  departments             Department[]
+  agents                  Agent[]
+  instructions            Instruction[]
+  skills                  Skill[]
+  skill_attachments       SkillAttachment[]
+  preferences             Preference[]
+  tasks                   Task[]
+  runs                    Run[]
+  transcript_entries      TranscriptEntry[]
+  usage_records           UsageRecord[]
+  reports                 Report[]
+  cap_windows             CapWindow[]
+  sandbox_jobs            SandboxJob[]
+  search_providers        SearchProvider[]
+  search_cache            SearchCache[]
+  fetch_cache             FetchCache[]
+  cache_events            CacheEvent[]
+  run_sources             RunSource[]
+  approvals               Approval[]
+  integrations            Integration[]
+  integration_attachments IntegrationAttachment[]
+  notification_channels   NotificationChannel[]
+  notifications           Notification[]
+  plugins                 Plugin[]
+  plugin_attachments      PluginAttachment[]
+  repositories            Repository[]
+  merge_requests          MergeRequest[]
+  branch_reviews          BranchReview[]
 
   @@map("owners")
 }
@@ -264,18 +414,24 @@ model Agent {
   created_at      DateTime    @default(now()) @db.Timestamptz(6)
   updated_at      DateTime    @updatedAt @db.Timestamptz(6)
 
-  owner              Owner             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
-  department         Department        @relation("department_members", fields: [department_id], references: [id], onDelete: Restrict)
-  heads_department   Department?       @relation("department_manager")
-  provider           Provider          @relation(fields: [provider_id], references: [id], onDelete: Restrict)
-  instructions       Instruction[]
-  skill_attachments  SkillAttachment[]
-  assigned_tasks     Task[]            @relation("task_assignee")
-  delegated_tasks    Task[]            @relation("task_delegator")
-  runs               Run[]
-  transcript_entries TranscriptEntry[]
-  usage_records      UsageRecord[]
-  reports            Report[]
+  owner                   Owner                   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  department              Department              @relation("department_members", fields: [department_id], references: [id], onDelete: Restrict)
+  heads_department        Department?             @relation("department_manager")
+  provider                Provider                @relation(fields: [provider_id], references: [id], onDelete: Restrict)
+  instructions            Instruction[]
+  skill_attachments       SkillAttachment[]
+  assigned_tasks          Task[]                  @relation("task_assignee")
+  delegated_tasks         Task[]                  @relation("task_delegator")
+  runs                    Run[]
+  transcript_entries      TranscriptEntry[]
+  usage_records           UsageRecord[]
+  reports                 Report[]
+  sandbox_jobs            SandboxJob[]
+  approvals               Approval[]
+  integration_attachments IntegrationAttachment[]
+  plugin_attachments      PluginAttachment[]
+  merge_requests          MergeRequest[]
+  branch_reviews          BranchReview[]
 
   @@unique([owner_id, name])
   @@index([owner_id, status])
@@ -359,6 +515,8 @@ model Task {
   assignee_agent_id     String
   delegator_agent_id    String?
   parent_task_id        String?
+  repository_id         String?
+  feature_branch        String?
   status                TaskStatus @default(queued)
   status_reason         String?
   result                String?
@@ -368,13 +526,15 @@ model Task {
   created_at            DateTime   @default(now()) @db.Timestamptz(6)
   updated_at            DateTime   @updatedAt @db.Timestamptz(6)
 
-  owner     Owner   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
-  assignee  Agent   @relation("task_assignee", fields: [assignee_agent_id], references: [id], onDelete: Restrict)
-  delegator Agent?  @relation("task_delegator", fields: [delegator_agent_id], references: [id], onDelete: SetNull)
-  parent    Task?   @relation("task_children", fields: [parent_task_id], references: [id], onDelete: SetNull)
-  children  Task[]  @relation("task_children")
-  runs      Run[]
-  report    Report?
+  owner      Owner       @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  assignee   Agent       @relation("task_assignee", fields: [assignee_agent_id], references: [id], onDelete: Restrict)
+  delegator  Agent?      @relation("task_delegator", fields: [delegator_agent_id], references: [id], onDelete: SetNull)
+  parent     Task?       @relation("task_children", fields: [parent_task_id], references: [id], onDelete: SetNull)
+  children   Task[]      @relation("task_children")
+  repository Repository? @relation(fields: [repository_id], references: [id], onDelete: SetNull)
+  runs       Run[]
+  report     Report?
+  approvals  Approval[]
 
   @@index([owner_id, assignee_agent_id, status])
   @@index([owner_id, parent_task_id])
@@ -394,6 +554,7 @@ model Run {
   guard_turns      Int             @default(0)
   lease_owner      String?
   lease_expires_at DateTime?       @db.Timestamptz(6)
+  tainted_at       DateTime?       @db.Timestamptz(6)
   error            String?
   started_at       DateTime        @default(now()) @db.Timestamptz(6)
   finished_at      DateTime?       @db.Timestamptz(6)
@@ -404,6 +565,9 @@ model Run {
   task               Task?             @relation(fields: [task_id], references: [id], onDelete: SetNull)
   transcript_entries TranscriptEntry[]
   usage_records      UsageRecord[]
+  sandbox_jobs       SandboxJob[]
+  sources            RunSource[]
+  approvals          Approval[]
 
   @@index([owner_id, agent_id, status])
   @@index([status, lease_expires_at])
@@ -455,17 +619,352 @@ model UsageRecord {
 }
 
 model Report {
-  id         String   @id @default(uuid(7))
-  owner_id   String
-  task_id    String   @unique
-  agent_id   String
-  body_md    String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
+  id            String                   @id @default(uuid(7))
+  owner_id      String
+  task_id       String                   @unique
+  agent_id      String
+  body_md       String
+  /// Full-text search document, written with the report, for the research library.
+  search_vector Unsupported("tsvector")?
+  created_at    DateTime                 @default(now()) @db.Timestamptz(6)
 
   owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
   task  Task  @relation(fields: [task_id], references: [id], onDelete: Cascade)
   agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
   @@index([owner_id, created_at])
+  @@index([search_vector], type: Gin)
   @@map("reports")
+}
+
+/// One container run by the sandbox launcher. `spec` is a SandboxJobSpec; output is capped.
+model SandboxJob {
+  id          String           @id @default(uuid(7))
+  owner_id    String
+  run_id      String?
+  agent_id    String?
+  kind        SandboxJobKind
+  status      SandboxJobStatus @default(queued)
+  spec        Json
+  exit_code   Int?
+  stdout      String           @default("")
+  stderr      String           @default("")
+  error       String?
+  created_at  DateTime         @default(now()) @db.Timestamptz(6)
+  started_at  DateTime?        @db.Timestamptz(6)
+  finished_at DateTime?        @db.Timestamptz(6)
+  updated_at  DateTime         @updatedAt @db.Timestamptz(6)
+
+  owner Owner  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  run   Run?   @relation(fields: [run_id], references: [id], onDelete: SetNull)
+  agent Agent? @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+
+  @@index([owner_id, run_id])
+  @@index([status, started_at])
+  @@map("sandbox_jobs")
+}
+
+model SearchProvider {
+  id                          String             @id @default(uuid(7))
+  owner_id                    String
+  type                        SearchProviderType
+  name                        String
+  base_url                    String
+  api_key_ciphertext          String?
+  priority                    Int                @default(100)
+  enabled                     Boolean            @default(true)
+  price_per_thousand_requests Float?
+  created_at                  DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime           @updatedAt @db.Timestamptz(6)
+
+  owner        Owner         @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  search_cache SearchCache[]
+
+  @@unique([owner_id, name])
+  @@map("search_providers")
+}
+
+/// Results of one normalised query, kept for the owner's lifetime setting.
+model SearchCache {
+  id          String   @id @default(uuid(7))
+  owner_id    String
+  provider_id String?
+  query_key   String
+  query       String
+  results     Json
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  owner    Owner           @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  provider SearchProvider? @relation(fields: [provider_id], references: [id], onDelete: SetNull)
+
+  @@unique([owner_id, query_key])
+  @@map("search_cache")
+}
+
+/// The extracted text of one fetched page, kept for the owner's lifetime setting.
+model FetchCache {
+  id            String                   @id @default(uuid(7))
+  owner_id      String
+  url           String
+  title         String?
+  content_type  String
+  text          String
+  bytes         Int
+  search_vector Unsupported("tsvector")?
+  fetched_at    DateTime                 @default(now()) @db.Timestamptz(6)
+  created_at    DateTime                 @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([owner_id, url])
+  @@index([search_vector], type: Gin)
+  @@map("fetch_cache")
+}
+
+/// Daily hit and miss counts per cache kind.
+model CacheEvent {
+  id          String   @id @default(uuid(7))
+  owner_id    String
+  kind        String
+  day         DateTime @db.Date
+  hits        Int      @default(0)
+  misses      Int      @default(0)
+  bytes_saved BigInt   @default(0)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([owner_id, kind, day])
+  @@map("cache_events")
+}
+
+/// Untrusted content a run read. Its first row taints the run.
+model RunSource {
+  id        String        @id @default(uuid(7))
+  owner_id  String
+  run_id    String
+  kind      RunSourceKind
+  reference String
+  cached    Boolean       @default(false)
+  read_at   DateTime      @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  run   Run   @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, run_id])
+  @@map("run_sources")
+}
+
+/// A question for the owner: a tool call to allow, or the runaway guard.
+model Approval {
+  id          String         @id @default(uuid(7))
+  owner_id    String
+  run_id      String
+  agent_id    String
+  task_id     String?
+  kind        ApprovalKind
+  tool_name   String?
+  tool_use_id String?
+  payload     Json
+  preview     String?
+  sources     Json           @default("[]")
+  status      ApprovalStatus @default(pending)
+  note        String?
+  created_at  DateTime       @default(now()) @db.Timestamptz(6)
+  decided_at  DateTime?      @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  run   Run   @relation(fields: [run_id], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  task  Task? @relation(fields: [task_id], references: [id], onDelete: SetNull)
+
+  @@index([owner_id, status, created_at])
+  @@index([run_id, status])
+  @@map("approvals")
+}
+
+/// An HTTP request template. The token is sealed like a provider key.
+model Integration {
+  id               String                @id @default(uuid(7))
+  owner_id         String
+  name             String
+  method           IntegrationMethod
+  url              String
+  headers          Json                  @default("{}")
+  token_ciphertext String?
+  body_format      IntegrationBodyFormat @default(none)
+  body_template    String?
+  placeholders     Json                  @default("[]")
+  created_at       DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime              @updatedAt @db.Timestamptz(6)
+
+  owner         Owner                   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  attachments   IntegrationAttachment[]
+  channels      NotificationChannel[]
+  notifications Notification[]
+
+  @@unique([owner_id, name])
+  @@map("integrations")
+}
+
+/// An integration offered to an agent as a tool.
+model IntegrationAttachment {
+  id             String   @id @default(uuid(7))
+  owner_id       String
+  integration_id String
+  agent_id       String
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  owner       Owner       @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  integration Integration @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  agent       Agent       @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@unique([integration_id, agent_id])
+  @@index([owner_id, agent_id])
+  @@map("integration_attachments")
+}
+
+/// An integration attached to a system event.
+model NotificationChannel {
+  id             String                @id @default(uuid(7))
+  owner_id       String
+  event_type     NotificationEventType
+  integration_id String
+  body_template  String?
+  enabled        Boolean               @default(true)
+  created_at     DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime              @updatedAt @db.Timestamptz(6)
+
+  owner         Owner          @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  integration   Integration    @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([owner_id, event_type])
+  @@map("notification_channels")
+}
+
+/// One notification sent, or tried, through a channel.
+model Notification {
+  id              String                @id @default(uuid(7))
+  owner_id        String
+  channel_id      String?
+  integration_id  String?
+  event_type      NotificationEventType
+  title           String
+  message         String
+  priority        NotificationPriority  @default(normal)
+  status          NotificationStatus    @default(pending)
+  attempts        Int                   @default(0)
+  response_status Int?
+  error           String?
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+  sent_at         DateTime?             @db.Timestamptz(6)
+
+  owner       Owner                @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  channel     NotificationChannel? @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  integration Integration?         @relation(fields: [integration_id], references: [id], onDelete: SetNull)
+
+  @@index([owner_id, created_at])
+  @@map("notifications")
+}
+
+/// A Model Context Protocol server. The token is sealed like a provider key.
+model Plugin {
+  id               String   @id @default(uuid(7))
+  owner_id         String
+  name             String
+  url              String
+  token_ciphertext String?
+  enabled          Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @updatedAt @db.Timestamptz(6)
+
+  owner       Owner              @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  attachments PluginAttachment[]
+
+  @@unique([owner_id, name])
+  @@map("plugins")
+}
+
+model PluginAttachment {
+  id         String   @id @default(uuid(7))
+  owner_id   String
+  plugin_id  String
+  agent_id   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  owner  Owner  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
+  agent  Agent  @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@unique([plugin_id, agent_id])
+  @@index([owner_id, agent_id])
+  @@map("plugin_attachments")
+}
+
+/// A repository the owner registered. Its canonical bare repository lives on the workspace volume.
+model Repository {
+  id             String   @id @default(uuid(7))
+  owner_id       String
+  name           String
+  remote_url     String?
+  default_branch String   @default("main")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @updatedAt @db.Timestamptz(6)
+
+  owner          Owner          @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  tasks          Task[]
+  merge_requests MergeRequest[]
+  branch_reviews BranchReview[]
+
+  @@unique([owner_id, name])
+  @@map("repositories")
+}
+
+/// A manager's request to merge its branch into development. Only the owner merges it.
+model MergeRequest {
+  id            String             @id @default(uuid(7))
+  owner_id      String
+  repository_id String
+  agent_id      String
+  source_branch String
+  target_branch String
+  status        MergeRequestStatus @default(open)
+  head_sha      String
+  diff          String
+  log           String
+  review_notes  String
+  test_output   String?
+  test_job_id   String?
+  merge_sha     String?
+  created_at    DateTime           @default(now()) @db.Timestamptz(6)
+  merged_at     DateTime?          @db.Timestamptz(6)
+  closed_at     DateTime?          @db.Timestamptz(6)
+
+  owner      Owner      @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repository_id], references: [id], onDelete: Cascade)
+  agent      Agent      @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, status, created_at])
+  @@map("merge_requests")
+}
+
+/// A manager's review of a feature branch at one commit.
+model BranchReview {
+  id                String        @id @default(uuid(7))
+  owner_id          String
+  repository_id     String
+  reviewer_agent_id String
+  branch            String
+  head_sha          String
+  findings          String
+  verdict           ReviewVerdict
+  test_job_id       String?
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+
+  owner      Owner      @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repository_id], references: [id], onDelete: Cascade)
+  reviewer   Agent      @relation(fields: [reviewer_agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, repository_id, branch, created_at])
+  @@map("branch_reviews")
 }

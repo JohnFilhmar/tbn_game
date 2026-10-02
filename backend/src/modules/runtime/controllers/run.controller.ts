@@ -1,14 +1,24 @@
 import { Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { IdSchema, RunListQuerySchema, type Run, type RunListQuery } from '@tbn/contracts';
+import {
+  IdSchema,
+  RunListQuerySchema,
+  type Run,
+  type RunListQuery,
+  type RunSource,
+} from '@tbn/contracts';
 import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodParam, ZodQuery } from '@/lib/validation/zod.decorator';
 import { RunService } from '@/modules/runtime/services/run.service';
+import { RunSourceService } from '@/modules/runtime/services/taint/run_source.service';
 
 /** Runs, and the owner's answer when the runaway guard pauses one. */
 @Controller('runs')
 export class RunController {
-  constructor(private readonly run_service: RunService) {}
+  constructor(
+    private readonly run_service: RunService,
+    private readonly sources: RunSourceService,
+  ) {}
 
   @Get()
   list(
@@ -24,6 +34,16 @@ export class RunController {
     @ZodParam('id', IdSchema) id: string,
   ): Promise<Run> {
     return this.run_service.get(owner.id, id);
+  }
+
+  /** What the run read from outside: the pages, searches, library hits and plugin results. */
+  @Get(':id/sources')
+  async list_sources(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @ZodParam('id', IdSchema) id: string,
+  ): Promise<RunSource[]> {
+    await this.run_service.get(owner.id, id);
+    return this.sources.list(owner.id, id);
   }
 
   /** Lets a run the runaway guard paused go on. */

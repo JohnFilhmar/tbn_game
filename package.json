@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run codegen && npm run test --workspace @tbn/backend",
-    "stack:up": "docker compose -f docker-compose.development.yml up --build --wait",
+    "stack:up": "scripts/stack_up.sh",
     "stack:down": "docker compose -f docker-compose.development.yml down"
   },
   "devDependencies": {

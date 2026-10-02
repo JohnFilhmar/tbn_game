@@ -1,13 +1,11 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Run, RunListQuery } from '@tbn/contracts';
-import { QueueService } from '@/lib/queue/queue.service';
-import { AgentService } from '@/modules/company/services/agent.service';
-import { TaskService } from '@/modules/company/services/task.service';
 import {
   RUN_REPOSITORY,
   type RunRepository,
 } from '@/modules/runtime/repositories/interface/run_repository.interface';
 import type { RunRecord } from '@/modules/runtime/types/run_record';
+import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
 
 /** Maps a run row to the API shape. Lease fields and the guard count stay internal. */
 export function to_run_view(record: RunRecord): Run {
@@ -19,6 +17,7 @@ export function to_run_view(record: RunRecord): Run {
     pause_reason: record.pause_reason,
     resume_at: record.resume_at?.toISOString() ?? null,
     turn_count: record.turn_count,
+    tainted_at: record.tainted_at?.toISOString() ?? null,
     error: record.error,
     started_at: record.started_at.toISOString(),
     finished_at: record.finished_at?.toISOString() ?? null,
@@ -31,9 +30,7 @@ export function to_run_view(record: RunRecord): Run {
 export class RunService {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    private readonly tasks: TaskService,
-    private readonly agents: AgentService,
-    private readonly queue: QueueService,
+    private readonly approvals: ApprovalService,
   ) {}
 
   async list(owner_id: string, query: RunListQuery): Promise<Run[]> {
@@ -51,14 +48,8 @@ export class RunService {
    */
   async continue(owner_id: string, id: string): Promise<Run> {
     const run = await this.require(owner_id, id);
-    if (run.status !== 'paused' || run.pause_reason !== 'runaway_guard') {
-      throw new ConflictException('Run is not waiting for the owner');
-    }
-    if (run.task_id !== null) await this.tasks.approve(owner_id, run.task_id);
-    const resumed = await this.runs.continue_after_guard(owner_id, id);
-    if (resumed === null) throw new ConflictException('Run is not waiting for the owner');
-    await this.queue.send_agent_wake({ owner_id, agent_id: run.agent_id });
-    return to_run_view(resumed);
+    await this.approvals.continue_run(run);
+    return this.get(owner_id, id);
   }
 
   /**
@@ -68,19 +59,8 @@ export class RunService {
    */
   async stop(owner_id: string, id: string): Promise<Run> {
     const run = await this.require(owner_id, id);
-    if (run.status !== 'paused') throw new ConflictException('Only a paused run can be stopped');
-    const stopped = await this.runs.finish(owner_id, id, 'cancelled', 'Stopped by the owner');
-    if (stopped === null) throw new ConflictException('Only a paused run can be stopped');
-    if (run.task_id !== null) {
-      try {
-        await this.tasks.cancel(owner_id, run.task_id);
-      } catch (error: unknown) {
-        if (!(error instanceof ConflictException)) throw error;
-      }
-    }
-    await this.agents.release_run(owner_id, run.agent_id, run.id);
-    await this.queue.send_agent_wake({ owner_id, agent_id: run.agent_id });
-    return to_run_view(stopped);
+    await this.approvals.stop_run(run);
+    return this.get(owner_id, id);
   }
 
   private async require(owner_id: string, id: string): Promise<RunRecord> {

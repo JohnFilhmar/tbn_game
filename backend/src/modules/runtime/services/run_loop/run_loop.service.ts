@@ -23,6 +23,7 @@ import { RunLeaseService } from './run_lease.service';
 import { SubtaskDeliveryService } from './subtask_delivery.service';
 import { TaskCompletionService } from './task_completion.service';
 import { TurnService } from './turn.service';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
 
 const NUDGE_TEXT = 'The task is still open. Call finish_task with the report when it is complete.';
 const CONTINUE_TEXT = 'Your reply was cut off at the output limit. Continue where you stopped.';
@@ -39,7 +40,8 @@ function is_open(task: TaskRecord): boolean {
  * from the last entry. The loop holds a lease on the run and extends it while a turn is in flight,
  * so no two wake handlers, in one process or in several, drive the same run. A run that cannot go
  * on pauses instead of failing: while it waits for its subtasks, behind a cap window at its limit,
- * an open breaker or a key out of credit, or for the owner after the runaway guard.
+ * an open breaker or a key out of credit, or for the owner after the runaway guard or before a
+ * tool call that needs approval.
  */
 @Injectable()
 export class RunLoopService {
@@ -56,6 +58,7 @@ export class RunLoopService {
     private readonly gate: RunGateService,
     private readonly completion: TaskCompletionService,
     private readonly deliveries: SubtaskDeliveryService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Drives a running run until it finishes, pauses, or the worker stops. */
@@ -142,9 +145,13 @@ export class RunLoopService {
 
       const pending = pending_tool_calls(entries);
       if (pending.length > 0) {
-        const finished = await this.turns.run_tools(run, agent, pending);
-        if (finished !== null && task !== null) {
-          await this.completion.complete(run, agent, task, finished);
+        const outcome = await this.turns.run_tools(run, agent, pending);
+        if ('pause' in outcome) {
+          await this.gate.pause(run, task, outcome.pause);
+          return 'paused';
+        }
+        if (outcome.finished !== null && task !== null) {
+          await this.completion.complete(run, agent, task, outcome.finished);
           await this.finish(run, 'done', null);
           return 'finished';
         }
@@ -199,8 +206,19 @@ export class RunLoopService {
     status: 'done' | 'failed' | 'cancelled',
     error: string | null,
   ): Promise<void> {
-    if (status === 'failed' && run.task_id !== null) {
-      await this.tasks.fail(run.owner_id, run.task_id, error ?? 'Run failed');
+    if (status === 'failed') {
+      const task =
+        run.task_id === null
+          ? null
+          : await this.tasks.fail(run.owner_id, run.task_id, error ?? 'Run failed');
+      const agent = await this.agents.require(run.owner_id, run.agent_id);
+      await this.notifications.emit(run.owner_id, {
+        event_type: 'run_failed',
+        title: `${agent.name}'s run failed`,
+        message: `${agent.name} stopped with an error${task === null ? '' : ` on "${task.title}"`}: ${error ?? 'unknown error'}`,
+        priority: 'high',
+        values: { agent_name: agent.name, task_title: task?.title ?? '', error: error ?? '' },
+      });
     }
     await this.runs.finish(run.owner_id, run.id, status, error);
     await this.agents.release_run(run.owner_id, run.agent_id, run.id);

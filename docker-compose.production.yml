@@ -26,7 +26,7 @@ x-backend: &backend
   init: true
   restart: unless-stopped
   logging: *logging
-  environment:
+  environment: &backend_environment
     NODE_ENV: production
     LOG_LEVEL: ${LOG_LEVEL:-info}
     DATABASE_URL: postgresql://tbn:${POSTGRES_PASSWORD:?missing from the secrets file}@postgres:5432/tbn
@@ -41,46 +41,19 @@ x-backend: &backend
     PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-300000}
     PROVIDER_BREAKER_THRESHOLD: ${PROVIDER_BREAKER_THRESHOLD:-3}
     PROVIDER_BREAKER_COOLDOWN_SECONDS: ${PROVIDER_BREAKER_COOLDOWN_SECONDS:-60}
+    EGRESS_PROXY_URL: http://egress_proxy:3128
+    SEARXNG_URL: http://searxng:8080
   depends_on:
     postgres:
       condition: service_healthy
   networks: [backend]
 
-# Placeholder until phase 1c designs the sandbox and the egress proxy. It runs nothing, listens on
-# nothing and sits only on the internal sandbox network, so sandbox egress fails closed.
-x-placeholder: &placeholder
-  <<: *hardening
-  image: debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
-  command: ['sleep', 'infinity']
-  user: '65534:65534'
-  init: true
-  restart: unless-stopped
-  logging: *logging
-  networks: [sandbox]
-  healthcheck:
-    # Healthy only while it runs as non-root, on a read-only root, with no capabilities.
-    test:
-      - CMD-SHELL
-      - >-
-        test "$$(id -u)" -ne 0
-        && awk '$$2 == "/" && $$4 ~ /^ro(,|$$)/ { found = 1 } END { exit !found }' /proc/mounts
-        && grep -Eq '^CapBnd:[[:space:]]+0+$$' /proc/self/status
-    interval: 30s
-    timeout: 5s
-    retries: 3
-    start_period: 5s
-    start_interval: 1s
-  deploy:
-    resources:
-      limits:
-        cpus: '0.25'
-        memory: 64M
-        pids: 32
-
 services:
   web:
     <<: *backend
     command: ['dist/web.js']
+    volumes:
+      - workspace:/workspace
     ports:
       - '127.0.0.1:${WEB_HOST_PORT:-3000}:3000'
     healthcheck:
@@ -145,11 +118,78 @@ services:
           cpus: '${POSTGRES_CPUS:-2.0}'
           memory: ${POSTGRES_MEMORY:-2G}
 
+  # The sandbox launcher: the one container holding the docker socket. It takes sandbox jobs from
+  # the queue and runs each in a fresh hardened container from the sandbox image, on the internal
+  # sandbox network. It listens on nothing but its ops port.
   sandbox:
-    <<: *placeholder
+    <<: *backend
+    command: ['dist/sandbox.js']
+    user: '65532:65532'
+    # The host's docker group, so the socket is writable. Set DOCKER_GID to its id on this host.
+    group_add:
+      - '${DOCKER_GID:-999}'
+    environment:
+      <<: *backend_environment
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:?set by the deploy workflow to the verified sandbox image digest}
+      SANDBOX_NETWORK: tbn_sandbox
+      WORKSPACE_VOLUME: tbn_workspace
+      SANDBOX_MAX_PARALLEL: ${SANDBOX_MAX_PARALLEL:-2}
+      SANDBOX_MAX_CPUS: ${SANDBOX_MAX_CPUS:-2}
+      SANDBOX_MAX_MEMORY_MB: ${SANDBOX_MAX_MEMORY_MB:-2048}
+      SANDBOX_MAX_SCRATCH_MB: ${SANDBOX_MAX_SCRATCH_MB:-1024}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - '127.0.0.1:3002:3002'
+    healthcheck:
+      test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'sandbox']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+          pids: 128
 
+  # The forward proxy, the only exit of the sandbox network and of the worker's fetch tool. It
+  # holds no database URL and no key, and refuses every private destination.
   egress_proxy:
-    <<: *placeholder
+    <<: *hardening
+    image: ${BACKEND_IMAGE:?set by the deploy workflow to the verified image digest}
+    command: ['dist/egress_proxy.js']
+    init: true
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EGRESS_PROXY_PORT: '3128'
+      EGRESS_PROXY_OPS_PORT: '3003'
+      EGRESS_ALLOWED_HOSTS: ${EGRESS_ALLOWED_HOSTS:-}
+      EGRESS_MAX_RESPONSE_BYTES: ${EGRESS_MAX_RESPONSE_BYTES:-10485760}
+      EGRESS_MAX_REQUESTS_PER_MINUTE: ${EGRESS_MAX_REQUESTS_PER_MINUTE:-120}
+    ports:
+      - '127.0.0.1:3003:3003'
+    networks: [backend, sandbox]
+    healthcheck:
+      test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'egress_proxy']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+          pids: 256
 
   searxng:
     <<: *hardening
@@ -189,9 +229,14 @@ services:
 
 networks:
   backend: {}
-  # No gateway: containers on it reach only each other, never the host, the app or the internet.
+  # Internal and isolated from the host: sandbox containers on it reach only the proxy, never the
+  # host, the app, the database or the internet. Internal alone leaves the host's own address on
+  # the bridge reachable; the isolated gateway mode (Docker 28 or newer) removes it. The launcher
+  # creates sandbox containers on this network by name.
   sandbox:
     internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
 
 volumes:
   postgres_data: {}

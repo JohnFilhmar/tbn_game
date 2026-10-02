@@ -1,6 +1,6 @@
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
-import type { AppConfig } from '@/config/config.schema';
+import { require_database_url, type AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
 import { PrismaClient } from '@/generated/prisma/client';
 
@@ -19,7 +19,7 @@ export class PrismaService extends PrismaClient implements OnApplicationShutdown
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
     super({
       adapter: new PrismaPg({
-        connectionString: config.database.url,
+        connectionString: require_database_url(config),
         max: config.database.pool_max,
         connectionTimeoutMillis: DATABASE_CONNECT_TIMEOUT_MS,
       }),

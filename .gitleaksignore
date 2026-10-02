@@ -1,0 +1,4 @@
+# Fake credentials in tests, flagged by the generic rule in the commits that added them. The
+# values in the tree carry too little entropy to match the rule since then.
+a45b8e601a363c196775733bffc576ba0889f09f:backend/src/modules/integrations/controllers/integration.controller.spec.ts:generic-api-key:12
+e95e8aa4802224587f205723192a529da0388614:backend/src/modules/runtime/controllers/search_provider.controller.spec.ts:generic-api-key:10

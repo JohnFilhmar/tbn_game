@@ -1,5 +1,5 @@
 import type { ReportListQuery } from '@tbn/contracts';
-import type { ReportRecord } from '@/modules/company/types/company_records';
+import type { ReportHit, ReportRecord } from '@/modules/company/types/company_records';
 
 /** Injection token for `ReportRepository`. */
 export const REPORT_REPOSITORY = Symbol('REPORT_REPOSITORY');
@@ -15,4 +15,6 @@ export interface ReportRepository {
     agent_id: string,
     body_md: string,
   ): Promise<ReportRecord>;
+  /** Reports matching a web-search style query, best first, for the research library. */
+  search(owner_id: string, query: string, limit: number): Promise<ReportHit[]>;
 }

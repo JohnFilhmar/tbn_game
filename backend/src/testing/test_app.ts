@@ -20,6 +20,8 @@ export function load_test_config(): AppConfig {
     log_level: 'silent',
     web: { ...config.web, port: 0 },
     worker: { ...config.worker, port: 0 },
+    sandbox: { ...config.sandbox, port: 0 },
+    egress: { ...config.egress, ops_port: 0 },
   };
 }
 

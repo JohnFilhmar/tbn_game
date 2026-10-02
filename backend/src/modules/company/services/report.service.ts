@@ -4,7 +4,7 @@ import {
   REPORT_REPOSITORY,
   type ReportRepository,
 } from '@/modules/company/repositories/interface/report_repository.interface';
-import type { ReportRecord } from '@/modules/company/types/company_records';
+import type { ReportHit, ReportRecord } from '@/modules/company/types/company_records';
 
 /** A report ready to download as a `.md` file. */
 export interface ReportDownload {
@@ -62,5 +62,10 @@ export class ReportService {
     const record = await this.reports.find(owner_id, id);
     if (record === null) throw new NotFoundException('Report not found');
     return record;
+  }
+
+  /** Reports matching a query, best first, for the research library. */
+  search(owner_id: string, query: string, limit: number): Promise<ReportHit[]> {
+    return this.reports.search(owner_id, query, limit);
   }
 }

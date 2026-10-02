@@ -27,6 +27,7 @@ import { RunLoopService } from '@/modules/runtime/services/run_loop/run_loop.ser
 import { SubtaskDeliveryService } from '@/modules/runtime/services/run_loop/subtask_delivery.service';
 import { WorkerSweepService } from '@/modules/runtime/services/worker_sweep.service';
 import type { RunRecord } from '@/modules/runtime/types/run_record';
+import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
 
 /**
  * Handles `agent_wake` jobs on the worker. A wake first hands the agent the results of its
@@ -49,6 +50,7 @@ export class AgentWakeService implements OnApplicationBootstrap {
     private readonly loop: RunLoopService,
     private readonly deliveries: SubtaskDeliveryService,
     private readonly sweep: WorkerSweepService,
+    private readonly approvals: ApprovalService,
   ) {}
 
   /**
@@ -142,6 +144,8 @@ export class AgentWakeService implements OnApplicationBootstrap {
         const provider = await this.providers.require(agent.owner_id, agent.provider_id);
         return provider.out_of_credit_since === null;
       }
+      case 'awaiting_approval':
+        return !(await this.approvals.has_pending(agent.owner_id, run.id));
       case 'runaway_guard':
       case null:
         return false;

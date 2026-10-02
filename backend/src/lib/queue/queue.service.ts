@@ -7,9 +7,16 @@ import {
 } from '@nestjs/common';
 import type { ProcessType } from '@tbn/contracts';
 import { PgBoss } from 'pg-boss';
-import type { AppConfig } from '@/config/config.schema';
+import { require_database_url, type AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
-import { AGENT_WAKE_QUEUE, type AgentWakeJob } from './queues';
+import {
+  AGENT_WAKE_QUEUE,
+  NOTIFY_QUEUE,
+  SANDBOX_JOB_QUEUE,
+  type AgentWakeJob,
+  type NotifyJob,
+  type SandboxJobJob,
+} from './queues';
 
 const QUEUE_SCHEMA = 'pgboss';
 
@@ -22,6 +29,9 @@ const POLLING_INTERVAL_SECONDS = 2;
 
 /** How long one wake may stay active before pg-boss hands it to another worker. */
 const WAKE_EXPIRE_SECONDS = 6 * 60 * 60;
+
+/** How long one sandbox job may stay active; the launcher's own time limit is far shorter. */
+const SANDBOX_JOB_EXPIRE_SECONDS = 24 * 60 * 60;
 
 /** Connections pg-boss keeps on top of Prisma's pool. */
 const QUEUE_POOL_MAX = 4;
@@ -38,10 +48,11 @@ function error_message(error: unknown): string {
 
 /**
  * The pg-boss job queue, the only queue in the system. The web process only sends; the worker
- * also handles. The schema comes from a Prisma migration, so pg-boss never migrates on boot.
+ * handles wakes and notifications, and the sandbox launcher handles sandbox jobs. The schema comes
+ * from a Prisma migration, so pg-boss never migrates on boot.
  *
- * Ceiling: pg-boss holds its own small pool and, on the worker, one LISTEN connection. Each process
- * therefore uses `DATABASE_POOL_MAX` plus `QUEUE_POOL_MAX` plus one connections.
+ * Ceiling: pg-boss holds its own small pool and, on a handling process, one LISTEN connection.
+ * Each process therefore uses `DATABASE_POOL_MAX` plus `QUEUE_POOL_MAX` plus one connections.
  */
 @Injectable()
 export class QueueService implements OnApplicationBootstrap, BeforeApplicationShutdown {
@@ -55,17 +66,17 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(PROCESS_TYPE) private readonly process_type: ProcessType,
   ) {
-    const is_worker = process_type === 'worker';
+    const handles_jobs = process_type === 'worker' || process_type === 'sandbox';
     this.boss = new PgBoss({
-      connectionString: config.database.url,
+      connectionString: require_database_url(config),
       application_name: `tbn_${process_type}_queue`,
       schema: QUEUE_SCHEMA,
       max: QUEUE_POOL_MAX,
       migrate: false,
       createSchema: false,
-      supervise: is_worker,
+      supervise: process_type === 'worker',
       schedule: false,
-      useListenNotify: is_worker,
+      useListenNotify: handles_jobs,
     });
     this.boss.on('error', (error: unknown) => {
       this.logger.error(`Queue error: ${error_message(error)}`);
@@ -84,7 +95,7 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
    * up and report the database as unavailable instead of crashing.
    */
   onApplicationBootstrap(): void {
-    if (this.process_type !== 'worker') return;
+    if (this.process_type !== 'worker' && this.process_type !== 'sandbox') return;
     this.starting = this.start_until_ready();
     this.starting.catch(() => undefined);
   }
@@ -161,6 +172,25 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
         notify: true,
       });
     }
+    if ((await this.boss.getQueue(SANDBOX_JOB_QUEUE)) === null) {
+      // A shell command is never run twice on its own: the worker reports a lost job instead.
+      await this.boss.createQueue(SANDBOX_JOB_QUEUE, {
+        policy: 'standard',
+        expireInSeconds: SANDBOX_JOB_EXPIRE_SECONDS,
+        retryLimit: 0,
+        notify: true,
+      });
+    }
+    if ((await this.boss.getQueue(NOTIFY_QUEUE)) === null) {
+      await this.boss.createQueue(NOTIFY_QUEUE, {
+        policy: 'standard',
+        expireInSeconds: WAKE_EXPIRE_SECONDS,
+        retryLimit: 3,
+        retryDelay: 30,
+        retryBackoff: true,
+        notify: true,
+      });
+    }
   }
 
   /**
@@ -209,6 +239,56 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
       {
         localConcurrency: this.config.worker.concurrency,
         localGroupConcurrency: 1,
+        pollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+        notifyPollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+      },
+      async ([job]) => {
+        if (job !== undefined) await handler(job.data);
+      },
+    );
+  }
+
+  /** Hands a sandbox job to the launcher. The spec is in the `sandbox_jobs` row. */
+  async send_sandbox_job(job: SandboxJobJob): Promise<void> {
+    await this.ensure_started();
+    await this.boss.send(SANDBOX_JOB_QUEUE, job);
+  }
+
+  /**
+   * Registers the launcher's handler for sandbox jobs, `concurrency` at a time, which is the cap
+   * on parallel sandbox containers.
+   */
+  async work_sandbox_jobs(
+    handler: (job: SandboxJobJob) => Promise<void>,
+    concurrency: number,
+  ): Promise<void> {
+    await this.ensure_started();
+    await this.boss.work<SandboxJobJob>(
+      SANDBOX_JOB_QUEUE,
+      {
+        localConcurrency: concurrency,
+        pollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+        notifyPollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+      },
+      async ([job]) => {
+        if (job !== undefined) await handler(job.data);
+      },
+    );
+  }
+
+  /** Asks the worker to send a notification. A throw retries it later. */
+  async send_notify(job: NotifyJob): Promise<void> {
+    await this.ensure_started();
+    await this.boss.send(NOTIFY_QUEUE, job);
+  }
+
+  /** Registers the worker's handler for notifications. */
+  async work_notify(handler: (job: NotifyJob) => Promise<void>): Promise<void> {
+    await this.ensure_started();
+    await this.boss.work<NotifyJob>(
+      NOTIFY_QUEUE,
+      {
+        localConcurrency: 2,
         pollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
         notifyPollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
       },

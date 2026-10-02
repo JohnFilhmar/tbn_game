@@ -20,90 +20,128 @@ The system is online only. It runs as one monolith on one private server that on
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
 workload the owner gives the agents.
 
-## Current state (phase 1b)
+## Current state (phase 1c)
 
 ```mermaid
 flowchart LR
   owner["Owner: curl today, the browser from phase 3"] -->|"HTTPS inside the tailnet"| serve["tailscale serve on the host"]
   serve -->|"127.0.0.1:3000"| web
   subgraph backend_network["backend network"]
-    web["web: auth, providers, cap windows, agents, tasks, knowledge, transcripts, reports"]
-    worker["worker: agent_wake handler, run loop, tools, sweep"]
-    postgres[("PostgreSQL 18: rows, transcripts, pg-boss queue")]
-    searxng["SearXNG, unused until 1c"]
+    web["web: auth, providers, search providers, agents, tasks, repositories, merge requests, approvals, integrations, plugins, knowledge, transcripts, reports"]
+    worker["worker: run loop, tools, caches, git jobs, notifications, sweep"]
+    sandbox["sandbox launcher: the docker socket, one container per job"]
+    postgres[("PostgreSQL 18: rows, transcripts, caches, pg-boss queue")]
+    searxng["SearXNG: the default search provider"]
   end
-  subgraph sandbox_network["sandbox network, internal: no gateway"]
-    sandbox["sandbox: idle placeholder"]
-    egress_proxy["egress_proxy: idle placeholder"]
+  subgraph sandbox_network["sandbox network: internal, isolated from the host"]
+    jobs["sandbox containers: agent commands and git jobs"]
+    egress_proxy["egress_proxy: public addresses on 80 and 443 only"]
   end
-  web -->|"rows and agent_wake jobs"| postgres
+  web -->|"rows, agent_wake, sandbox_job and notify jobs"| postgres
   worker -->|"rows, leases, checkpoints, delayed wakes"| postgres
+  sandbox -->|"sandbox_job rows and queue"| postgres
+  sandbox -.->|"creates and removes"| jobs
   worker -->|"model calls through the adapters"| llm["LLM providers"]
-  worker -->|"interns past a cap threshold"| local_llm["local provider, such as Ollama"]
-  worker -->|"file tools"| workspace[("workspace volume")]
+  worker -->|"search"| search["Brave Search, SearXNG"]
+  worker -->|"fetch_url with the run identity"| egress_proxy
+  jobs -->|"the only exit"| egress_proxy
+  egress_proxy -->|"public web"| internet["The open web"]
+  worker -->|"file tools, checkouts, canonical repositories"| workspace[("workspace volume")]
+  jobs -->|"/work and /files by subpath"| workspace
 ```
 
-The company works over REST. The owner logs in, adds providers and their cap windows, recruits
-level 1 agents, assigns goals, chats with agents and downloads reports. A manager runs a team of
-interns it spawns and reuses inside its own department. The worker drives one run per agent at a
-time.
+The company works over REST. The owner logs in, adds providers, search providers, repositories,
+integrations and plugins, recruits level 1 agents, assigns goals, decides the approval inbox, merges
+merge requests and downloads reports. A manager researches on the web, runs a team of interns that
+build and test code in the sandbox on feature branches, reviews and merges their work, and asks the
+owner to merge its branch into `development`.
 
-- **Identity.** One owner account created with `dist/admin.js owner_create`, argon2id hashes,
-  session tokens stored as hashes, a global guard with `@Public()` on `/health`, `/metrics` and
-  `POST /auth/login`.
+- **Identity.** One owner account created with `dist/admin.js owner_create`, which also seeds the
+  stack's SearXNG as a search provider; argon2id hashes, session tokens stored as hashes, a global
+  guard with `@Public()` on `/health`, `/metrics` and `POST /auth/login`.
 - **Providers.** Both API formats behind one interface. Keys are sealed with AES-256-GCM under
-  `SECRETS_ENCRYPTION_KEY` and never returned. Calls time out, retry with backoff and jitter on
-  rate limits, server errors, timeouts and network errors, honour `retry-after`, and write a usage
-  row with cost after every call. The Anthropic adapter marks the system prompt and the last tool
-  with `cache_control`; the OpenAI adapter reads `cached_tokens`. One provider can be marked local.
-  A key may limit its parallel requests, and each model carries its context window. The runtime
-  keeps each key's state: a circuit breaker counted from calls that fail after their retries, and
-  an out-of-credit mark that a new key or `POST /providers/:id/resume` clears.
-- **Cap windows.** Each key has windows in tokens, requests or money, rolling or fixed from an
-  anchor in UTC, each with a threshold. A new key gets three example windows that show usage and
-  block nothing. Past an enforced threshold a key takes no new intern work, and new interns go to
-  the local provider. At an enforced limit every run on the key pauses until the window resets.
-- **Company.** Recruiting a level 1 agent creates the department it heads. Managers spawn level 2
-  interns in their own department, named after the manager, and an idle intern is reused before a
-  spawn. Tasks queue per agent and send an `agent_wake` job. A delegated task has a parent and a
-  delegator, and cancelling a task cancels its open subtasks. Reports are one Markdown document
-  per task; a manager's report lists its subtasks and counts the usage of the whole tree.
-- **Knowledge.** Instructions for every agent, a role or one agent; skills with a one-line
-  description in the prompt and a body behind `load_skill`, imported and exported as `SKILL.md`;
-  typed preferences with defaults, including the intern idle timeout, the runaway guard, the cap
-  threshold defaults and optional limits on interns and live agents.
-- **Runs.** The wake handler hands the agent its finished subtask results, then drives its running
-  run, resumes its paused run when the pause is over, or starts one for its next queued task or an
-  unread message. The loop appends every model turn and tool result to `transcript_entries` before
-  going on, so the transcript is the checkpoint. A run carries a lease that the worker extends
-  during each turn. A run that cannot go on pauses instead of failing: while it waits for its
-  subtasks, behind a cap window at its limit, an open breaker, a key out of credit, or after the
-  runaway guard, which waits for `POST /runs/:id/continue` or `/stop`. A long session is compacted
-  into a summary written by the key's intern model. Tools: `list_files`, `read_file`, `write_file`
-  inside the owner's workspace directory, `load_skill`, `list_roster`, `send_message`,
-  `delegate_task` for managers, and `finish_task`. Policies `auto` and `deny` apply; `ask` answers
-  the model with an error until the approval inbox arrives in 1c.
-- **Sweep.** Every `RUN_LEASE_SECONDS / 2` the worker re-wakes runs whose lease lapsed and paused
-  runs whose pause is over, returns tasks blocked behind a key that has credit again to the queue,
-  wakes managers with undelivered subtask results, and terminates interns idle past the owner's
-  timeout or whose manager left.
-- **Not yet.** Alerts, the sandbox, the proxy, web tools, git, integrations, plugins, taint and the
-  approval inbox are phase 1c. The event log, idempotent commands and Socket.IO are phase 2.
+  `SECRETS_ENCRYPTION_KEY` and never returned. Calls time out, retry with backoff and jitter, honour
+  `retry-after`, and write a usage row with cost after every call. The runtime keeps each key's
+  circuit breaker and out-of-credit mark. Search providers, Brave Search and SearXNG, are tried in
+  priority order and one that errors, times out, is rate limited or out of credit is skipped.
+- **Cap windows.** Each key has windows in tokens, requests or money with a threshold. Past an
+  enforced threshold a key takes no new intern work; at an enforced limit every run on the key
+  pauses until the window resets. A crossing notifies the owner once.
+- **Company.** Managers head departments and spawn interns in them. Tasks queue per agent and send
+  an `agent_wake` job. A task on a repository gives each delegated subtask a feature branch in the
+  manager's namespace. Reports are one Markdown document per task, indexed for the library.
+- **Knowledge.** Instructions, skills behind `load_skill`, and typed preferences: the intern idle
+  timeout, the runaway guard, the cap defaults, the sandbox limits, the cache lifetimes, the fetch
+  size and the disk alert.
+- **Sandbox.** The launcher is the one process with the docker socket. It takes `sandbox_job`
+  rows from the queue and runs each in a fresh container from the sandbox image: read-only root,
+  no capabilities, no new privileges, CPU, memory, pids and scratch limits from the owner's
+  preferences capped by the launcher's maxima, the agent's checkout directory at `/work` and the
+  owner's files read-only at `/files`, mounted by subpath of the workspace volume, and the
+  internal sandbox network as the only network. A job past its time limit is killed, its output
+  is capped, and orphaned containers are removed at boot. `run_command` is the agent's shell in it.
+- **Proxy.** The egress proxy is the only exit of the sandbox network and of `fetch_url`. It
+  forwards plain HTTP on port 80 and tunnels CONNECT to port 443, for a run that identifies itself,
+  to public addresses only: every resolved address of a name is checked, so a public name that
+  points at a private, loopback, link-local, metadata or VPN address is refused. It caps every
+  response, rate-limits each run, refuses `git-receive-pack` over plain HTTP, honours an optional
+  host allowlist, and logs each request with the run and agent ids. It holds no database URL and
+  no key.
+- **Web tools.** `search_library` is a PostgreSQL full-text search over cached pages and reports.
+  `web_search` answers from the search cache inside its lifetime, then asks the providers.
+  `fetch_url` goes through the proxy with the run's identity, distils HTML to text, caps it, and
+  keeps it in the page cache. Every search, page and library hit is a run source and taints the
+  run; `GET /caches/stats` sums what the caches saved.
+- **Git.** A registered repository is a bare canonical repository on the workspace volume that
+  no agent container mounts. Every operation on it is a system job running the fixed git script in
+  the sandbox image. Agents work in their own clones with no remote: an intern on the feature
+  branch of its task, created from `development`; a manager on `<manager>/main`, or on a feature
+  branch of its department to review. `git_publish` fast-forwards only the branches the rules give
+  the agent. A manager records reviews with the test job it ran, merges an approved and tested
+  feature branch into its branch, and opens a merge request with the diff, the log, its notes and
+  the test output; the owner's merge route is the only writer of `development`.
+- **Taint and approvals.** A tool call whose policy is `ask`, and every outward call of a tainted
+  run, waits in the approval inbox with its exact input, a redacted preview and what the run had
+  read. The run pauses with `awaiting_approval` and nothing in the turn runs until every such call
+  is decided; approved calls run, denied calls answer the model with the owner's note. The runaway
+  guard asks through the same inbox.
+- **Integrations and notifications.** Integrations are request templates with sealed tokens;
+  placeholders are replaced with escaping for the body format and nothing else, and unknown
+  placeholders are rejected when the template is saved. An attached integration is an agent's
+  `call_<integration>` tool. Notification channels bind the system's events to integrations; the
+  worker delivers with three attempts and records each outcome in the notification log. Runs that
+  fail, finished reports, cap crossings, keys out of credit, waiting approvals, resumed runs, a
+  nearly full workspace volume and an unclean restart of a process all notify.
+- **Plugins.** MCP servers over streamable HTTP with sealed bearer tokens. An attached plugin's
+  tools appear in the agent's tool list as `plugin_<plugin>__<tool>`; they wait for the owner,
+  their answers taint the run, and an unreachable plugin contributes nothing and a note.
+- **Runs.** The wake handler drives one run per agent at a time. The transcript is the
+  checkpoint: every model turn and tool result is written before the loop goes on. A run that
+  cannot go on pauses instead of failing: for its subtasks, a cap window at its limit, an open
+  breaker, a key out of credit, the runaway guard, or an approval.
+- **Sweep.** Every `RUN_LEASE_SECONDS / 2` the worker re-wakes orphaned and resumable runs,
+  returns unblocked tasks to the queue, wakes managers with undelivered results, terminates idle
+  interns, and checks the workspace volume against the disk alert.
+- **Not yet.** The event log, idempotent commands and Socket.IO are phase 2, with Prometheus,
+  Grafana and backups. The clients start in phase 3.
 
 ## Backend
 
-One NestJS application in `backend/`, TypeScript strict, built as one image that runs as two
-process types: `web` for HTTP and WebSocket, `worker` for agent runs. Scaling up means a bigger
-server and a higher worker concurrency setting.
+One NestJS application in `backend/`, TypeScript strict, built as one image that runs as four
+process types: `web` for HTTP and WebSocket, `worker` for agent runs and notification delivery,
+`sandbox` for the launcher that alone holds the docker socket, and `egress_proxy`, the forward
+proxy with no database and no key. A second image, from `Dockerfile.sandbox`, is what sandbox
+containers run from. Scaling up means a bigger server and higher concurrency settings.
 
 ```
 backend/src/
   modules/
     identity/     owner login and session
-    company/      departments, agents, roster, tasks, approvals, merge requests, reports
-    runtime/      run loop, checkpoints, providers, usage caps, tools, caches
-    knowledge/    instructions, skills, plugins, preferences
-    integrations/ request templates, notification channels
+    company/      departments, agents, roster, tasks, reports, repositories, merge requests, reviews
+    runtime/      run loop, checkpoints, providers, usage caps, tools, caches, sandbox jobs, git jobs,
+                  approvals, run sources
+    knowledge/    instructions, skills, preferences
+    integrations/ request templates, notification channels and log, plugins, restart detection
     world/        environments, appearance, time of day
     events/       event log, WebSocket gateway
   config/  lib/  utils/
@@ -132,6 +170,10 @@ One process and one database are assumed in these places. Each carries a comment
 - Every worker process sweeps every owner. Sweeps overlap safely because each step is idempotent.
 - A worker process handles one wake per agent at a time. With several worker processes two wakes
   of one agent can run at once, and the run lease keeps either from driving the other's run.
+- One sandbox launcher runs `SANDBOX_MAX_PARALLEL` containers at a time, and one proxy carries
+  every sandbox and the worker's fetches under its connection and rate limits.
+- The state that makes a notification fire once per crossing, a cap threshold and the disk alert,
+  lives in the worker process, as does the cached tool list of each plugin.
 
 ## Events and realtime
 
@@ -196,7 +238,9 @@ and can run code.
   the resolved address, so a public name pointing at a private address is refused. It logs every
   request with the agent and run id, and enforces size and rate limits.
 - The fetch tool returns extracted text with a size cap, never raw responses.
-- Phase 1c designs the sandbox and the proxy, and the owner approves the design before it is built.
+- The sandbox network is internal and isolated from the host (Docker's isolated gateway mode), so
+  a sandbox container cannot reach the host's own address on the bridge either. The design is in
+  `docs/plans/phase_1c.md`; the smoke test and the launcher's own tests check each rule.
 
 ### Hostile content
 
@@ -558,3 +602,24 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | Subtask results delivered once through a dedupe key | Two wakes racing for the same manager append one result entry. |
 | The runaway guard counts every turn, orchestration included | Built as the brief says, with a default of 50; the plan records the objection. |
 | Test files dismiss the agents earlier files left | The sweep reaches every owner, and leftover agents would otherwise keep calling fake providers that are gone. |
+
+## Decisions made in phase 1c
+
+| Decision | Why |
+| --- | --- |
+| The sandbox launcher is a third process type holding the docker socket | The worker and the sandboxes hold no socket; one small process creates a hardened container per job from rows in the database. |
+| Our own forward proxy in the backend image | One language, one log format, and the address policy as code with its own tests; no Squid configuration to keep in step. |
+| The sandbox network is internal and isolated from the host | `internal` alone leaves the bridge address of the host reachable; the isolated gateway mode removes it, which needs Docker 28. |
+| Workspace mounts by subpath of one volume | Docker cannot bind a subdirectory of a named volume otherwise; subpath mounts (Engine API 1.45) keep one volume and give each container only its directory. |
+| The sandbox runs as the worker's uid | Files either side writes on the volume belong to one user. Tests set it to their own uid. |
+| A manager's branch is `<manager>/main`, its interns' `<manager>/<task slug>-<suffix>` | Git cannot hold a branch `alice` next to `alice/<slug>`; the manager's name is the namespace of its department's branches. |
+| Git rules enforced by what the sandbox can see | The canonical repository and other checkouts are outside the mount, the checkout has no remote, and publish is a system job that fast-forwards only the branches the worker allows. Hooks in a checkout could be edited. |
+| A manager branch nobody published starts at `development` when a feature is merged into it | A manager often delegates before it publishes anything; its interns branch from `development`, and the merge creates the manager branch there rather than failing on a missing ref. |
+| Owner-initiated jobs identify to the proxy as the owner | Cloning and fetching a remote need the proxy and have no run; the identity is `owner:<owner id>`. |
+| Reading cached content taints like fresh content | It is the same text from the same outside author. |
+| A turn with a call that needs approval runs nothing until every call is decided | The transcript stays the checkpoint: the assistant turn is stored, the tool phase runs on resume with the decisions, and each tool runs at most once. |
+| Approvals live in the runtime module | They pause and resume runs and gate tool calls; the plan placed the rows in the company module, but every reader and writer is the run loop. |
+| Integration calls go direct from the worker, not through the proxy | The URL is the owner's, not an agent's; the proxy guards agent egress. |
+| A notification with no channel is logged and goes nowhere | The log shows what happened even before a channel exists. |
+| Plugin tool lists are cached for a minute per worker | Listing on every turn would call every plugin twice per model call; a minute keeps a new tool from waiting long. |
+| `report_finished` fires for tasks the owner assigned | An intern's report goes to its manager; the owner reads the manager's. |

@@ -54,6 +54,8 @@ export interface TaskRecord {
   assignee_agent_id: string;
   delegator_agent_id: string | null;
   parent_task_id: string | null;
+  repository_id: string | null;
+  feature_branch: string | null;
   status: TaskStatus;
   status_reason: string | null;
   result: string | null;
@@ -71,6 +73,8 @@ export interface TaskWrite {
   instructions: string;
   assignee_agent_id: string;
   delegator_agent_id: string | null;
+  repository_id?: string | null;
+  feature_branch?: string | null;
   parent_task_id: string | null;
 }
 
@@ -81,6 +85,16 @@ export interface ReportRecord {
   task_id: string;
   agent_id: string;
   body_md: string;
+  created_at: Date;
+}
+
+/** A report the library found, with the excerpt around the match. */
+export interface ReportHit {
+  id: string;
+  task_id: string;
+  agent_id: string;
+  excerpt: string;
+  rank: number;
   created_at: Date;
 }
 
@@ -133,4 +147,7 @@ export interface DelegationWrite {
   assignee_agent_id: string;
   delegator_agent_id: string;
   parent_task_id: string | null;
+  /** The repository of the manager's task, when it has one, and the intern's branch in it. */
+  repository_id?: string | null;
+  feature_branch?: string | null;
 }

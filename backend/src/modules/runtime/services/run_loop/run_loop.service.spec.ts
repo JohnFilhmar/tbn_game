@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { INestApplicationContext } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import {
+  ApprovalSchema,
   AgentSchema,
   ReportSchema,
   RunSchema,
@@ -194,10 +195,21 @@ describe('run loop', () => {
       'read_file',
       'write_file',
       'load_skill',
+      'search_library',
+      'web_search',
+      'fetch_url',
       'list_roster',
       'send_message',
       'delegate_task',
       'finish_task',
+      'run_command',
+      'git_checkout',
+      'git_publish',
+      'git_diff',
+      'git_log',
+      'review_branch',
+      'merge_feature_branch',
+      'open_merge_request',
     ]);
   });
 
@@ -228,7 +240,7 @@ describe('run loop', () => {
     expect(fake.requests).toHaveLength(2);
   });
 
-  it('hides denied tools, refuses ask tools and paths outside the workspace', async () => {
+  it('hides denied tools, asks the owner about ask tools and refuses paths outside the workspace', async () => {
     const { fake, agent } = await agent_on('anthropic_messages', {
       tool_policy: { write_file: 'deny', read_file: 'ask' },
     });
@@ -238,6 +250,23 @@ describe('run loop', () => {
     fake.enqueue(finish);
 
     const task = await assign(agent, 'Policies');
+    const approval = await wait_for('the owner to be asked about read_file', async () => {
+      const rows = ApprovalSchema.array().parse(
+        (
+          await api()
+            .get('/approvals')
+            .query({ status: 'pending', agent_id: agent.id })
+            .set('Authorization', `Bearer ${owner.token}`)
+        ).body,
+      );
+      return rows[0];
+    });
+    expect(approval).toMatchObject({ kind: 'tool_call', tool_name: 'read_file' });
+    await api()
+      .post(`/approvals/${approval.id}/deny`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ note: 'Keep out of notes.md' })
+      .expect(200);
     await wait_for_task(task.id, 'done');
 
     const results = (await transcript_of(agent))
@@ -249,7 +278,7 @@ describe('run loop', () => {
       ['write_file', true],
       ['finish_task', false],
     ]);
-    expect(results[0]?.content).toContain('approval');
+    expect(results[0]?.content).toBe('The owner denied this call: Keep out of notes.md');
     expect(results[1]?.content).toContain('leaves the workspace');
     expect(results[2]?.content).toContain('not permitted');
     const tools = WireSchema.parse(fake.requests[0]?.body).tools?.map((tool) => tool.name);

@@ -11,6 +11,7 @@ import {
   type RunRepository,
 } from '@/modules/runtime/repositories/interface/run_repository.interface';
 import { CapService } from '@/modules/runtime/services/caps/cap.service';
+import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
 import type { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderRecord } from '@/modules/runtime/types/provider_record';
@@ -50,6 +51,7 @@ export class RunGateService {
     private readonly tasks: TaskService,
     private readonly queue: QueueService,
     private readonly lease: RunLeaseService,
+    private readonly approvals: ApprovalService,
   ) {}
 
   /** A pause the run must take before its next model call, or null when it may call. */
@@ -135,7 +137,7 @@ export class RunGateService {
   async pause(run: RunRecord, task: TaskRecord | null, decision: PauseDecision): Promise<void> {
     if (task !== null) {
       const reason = decision.status_reason ?? decision.reason;
-      if (decision.reason === 'runaway_guard') {
+      if (decision.reason === 'runaway_guard' || decision.reason === 'awaiting_approval') {
         await this.tasks.await_approval(run.owner_id, task.id, reason);
       } else if (decision.reason === 'waiting_on_subtasks') {
         await this.tasks.set_reason(run.owner_id, task.id, reason);
@@ -154,6 +156,7 @@ export class RunGateService {
       this.logger.warn(`Run ${run.id} lost its lease before it could pause`);
       return;
     }
+    if (decision.reason === 'runaway_guard') await this.approvals.request_for_guard(run, task);
     if (decision.resume_at !== null) {
       const delay_seconds = Math.max(
         1,

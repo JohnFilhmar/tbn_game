@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Preferences } from '@tbn/contracts';
 import { z } from 'zod';
@@ -7,6 +8,7 @@ import type { AgentRecord } from '@/modules/company/types/company_records';
 import { PreferenceService } from '@/modules/knowledge/services/preference.service';
 import { CapService, type ThresholdDefaults } from '@/modules/runtime/services/caps/cap.service';
 import { threshold_defaults } from '@/modules/runtime/services/caps/cap_window.service';
+import { feature_branch_name } from '@/modules/runtime/services/git/branch_rules';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
 import type { Tool, ToolContext, ToolOutcome } from './tool.interface';
 
@@ -108,16 +110,26 @@ export class DelegateTaskTool implements Tool<Input> {
     }
     if ('refusal' in choice) return { content: choice.refusal, is_error: true };
 
+    const parent =
+      context.task_id === null ? null : await this.tasks.get(context.owner_id, context.task_id);
+    const repository_id = parent?.repository_id ?? null;
     const task = await this.tasks.delegate(context.owner_id, {
       title: input.title,
       instructions: input.instructions,
       assignee_agent_id: choice.intern.id,
       delegator_agent_id: manager.id,
       parent_task_id: context.task_id,
+      repository_id,
+      feature_branch:
+        repository_id === null
+          ? null
+          : feature_branch_name(manager.name, input.title, randomBytes(3).toString('hex')),
     });
     const provider = await this.providers.require(context.owner_id, choice.intern.provider_id);
+    const branch =
+      task.feature_branch === null ? '' : ` It works on branch ${task.feature_branch}.`;
     return {
-      content: `Delegated task ${task.id}, "${task.title}", to ${choice.intern.name}: ${choice.how}, on ${provider.name} with ${choice.intern.primary_model}. Its report reaches you when it finishes: end your turn to wait for it.`,
+      content: `Delegated task ${task.id}, "${task.title}", to ${choice.intern.name}: ${choice.how}, on ${provider.name} with ${choice.intern.primary_model}.${branch} Its report reaches you when it finishes: end your turn to wait for it.`,
     };
   }
 

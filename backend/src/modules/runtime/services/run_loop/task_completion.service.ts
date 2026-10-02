@@ -15,6 +15,7 @@ import {
 import { render_report, type SubtaskLine } from '@/modules/runtime/services/report_builder';
 import type { FinishedTask } from '@/modules/runtime/tools/tool.interface';
 import type { RunRecord } from '@/modules/runtime/types/run_record';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
 
 /**
  * Writes the report of a finished task and marks it done. The report of a task with subtasks
@@ -29,6 +30,7 @@ export class TaskCompletionService {
     private readonly agents: AgentService,
     private readonly reports: ReportService,
     private readonly preferences: PreferenceService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Stores the report of `task` from what the agent wrote and marks the task done. */
@@ -66,7 +68,16 @@ export class TaskCompletionService {
       subtasks,
     );
     try {
-      await this.reports.create_for_task(owner_id, task.id, agent.id, body_md);
+      const report = await this.reports.create_for_task(owner_id, task.id, agent.id, body_md);
+      if (task.delegator_agent_id === null) {
+        await this.notifications.emit(owner_id, {
+          event_type: 'report_finished',
+          title: `${agent.name} finished "${task.title}"`,
+          message: finished.outcome.trim().slice(0, 500),
+          priority: 'normal',
+          values: { agent_name: agent.name, task_title: task.title, report_id: report.id },
+        });
+      }
     } catch (error: unknown) {
       if (!(error instanceof ConflictException)) throw error;
     }

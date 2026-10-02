@@ -1,3 +1,4 @@
+import { ops_port, require_database_url, require_secrets_key } from './config.schema';
 import { ConfigError, parse_config } from './parse_config';
 
 const TEST_KEY = Buffer.alloc(32, 2).toString('base64');
@@ -37,6 +38,31 @@ describe('parse_config', () => {
         breaker_threshold: 3,
         breaker_cooldown_seconds: 60,
       },
+      sandbox: {
+        port: 3002,
+        docker_socket: '/var/run/docker.sock',
+        image: 'tbn/sandbox:development',
+        network: 'tbn_development_sandbox',
+        workspace_volume: 'tbn_development_workspace',
+        max_parallel: 2,
+        uid: 65_532,
+        max_cpus: 2,
+        max_memory_mb: 2_048,
+        max_scratch_mb: 1_024,
+        output_max_bytes: 65_536,
+      },
+      egress: {
+        port: 3128,
+        ops_port: 3003,
+        url: 'http://egress_proxy:3128',
+        allowed_hosts: [],
+        max_response_bytes: 10_485_760,
+        max_requests_per_minute: 120,
+        max_connections: 256,
+      },
+      fetch: { max_bytes: 2_097_152 },
+      integrations: { timeout_ms: 15_000 },
+      search: { searxng_url: undefined },
     });
   });
 
@@ -61,6 +87,26 @@ describe('parse_config', () => {
       RUN_LEASE_SECONDS: '45',
       PROVIDER_BREAKER_THRESHOLD: '5',
       PROVIDER_BREAKER_COOLDOWN_SECONDS: '30',
+      SANDBOX_PORT: '3012',
+      DOCKER_SOCKET: '/run/docker.sock',
+      SANDBOX_IMAGE: 'ghcr.io/example/sandbox@sha256:abc',
+      SANDBOX_NETWORK: 'tbn_sandbox',
+      WORKSPACE_VOLUME: '/srv/workspace',
+      SANDBOX_MAX_PARALLEL: '3',
+      SANDBOX_MAX_CPUS: '1.5',
+      SANDBOX_MAX_MEMORY_MB: '512',
+      SANDBOX_MAX_SCRATCH_MB: '256',
+      SANDBOX_OUTPUT_MAX_BYTES: '4096',
+      EGRESS_PROXY_PORT: '8128',
+      EGRESS_PROXY_OPS_PORT: '3013',
+      EGRESS_PROXY_URL: 'http://proxy:8128',
+      EGRESS_ALLOWED_HOSTS: 'example.com, npmjs.org',
+      EGRESS_MAX_RESPONSE_BYTES: '1048576',
+      EGRESS_MAX_REQUESTS_PER_MINUTE: '10',
+      EGRESS_MAX_CONNECTIONS: '8',
+      FETCH_MAX_BYTES: '65536',
+      INTEGRATION_TIMEOUT_MS: '2000',
+      SEARXNG_URL: 'http://searxng:8080',
       PATH: '/usr/bin',
     });
     expect(config).toEqual({
@@ -84,13 +130,43 @@ describe('parse_config', () => {
         breaker_threshold: 5,
         breaker_cooldown_seconds: 30,
       },
+      sandbox: {
+        port: 3012,
+        docker_socket: '/run/docker.sock',
+        image: 'ghcr.io/example/sandbox@sha256:abc',
+        network: 'tbn_sandbox',
+        workspace_volume: '/srv/workspace',
+        max_parallel: 3,
+        uid: 65_532,
+        max_cpus: 1.5,
+        max_memory_mb: 512,
+        max_scratch_mb: 256,
+        output_max_bytes: 4_096,
+      },
+      egress: {
+        port: 8128,
+        ops_port: 3013,
+        url: 'http://proxy:8128',
+        allowed_hosts: ['example.com', 'npmjs.org'],
+        max_response_bytes: 1_048_576,
+        max_requests_per_minute: 10,
+        max_connections: 8,
+      },
+      fetch: { max_bytes: 65_536 },
+      integrations: { timeout_ms: 2_000 },
+      search: { searxng_url: 'http://searxng:8080' },
     });
   });
 
-  it('rejects a missing DATABASE_URL and a missing or short encryption key', () => {
-    expect(problems_of({ NODE_ENV: 'test', SECRETS_ENCRYPTION_KEY: TEST_KEY })).toEqual([
-      expect.stringMatching(/^DATABASE_URL: /),
-    ]);
+  it('leaves the database URL and the key to the process, and rejects a short key', () => {
+    const proxy = parse_config({ NODE_ENV: 'test' });
+    expect(proxy.database.url).toBeUndefined();
+    expect(proxy.secrets_encryption_key).toBeUndefined();
+    expect(() => require_database_url(proxy)).toThrow('DATABASE_URL is required');
+    expect(() => require_secrets_key(proxy)).toThrow('SECRETS_ENCRYPTION_KEY is required');
+    expect(ops_port(proxy, 'web')).toBe(3000);
+    expect(ops_port(proxy, 'sandbox')).toBe(3002);
+    expect(ops_port(proxy, 'egress_proxy')).toBe(3003);
     expect(problems_of({ ...minimal_env, SECRETS_ENCRYPTION_KEY: 'c2hvcnQ=' })).toEqual([
       expect.stringMatching(/^SECRETS_ENCRYPTION_KEY: /),
     ]);

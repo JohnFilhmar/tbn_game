@@ -15,6 +15,7 @@ import type { ProviderModelRecord } from '@/modules/runtime/types/provider_recor
 import type { ModelUsage } from '@/modules/runtime/types/usage_record';
 import { KeyedSemaphore } from '@/utils/keyed_semaphore';
 import { ProviderService } from './provider.service';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
 
 /** Who is calling, for the usage record and the logs. */
 export interface ModelCallContext {
@@ -72,6 +73,7 @@ export class ProviderClientService {
     private readonly providers: ProviderService,
     anthropic: AnthropicMessagesAdapter,
     openai: OpenAiChatCompletionsAdapter,
+    private readonly notifications: NotificationService,
   ) {
     this.adapters = new Map<ApiFormat, LlmAdapter>([
       [anthropic.api_format, anthropic],
@@ -117,7 +119,17 @@ export class ProviderClientService {
         return response;
       } catch (error: unknown) {
         if (error instanceof ProviderError && error.kind === 'out_of_credit') {
-          await this.providers.mark_out_of_credit(context.owner_id, context.provider_id);
+          if (connection.state.out_of_credit_since === null) {
+            await this.providers.mark_out_of_credit(context.owner_id, context.provider_id);
+            const provider = await this.providers.require(context.owner_id, context.provider_id);
+            await this.notifications.emit(context.owner_id, {
+              event_type: 'provider_out_of_credit',
+              title: `${provider.name} is out of credit`,
+              message: `The key of ${provider.name} was refused for credit. Every task on it is blocked until you top it up or change it and resume the provider.`,
+              priority: 'high',
+              values: { provider_name: provider.name },
+            });
+          }
           this.logger.warn(`Provider ${context.provider_id} is out of credit: ${error.message}`);
           throw error;
         }

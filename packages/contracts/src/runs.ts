@@ -15,12 +15,17 @@ export const RunPauseReasonSchema = z.enum([
   'breaker_open',
   'out_of_credit',
   'runaway_guard',
+  'awaiting_approval',
 ]);
 
 /** Why a run is paused. */
 export type RunPauseReason = z.infer<typeof RunPauseReasonSchema>;
 
-/** One execution of an agent on a task, or on an owner message when the agent was idle. */
+/**
+ * One execution of an agent on a task, or on an owner message when the agent was idle. A run
+ * that read web or plugin content is tainted from `tainted_at` on: its outward tools then need
+ * the owner's approval.
+ */
 export const RunSchema = z.strictObject({
   id: IdSchema,
   agent_id: IdSchema,
@@ -29,6 +34,7 @@ export const RunSchema = z.strictObject({
   pause_reason: RunPauseReasonSchema.nullable(),
   resume_at: DateTimeSchema.nullable(),
   turn_count: z.number().int().min(0),
+  tainted_at: DateTimeSchema.nullable(),
   error: z.string().nullable(),
   started_at: DateTimeSchema,
   finished_at: DateTimeSchema.nullable(),
@@ -46,6 +52,25 @@ export const RunListQuerySchema = z.strictObject({
 
 /** Query of `GET /runs`. */
 export type RunListQuery = z.infer<typeof RunListQuerySchema>;
+
+/** Where untrusted content came from: a fetched page, search results, the library or a plugin. */
+export const RunSourceKindSchema = z.enum(['fetch', 'search', 'library', 'plugin']);
+
+/** A run source kind. */
+export type RunSourceKind = z.infer<typeof RunSourceKindSchema>;
+
+/** Something a run read that taints it: the URL, the query, or the plugin tool. */
+export const RunSourceSchema = z.strictObject({
+  id: IdSchema,
+  run_id: IdSchema,
+  kind: RunSourceKindSchema,
+  reference: z.string(),
+  cached: z.boolean(),
+  read_at: DateTimeSchema,
+});
+
+/** A run source as the API returns it. */
+export type RunSource = z.infer<typeof RunSourceSchema>;
 
 /** Text block the model produced. */
 export const AssistantTextBlockSchema = z.strictObject({

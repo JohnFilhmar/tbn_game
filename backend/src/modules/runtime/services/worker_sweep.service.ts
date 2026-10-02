@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
+import { disk_used_percent } from '@/lib/disk/disk_usage';
 import { QueueService } from '@/lib/queue/queue.service';
 import { AgentService, is_live } from '@/modules/company/services/agent.service';
 import { TaskService } from '@/modules/company/services/task.service';
@@ -10,6 +11,8 @@ import {
   type RunRepository,
 } from '@/modules/runtime/repositories/interface/run_repository.interface';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
+import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
 
 const MINUTE_MS = 60_000;
 
@@ -26,6 +29,8 @@ const MINUTE_MS = 60_000;
 export class WorkerSweepService implements OnApplicationShutdown {
   private readonly logger = new Logger(WorkerSweepService.name);
   private timer: NodeJS.Timeout | undefined;
+  private swept_once = false;
+  private readonly disk_alerted = new Set<string>();
 
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -35,6 +40,8 @@ export class WorkerSweepService implements OnApplicationShutdown {
     private readonly providers: ProviderService,
     private readonly preferences: PreferenceService,
     private readonly queue: QueueService,
+    private readonly approvals: ApprovalService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Sweeps now and then on a timer, until shutdown. */
@@ -59,6 +66,7 @@ export class WorkerSweepService implements OnApplicationShutdown {
       ['blocked tasks', () => this.requeue_unblocked()],
       ['subtask results', () => this.wake_delegators()],
       ['idle interns', () => this.terminate_idle_interns(now)],
+      ['disk space', () => this.check_disk()],
     ];
     for (const [name, step] of steps) {
       try {
@@ -71,11 +79,53 @@ export class WorkerSweepService implements OnApplicationShutdown {
     }
   }
 
-  /** Re-sends a wake for every running run without a live lease. */
+  /**
+   * Re-sends a wake for every running run without a live lease. On the first sweep after boot
+   * those are the runs of a worker that died, and the owner hears how many came back.
+   */
   private async recover_orphans(now: Date): Promise<void> {
-    for (const run of await this.runs.find_orphaned(now)) {
+    const orphaned = await this.runs.find_orphaned(now);
+    for (const run of orphaned) {
       this.logger.warn(`Run ${run.id} has no live lease, waking agent ${run.agent_id}`);
       await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
+    }
+    const first = !this.swept_once;
+    this.swept_once = true;
+    if (!first || orphaned.length === 0) return;
+    const by_owner = new Map<string, number>();
+    for (const run of orphaned) by_owner.set(run.owner_id, (by_owner.get(run.owner_id) ?? 0) + 1);
+    for (const [owner_id, count] of by_owner) {
+      await this.notifications.emit(owner_id, {
+        event_type: 'runs_resumed',
+        title: `${count} run${count === 1 ? '' : 's'} resumed after a worker restart`,
+        message: `The worker re-woke ${count} run${count === 1 ? '' : 's'} whose previous worker died.`,
+        priority: 'normal',
+        values: { count: String(count) },
+      });
+    }
+  }
+
+  /** Tells each listening owner once when the workspace volume passes their alert percentage. */
+  private async check_disk(): Promise<void> {
+    const owners = await this.notifications.owners_listening('disk_nearly_full');
+    if (owners.length === 0) return;
+    const used = await disk_used_percent(this.config.workspace.dir);
+    for (const owner_id of owners) {
+      const preferences = await this.preferences.get(owner_id);
+      const over = used >= preferences.disk_alert_percent;
+      const alerted = this.disk_alerted.has(owner_id);
+      if (over && !alerted) {
+        this.disk_alerted.add(owner_id);
+        await this.notifications.emit(owner_id, {
+          event_type: 'disk_nearly_full',
+          title: `The workspace volume is ${used}% full`,
+          message: `The volume holding the workspace passed ${preferences.disk_alert_percent}%. Free space before agents run out of room.`,
+          priority: 'high',
+          values: { used_percent: String(used) },
+        });
+      } else if (!over && alerted) {
+        this.disk_alerted.delete(owner_id);
+      }
     }
   }
 
@@ -88,6 +138,11 @@ export class WorkerSweepService implements OnApplicationShutdown {
       const agent = await this.agents.require(run.owner_id, run.agent_id);
       const provider = await this.providers.require(run.owner_id, agent.provider_id);
       if (provider.out_of_credit_since === null) {
+        await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
+      }
+    }
+    for (const run of await this.runs.find_paused(['awaiting_approval'], null)) {
+      if (!(await this.approvals.has_pending(run.owner_id, run.id))) {
         await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
       }
     }

@@ -4,6 +4,7 @@ import type { AppConfig } from '@/config/config.schema';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { LoggingModule } from '@/lib/logging/logging.module';
 import { IdentityModule } from '@/modules/identity/identity.module';
+import { RuntimeProvidersModule } from '@/modules/runtime/runtime_providers.module';
 
 /** Root module of one-off admin commands. It loads only what the commands need. */
 @Module({})
@@ -21,6 +22,7 @@ export class AdminModule {
         LoggingModule,
         DatabaseModule,
         IdentityModule,
+        RuntimeProvidersModule,
       ],
     };
   }
