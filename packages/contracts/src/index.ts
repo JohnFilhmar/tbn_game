@@ -1,5 +1,6 @@
 export * from './approvals';
 export * from './caps';
+export * from './commands';
 export * from './common';
 export * from './company';
 export * from './events';

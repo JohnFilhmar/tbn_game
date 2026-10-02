@@ -1,3 +1,4 @@
+import type { Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import type { AppConfig } from '@/config/config.schema';
@@ -29,6 +30,8 @@ export function load_test_config(): AppConfig {
 export interface TestWebAppOptions {
   /** Receives every log line instead of stdout. */
   log_destination?: NodeJS.WritableStream;
+  /** Extra controllers mounted next to the real ones, behind the same guard and interceptors. */
+  controllers?: Type[];
 }
 
 /**
@@ -41,7 +44,10 @@ export async function create_test_web_app(
   config: AppConfig,
   options: TestWebAppOptions = {},
 ): Promise<NestExpressApplication> {
-  const builder = Test.createTestingModule({ imports: [WebModule.register(config)] });
+  const builder = Test.createTestingModule({
+    imports: [WebModule.register(config)],
+    controllers: options.controllers ?? [],
+  });
   if (options.log_destination !== undefined) {
     builder.overrideProvider(LOG_DESTINATION).useValue(options.log_destination);
   }

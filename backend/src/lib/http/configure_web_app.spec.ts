@@ -34,7 +34,22 @@ describe('configure_web_app', () => {
       .set('Origin', 'https://elsewhere.example');
 
     expect(allowed.headers['access-control-allow-origin']).toBe('https://allowed.example');
+    expect(allowed.headers['access-control-expose-headers']).toBe('Idempotent-Replayed');
     expect(refused.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('lets a browser send a command id and read whether the answer was replayed', async () => {
+    const preflight = await request(app.getHttpServer())
+      .options('/agents')
+      .set('Origin', 'https://allowed.example')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'authorization,content-type,idempotency-key')
+      .expect(204);
+
+    expect(preflight.headers['access-control-allow-origin']).toBe('https://allowed.example');
+    expect(preflight.headers['access-control-allow-headers']).toBe(
+      'Authorization,Content-Type,Idempotency-Key',
+    );
   });
 
   it('rejects a body over the size limit with 413 and no stack trace', async () => {

@@ -3,6 +3,7 @@ import { AppConfigModule } from '@/config/app_config.module';
 import type { AppConfig } from '@/config/config.schema';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { HealthModule } from '@/lib/health/health.module';
+import { IdempotencyModule } from '@/lib/idempotency/idempotency.module';
 import { EXTRA_HEALTH_CHECKS, type ExtraHealthChecks } from '@/lib/health/health.service';
 import { LoggingModule } from '@/lib/logging/logging.module';
 import { MetricsModule } from '@/lib/metrics/metrics.module';
@@ -28,6 +29,7 @@ export class WebModule {
         HealthModule,
         MetricsModule,
         RealtimeModule,
+        IdempotencyModule,
         ...DOMAIN_MODULES,
       ],
       providers: [
