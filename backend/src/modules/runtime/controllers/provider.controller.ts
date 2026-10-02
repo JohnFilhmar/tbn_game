@@ -57,6 +57,16 @@ export class ProviderController {
     return this.provider_service.delete(owner.id, id);
   }
 
+  /** The owner topped up or fixed the key: clears out-of-credit and the breaker. */
+  @Post(':id/resume')
+  @HttpCode(HttpStatus.OK)
+  resume(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @ZodParam('id', IdSchema) id: string,
+  ): Promise<Provider> {
+    return this.provider_service.resume(owner.id, id);
+  }
+
   @Get(':id/usage')
   usage(
     @CurrentOwner() owner: AuthenticatedOwner,

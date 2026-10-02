@@ -24,13 +24,23 @@ export interface RecordedRequest {
   received_at: number;
 }
 
+/** Picks the reply to one request from what it carries. Undefined falls back to an empty reply. */
+export type Responder = (request: RecordedRequest) => ScriptedReply | undefined;
+
 /** A running fake provider. */
 export interface FakeProviderServer {
   base_url: string;
   api_format: ApiFormat;
   requests: RecordedRequest[];
-  /** Queues the next reply. Without a script, the server answers an empty `end_turn`. */
+  /** The most requests it has had in flight at once. */
+  readonly max_in_flight: number;
+  /**
+   * Queues the next reply. Without a script, the responder picks the reply, and without a
+   * responder the server answers an empty `end_turn`.
+   */
   enqueue(reply: ScriptedReply): void;
+  /** Answers every request the script does not cover, so several agents can share one server. */
+  respond(responder: Responder): void;
   /** Lets held requests through. */
   release(): void;
   close(): Promise<void>;
@@ -143,17 +153,26 @@ export async function start_fake_provider_server(
   const requests: RecordedRequest[] = [];
   const holds: Array<() => void> = [];
   let release_held = false;
+  let responder: Responder | undefined;
+  let in_flight = 0;
+  let max_in_flight = 0;
 
   const server: Server = createServer((request, response) => {
+    in_flight += 1;
+    max_in_flight = Math.max(max_in_flight, in_flight);
+    response.on('close', () => {
+      in_flight -= 1;
+    });
     void (async () => {
       const body = await read_body(request);
-      requests.push({
+      const recorded: RecordedRequest = {
         path: request.url ?? '',
         headers: request.headers,
         body,
         received_at: Date.now(),
-      });
-      const reply = script.shift() ?? { type: 'text', text: '' };
+      };
+      requests.push(recorded);
+      const reply = script.shift() ?? responder?.(recorded) ?? { type: 'text', text: '' };
       if (reply.type === 'hold') {
         if (!release_held) await new Promise<void>((resolve) => holds.push(resolve));
         send(
@@ -201,8 +220,14 @@ export async function start_fake_provider_server(
     base_url: `http://127.0.0.1:${port}${api_format === 'openai_chat_completions' ? '/v1' : ''}`,
     api_format,
     requests,
+    get max_in_flight() {
+      return max_in_flight;
+    },
     enqueue: (reply) => {
       script.push(reply);
+    },
+    respond: (next) => {
+      responder = next;
     },
     release: () => {
       release_held = true;

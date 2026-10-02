@@ -30,6 +30,7 @@ enum AgentStatus {
   idle
   working
   dismissed
+  terminated
 
   @@map("agent_status")
 }
@@ -63,11 +64,22 @@ enum TaskStatus {
 
 enum RunStatus {
   running
+  paused
   done
   failed
   cancelled
 
   @@map("run_status")
+}
+
+enum RunPauseReason {
+  waiting_on_subtasks
+  cap_limit
+  breaker_open
+  out_of_credit
+  runaway_guard
+
+  @@map("run_pause_reason")
 }
 
 enum TranscriptEntryKind {
@@ -76,8 +88,35 @@ enum TranscriptEntryKind {
   assistant
   tool_result
   system_note
+  agent_message
+  subtask_result
+  compaction
 
   @@map("transcript_entry_kind")
+}
+
+enum CapLengthUnit {
+  hour
+  day
+  week
+  month
+
+  @@map("cap_length_unit")
+}
+
+enum CapResetMode {
+  rolling
+  fixed
+
+  @@map("cap_reset_mode")
+}
+
+enum CapUnit {
+  tokens
+  requests
+  money
+
+  @@map("cap_unit")
 }
 
 model Owner {
@@ -101,6 +140,7 @@ model Owner {
   transcript_entries TranscriptEntry[]
   usage_records      UsageRecord[]
   reports            Report[]
+  cap_windows        CapWindow[]
 
   @@map("owners")
 }
@@ -120,19 +160,25 @@ model Session {
 }
 
 model Provider {
-  id                 String    @id @default(uuid(7))
-  owner_id           String
-  name               String
-  api_format         ApiFormat
-  base_url           String
-  api_key_ciphertext String
-  created_at         DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+  id                    String    @id @default(uuid(7))
+  owner_id              String
+  name                  String
+  api_format            ApiFormat
+  base_url              String
+  api_key_ciphertext    String
+  is_local              Boolean   @default(false)
+  max_parallel_requests Int?
+  breaker_failures      Int       @default(0)
+  breaker_open_until    DateTime? @db.Timestamptz(6)
+  out_of_credit_since   DateTime? @db.Timestamptz(6)
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @updatedAt @db.Timestamptz(6)
 
   owner         Owner           @relation(fields: [owner_id], references: [id], onDelete: Cascade)
   models        ProviderModel[]
   agents        Agent[]
   usage_records UsageRecord[]
+  cap_windows   CapWindow[]
 
   @@unique([owner_id, name])
   @@map("providers")
@@ -149,6 +195,7 @@ model ProviderModel {
   cache_read_price_per_million  Float?
   cache_write_price_per_million Float?
   max_output_tokens             Int      @default(8192)
+  context_window_tokens         Int      @default(128000)
   created_at                    DateTime @default(now()) @db.Timestamptz(6)
 
   owner    Owner    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
@@ -156,6 +203,30 @@ model ProviderModel {
 
   @@unique([provider_id, model_id])
   @@map("provider_models")
+}
+
+model CapWindow {
+  id                String        @id @default(uuid(7))
+  owner_id          String
+  provider_id       String
+  model_id          String?
+  name              String
+  length_count      Int
+  length_unit       CapLengthUnit
+  reset_mode        CapResetMode
+  anchor_at         DateTime?     @db.Timestamptz(6)
+  unit              CapUnit
+  limit             Float
+  threshold_percent Int?
+  enforced          Boolean       @default(false)
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @updatedAt @db.Timestamptz(6)
+
+  owner    Owner    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, provider_id])
+  @@map("cap_windows")
 }
 
 model Department {
@@ -189,6 +260,7 @@ model Agent {
   tool_policy     Json        @default("{}")
   status          AgentStatus @default(idle)
   active_run_id   String?
+  idle_since      DateTime?   @default(now()) @db.Timestamptz(6)
   created_at      DateTime    @default(now()) @db.Timestamptz(6)
   updated_at      DateTime    @updatedAt @db.Timestamptz(6)
 
@@ -207,6 +279,7 @@ model Agent {
 
   @@unique([owner_id, name])
   @@index([owner_id, status])
+  @@index([owner_id, department_id, level])
   @@map("agents")
 }
 
@@ -279,19 +352,21 @@ model Preference {
 }
 
 model Task {
-  id                 String     @id @default(uuid(7))
-  owner_id           String
-  title              String
-  instructions       String
-  assignee_agent_id  String
-  delegator_agent_id String?
-  parent_task_id     String?
-  status             TaskStatus @default(queued)
-  result             String?
-  started_at         DateTime?  @db.Timestamptz(6)
-  finished_at        DateTime?  @db.Timestamptz(6)
-  created_at         DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime   @updatedAt @db.Timestamptz(6)
+  id                    String     @id @default(uuid(7))
+  owner_id              String
+  title                 String
+  instructions          String
+  assignee_agent_id     String
+  delegator_agent_id    String?
+  parent_task_id        String?
+  status                TaskStatus @default(queued)
+  status_reason         String?
+  result                String?
+  delegator_notified_at DateTime?  @db.Timestamptz(6)
+  started_at            DateTime?  @db.Timestamptz(6)
+  finished_at           DateTime?  @db.Timestamptz(6)
+  created_at            DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime   @updatedAt @db.Timestamptz(6)
 
   owner     Owner   @relation(fields: [owner_id], references: [id], onDelete: Cascade)
   assignee  Agent   @relation("task_assignee", fields: [assignee_agent_id], references: [id], onDelete: Restrict)
@@ -302,22 +377,27 @@ model Task {
   report    Report?
 
   @@index([owner_id, assignee_agent_id, status])
+  @@index([owner_id, parent_task_id])
+  @@index([owner_id, delegator_agent_id, status])
   @@map("tasks")
 }
 
 model Run {
-  id               String    @id @default(uuid(7))
+  id               String          @id @default(uuid(7))
   owner_id         String
   agent_id         String
   task_id          String?
-  status           RunStatus @default(running)
-  turn_count       Int       @default(0)
+  status           RunStatus       @default(running)
+  pause_reason     RunPauseReason?
+  resume_at        DateTime?       @db.Timestamptz(6)
+  turn_count       Int             @default(0)
+  guard_turns      Int             @default(0)
   lease_owner      String?
-  lease_expires_at DateTime? @db.Timestamptz(6)
+  lease_expires_at DateTime?       @db.Timestamptz(6)
   error            String?
-  started_at       DateTime  @default(now()) @db.Timestamptz(6)
-  finished_at      DateTime? @db.Timestamptz(6)
-  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+  started_at       DateTime        @default(now()) @db.Timestamptz(6)
+  finished_at      DateTime?       @db.Timestamptz(6)
+  updated_at       DateTime        @updatedAt @db.Timestamptz(6)
 
   owner              Owner             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
   agent              Agent             @relation(fields: [agent_id], references: [id], onDelete: Cascade)
@@ -327,6 +407,7 @@ model Run {
 
   @@index([owner_id, agent_id, status])
   @@index([status, lease_expires_at])
+  @@index([status, resume_at])
   @@map("runs")
 }
 
@@ -338,6 +419,7 @@ model TranscriptEntry {
   seq        Int
   kind       TranscriptEntryKind
   content    Json
+  dedupe_key String?
   created_at DateTime            @default(now()) @db.Timestamptz(6)
 
   owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
@@ -345,22 +427,23 @@ model TranscriptEntry {
   run   Run?  @relation(fields: [run_id], references: [id], onDelete: SetNull)
 
   @@unique([agent_id, seq])
+  @@unique([agent_id, dedupe_key])
   @@map("transcript_entries")
 }
 
 model UsageRecord {
-  id                String   @id @default(uuid(7))
-  owner_id          String
-  provider_id       String
-  model_id          String
-  agent_id          String
-  run_id            String?
-  input_tokens      Int
-  output_tokens     Int
-  cache_read_tokens Int      @default(0)
-  cache_write_tokens Int     @default(0)
-  cost              Float    @default(0)
-  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  id                 String   @id @default(uuid(7))
+  owner_id           String
+  provider_id        String
+  model_id           String
+  agent_id           String
+  run_id             String?
+  input_tokens       Int
+  output_tokens      Int
+  cache_read_tokens  Int      @default(0)
+  cache_write_tokens Int      @default(0)
+  cost               Float    @default(0)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
 
   owner    Owner    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
   provider Provider @relation(fields: [provider_id], references: [id], onDelete: Cascade)

@@ -119,7 +119,7 @@ describe('run loop', () => {
     const base = load_test_config();
     config = {
       ...base,
-      providers: { timeout_ms: 20_000, max_attempts: 2 },
+      providers: { ...base.providers, timeout_ms: 20_000, max_attempts: 2 },
       worker: { ...base.worker, concurrency: 2, run_lease_seconds: 10 },
     };
     app = await create_test_web_app(config);

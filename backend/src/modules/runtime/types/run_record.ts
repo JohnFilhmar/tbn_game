@@ -1,4 +1,4 @@
-import type { RunStatus, TranscriptEntryWrite } from '@tbn/contracts';
+import type { RunPauseReason, RunStatus, TranscriptEntryWrite } from '@tbn/contracts';
 
 /** A run row. */
 export interface RunRecord {
@@ -7,7 +7,11 @@ export interface RunRecord {
   agent_id: string;
   task_id: string | null;
   status: RunStatus;
+  pause_reason: RunPauseReason | null;
+  resume_at: Date | null;
   turn_count: number;
+  /** Model turns since the task last changed status or the owner said continue. */
+  guard_turns: number;
   lease_owner: string | null;
   lease_expires_at: Date | null;
   error: string | null;

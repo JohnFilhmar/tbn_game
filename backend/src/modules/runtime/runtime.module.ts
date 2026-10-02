@@ -3,6 +3,7 @@ import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
 import { CompanyModule } from '@/modules/company/company.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
+import { CapWindowController } from './controllers/cap_window.controller';
 import { RunController } from './controllers/run.controller';
 import { TranscriptController } from './controllers/transcript.controller';
 import { RUN_REPOSITORY } from './repositories/interface/run_repository.interface';
@@ -11,6 +12,7 @@ import { PrismaRunRepository } from './repositories/prisma_run.repository';
 import { PrismaTranscriptRepository } from './repositories/prisma_transcript.repository';
 import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
+import { CapWindowService } from './services/caps/cap_window.service';
 import { PromptBuilderService } from './services/prompt_builder.service';
 import { RunLoopService } from './services/run_loop.service';
 import { RunService } from './services/run.service';
@@ -28,7 +30,7 @@ import { ToolRegistryService } from './tools/tool_registry.service';
  */
 @Module({
   imports: [DatabaseModule, QueueModule, RuntimeProvidersModule, CompanyModule, KnowledgeModule],
-  controllers: [RunController, TranscriptController],
+  controllers: [RunController, TranscriptController, CapWindowController],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
     { provide: TRANSCRIPT_REPOSITORY, useClass: PrismaTranscriptRepository },
@@ -44,6 +46,7 @@ import { ToolRegistryService } from './tools/tool_registry.service';
     AgentWakeService,
     RunService,
     TranscriptService,
+    CapWindowService,
   ],
   exports: [RuntimeProvidersModule, RunService, TranscriptService, AgentWakeService],
 })

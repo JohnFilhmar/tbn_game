@@ -16,6 +16,8 @@ export interface AgentRecord {
   tool_policy: unknown;
   status: AgentStatus;
   active_run_id: string | null;
+  /** When the agent last went idle; null while it works. */
+  idle_since: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -53,8 +55,10 @@ export interface TaskRecord {
   delegator_agent_id: string | null;
   parent_task_id: string | null;
   status: TaskStatus;
+  status_reason: string | null;
   result: string | null;
   report_id: string | null;
+  delegator_notified_at: Date | null;
   started_at: Date | null;
   finished_at: Date | null;
   created_at: Date;

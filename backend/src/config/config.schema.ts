@@ -37,6 +37,8 @@ const env_schema = z.object({
   PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(1_800_000).default(300_000),
   PROVIDER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(4),
   RUN_LEASE_SECONDS: z.coerce.number().int().min(10).max(3_600).default(120),
+  PROVIDER_BREAKER_THRESHOLD: z.coerce.number().int().min(1).max(100).default(3),
+  PROVIDER_BREAKER_COOLDOWN_SECONDS: z.coerce.number().int().min(1).max(3_600).default(60),
 });
 
 /**
@@ -72,6 +74,8 @@ export const config_schema = env_schema.transform((env) => ({
   providers: {
     timeout_ms: env.PROVIDER_TIMEOUT_MS,
     max_attempts: env.PROVIDER_MAX_ATTEMPTS,
+    breaker_threshold: env.PROVIDER_BREAKER_THRESHOLD,
+    breaker_cooldown_seconds: env.PROVIDER_BREAKER_COOLDOWN_SECONDS,
   },
 }));
 

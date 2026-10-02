@@ -31,7 +31,12 @@ describe('parse_config', () => {
       worker: { port: 3001, concurrency: 4, run_lease_seconds: 120 },
       auth: { session_ttl_minutes: 720 },
       workspace: { dir: '/workspace' },
-      providers: { timeout_ms: 300_000, max_attempts: 4 },
+      providers: {
+        timeout_ms: 300_000,
+        max_attempts: 4,
+        breaker_threshold: 3,
+        breaker_cooldown_seconds: 60,
+      },
     });
   });
 
@@ -54,6 +59,8 @@ describe('parse_config', () => {
       PROVIDER_TIMEOUT_MS: '5000',
       PROVIDER_MAX_ATTEMPTS: '2',
       RUN_LEASE_SECONDS: '45',
+      PROVIDER_BREAKER_THRESHOLD: '5',
+      PROVIDER_BREAKER_COOLDOWN_SECONDS: '30',
       PATH: '/usr/bin',
     });
     expect(config).toEqual({
@@ -71,7 +78,12 @@ describe('parse_config', () => {
       worker: { port: 8081, concurrency: 2, run_lease_seconds: 45 },
       auth: { session_ttl_minutes: 60 },
       workspace: { dir: '/srv/workspace' },
-      providers: { timeout_ms: 5_000, max_attempts: 2 },
+      providers: {
+        timeout_ms: 5_000,
+        max_attempts: 2,
+        breaker_threshold: 5,
+        breaker_cooldown_seconds: 30,
+      },
     });
   });
 

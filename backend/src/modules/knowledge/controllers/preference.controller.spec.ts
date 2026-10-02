@@ -1,5 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { PreferencesSchema } from '@tbn/contracts';
+import { PREFERENCE_DEFAULTS, PreferencesSchema } from '@tbn/contracts';
 import request from 'supertest';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
@@ -34,6 +34,12 @@ describe('preference routes', () => {
       report_style: 'concise',
       time_zone: 'UTC',
       theme: 'system',
+      intern_idle_ttl_minutes: 30,
+      runaway_guard_turns: 50,
+      cap_threshold_longest_percent: 75,
+      cap_threshold_shorter_percent: 85,
+      max_interns_per_manager: null,
+      max_live_agents: null,
     });
 
     const set = await api()
@@ -49,10 +55,44 @@ describe('preference routes', () => {
       .send({ value: 'detailed' })
       .expect(200);
     expect(PreferencesSchema.parse(again.body)).toEqual({
+      ...PREFERENCE_DEFAULTS,
       report_style: 'detailed',
       time_zone: 'Asia/Manila',
-      theme: 'system',
     });
+  });
+
+  it('sets and clears an optional limit, and takes a fraction of a minute', async () => {
+    const limited = await api()
+      .put('/preferences/max_live_agents')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 12 })
+      .expect(200);
+    expect(PreferencesSchema.parse(limited.body).max_live_agents).toBe(12);
+
+    const cleared = await api()
+      .put('/preferences/max_live_agents')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: null })
+      .expect(200);
+    expect(PreferencesSchema.parse(cleared.body).max_live_agents).toBeNull();
+
+    const ttl = await api()
+      .put('/preferences/intern_idle_ttl_minutes')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 0.5 })
+      .expect(200);
+    expect(PreferencesSchema.parse(ttl.body).intern_idle_ttl_minutes).toBe(0.5);
+
+    await api()
+      .put('/preferences/runaway_guard_turns')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: null })
+      .expect(400);
+    await api()
+      .put('/preferences/runaway_guard_turns')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 2.5 })
+      .expect(400);
   });
 
   it('rejects an unknown key, a wrong value and an unknown field', async () => {

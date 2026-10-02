@@ -4,6 +4,10 @@ import request from 'supertest';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '@/lib/database/prisma.service';
 import {
+  PROVIDER_REPOSITORY,
+  type ProviderRepository,
+} from '@/modules/runtime/repositories/interface/provider_repository.interface';
+import {
   USAGE_REPOSITORY,
   type UsageRepository,
 } from '@/modules/runtime/repositories/interface/usage_repository.interface';
@@ -70,8 +74,16 @@ describe('provider routes', () => {
       name: 'anthropic',
       api_format: 'anthropic_messages',
       api_key_set: true,
+      is_local: false,
+      max_parallel_requests: null,
+      breaker_open_until: null,
+      out_of_credit_since: null,
       models: [
-        expect.objectContaining({ model_id: 'claude-model-a', max_output_tokens: 8192 }),
+        expect.objectContaining({
+          model_id: 'claude-model-a',
+          max_output_tokens: 8192,
+          context_window_tokens: 128_000,
+        }),
         expect.objectContaining({ model_id: 'claude-model-b', input_price_per_million: null }),
       ],
     });
@@ -190,6 +202,118 @@ describe('provider routes', () => {
       .expect(404);
     await api()
       .delete(`/providers/${provider.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(404);
+  });
+
+  it('keeps one local provider, takes a parallel limit and a context window', async () => {
+    const created = await api()
+      .post('/providers')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        ...create_body,
+        name: 'local-a',
+        is_local: true,
+        max_parallel_requests: 2,
+        models: [{ model_id: 'llama', cost_tier: 'cheap', context_window_tokens: 8_192 }],
+      })
+      .expect(201);
+    responses.push(created.text);
+    const first = ProviderSchema.parse(created.body);
+    expect(first).toMatchObject({
+      is_local: true,
+      max_parallel_requests: 2,
+      models: [expect.objectContaining({ context_window_tokens: 8_192 })],
+    });
+
+    const second = ProviderSchema.parse(
+      (
+        await api()
+          .post('/providers')
+          .set('Authorization', `Bearer ${owner.token}`)
+          .send({ ...create_body, name: 'local-b', is_local: true })
+          .expect(201)
+      ).body,
+    );
+    expect(second.is_local).toBe(true);
+    const first_now = await api()
+      .get(`/providers/${first.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(ProviderSchema.parse(first_now.body).is_local).toBe(false);
+
+    await api()
+      .patch(`/providers/${first.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ is_local: true, max_parallel_requests: null })
+      .expect(200);
+    const second_now = await api()
+      .get(`/providers/${second.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(ProviderSchema.parse(second_now.body).is_local).toBe(false);
+
+    await api()
+      .post('/providers')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ ...create_body, name: 'zero-parallel', max_parallel_requests: 0 })
+      .expect(400);
+  });
+
+  it('clears a key out of credit or with an open breaker on resume or a new key', async () => {
+    const provider = ProviderSchema.parse(
+      (
+        await api()
+          .post('/providers')
+          .set('Authorization', `Bearer ${owner.token}`)
+          .send({ ...create_body, name: 'resumable' })
+          .expect(201)
+      ).body,
+    );
+    const repository = app.get<ProviderRepository>(PROVIDER_REPOSITORY);
+    const trip = async (): Promise<void> => {
+      await repository.mark_out_of_credit(owner.owner_id, provider.id, new Date());
+      await repository.record_failure(
+        owner.owner_id,
+        provider.id,
+        1,
+        new Date(Date.now() + 60_000),
+      );
+    };
+
+    await trip();
+    const tripped = await api()
+      .get(`/providers/${provider.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    const tripped_view = ProviderSchema.parse(tripped.body);
+    expect(tripped_view.out_of_credit_since).not.toBeNull();
+    expect(tripped_view.breaker_open_until).not.toBeNull();
+
+    await api().post(`/providers/${provider.id}/resume`).expect(401);
+    const resumed = await api()
+      .post(`/providers/${provider.id}/resume`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(ProviderSchema.parse(resumed.body)).toMatchObject({
+      out_of_credit_since: null,
+      breaker_open_until: null,
+    });
+
+    await trip();
+    const rekeyed = await api()
+      .patch(`/providers/${provider.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ api_key: SECOND_KEY })
+      .expect(200);
+    responses.push(rekeyed.text);
+    expect(ProviderSchema.parse(rekeyed.body)).toMatchObject({
+      out_of_credit_since: null,
+      breaker_open_until: null,
+    });
+
+    await api()
+      .post(`/providers/${owner.owner_id}/resume`)
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(404);
   });

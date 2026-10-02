@@ -13,6 +13,8 @@ export function to_run_view(record: RunRecord): Run {
     agent_id: record.agent_id,
     task_id: record.task_id,
     status: record.status,
+    pause_reason: record.pause_reason,
+    resume_at: record.resume_at?.toISOString() ?? null,
     turn_count: record.turn_count,
     error: record.error,
     started_at: record.started_at.toISOString(),

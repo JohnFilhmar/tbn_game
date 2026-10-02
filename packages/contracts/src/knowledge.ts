@@ -155,6 +155,12 @@ export const PreferencesSchema = z.strictObject({
   report_style: z.enum(['concise', 'detailed']),
   time_zone: z.string().min(1).max(64).refine(is_time_zone, 'an IANA time zone'),
   theme: z.enum(['light', 'dark', 'system']),
+  intern_idle_ttl_minutes: z.number().min(0.01).max(10_080),
+  runaway_guard_turns: z.number().int().min(3).max(1_000),
+  cap_threshold_longest_percent: z.number().int().min(1).max(100),
+  cap_threshold_shorter_percent: z.number().int().min(1).max(100),
+  max_interns_per_manager: z.number().int().min(1).max(1_000).nullable(),
+  max_live_agents: z.number().int().min(1).max(10_000).nullable(),
 });
 
 /** The owner's preferences. */
@@ -171,6 +177,12 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   report_style: 'concise',
   time_zone: 'UTC',
   theme: 'system',
+  intern_idle_ttl_minutes: 30,
+  runaway_guard_turns: 50,
+  cap_threshold_longest_percent: 75,
+  cap_threshold_shorter_percent: 85,
+  max_interns_per_manager: null,
+  max_live_agents: null,
 };
 
 /** Body of `PUT /preferences/:key`. The value is checked against the key's own schema. */

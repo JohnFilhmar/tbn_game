@@ -97,6 +97,7 @@ describe('ProviderClientService', () => {
 
   async function connect(
     api_format: ApiFormat,
+    max_parallel_requests: number | null = null,
   ): Promise<{ server: FakeProviderServer; context: ModelCallContext }> {
     const server = await start_fake_provider_server(api_format);
     servers.push(server);
@@ -105,6 +106,7 @@ describe('ProviderClientService', () => {
       api_format,
       base_url: server.base_url,
       api_key: API_KEY,
+      max_parallel_requests,
       models: [
         {
           model_id: 'test-model',
@@ -148,7 +150,10 @@ describe('ProviderClientService', () => {
 
   beforeAll(async () => {
     const config = load_test_config();
-    app = await create_test_web_app({ ...config, providers: { timeout_ms: 500, max_attempts: 2 } });
+    app = await create_test_web_app({
+      ...config,
+      providers: { ...config.providers, timeout_ms: 500, max_attempts: 2 },
+    });
     owner = await create_test_owner(app);
     client = app.get(ProviderClientService);
     providers = app.get(ProviderService);
@@ -257,6 +262,7 @@ describe('ProviderClientService', () => {
         cache_read_price_per_million: 0.1,
         cache_write_price_per_million: 1.25,
         max_output_tokens: 1,
+        context_window_tokens: 128_000,
       },
     );
     expect(first_cost).toBeCloseTo((20 * 1 + 100 * 1.25 + 30 * 2) / 1_000_000, 12);
@@ -298,6 +304,9 @@ describe('ProviderClientService', () => {
     await expect(client.complete(context, request_fixture)).rejects.toMatchObject({
       kind: 'out_of_credit',
     });
+    const marked = await providers.require(owner.owner_id, context.provider_id);
+    expect(marked.out_of_credit_since).not.toBeNull();
+    expect(marked.breaker_failures).toBe(0);
 
     const { server: openai, context: openai_context } = await connect('openai_chat_completions');
     openai.enqueue({
@@ -327,6 +336,57 @@ describe('ProviderClientService', () => {
     await expect(failure).rejects.toBeInstanceOf(ProviderError);
     await expect(failure).rejects.toMatchObject({ kind: 'timeout' });
     server.release();
+  });
+
+  it('counts calls that fail after their retries towards the breaker, and a success closes it', async () => {
+    const { server, context } = await connect('openai_chat_completions');
+    const state = async (): Promise<{ failures: number; open: boolean }> => {
+      const record = await providers.require(owner.owner_id, context.provider_id);
+      return { failures: record.breaker_failures, open: record.breaker_open_until !== null };
+    };
+    const fail_once = async (): Promise<void> => {
+      server.enqueue({ type: 'status', status: 503 });
+      server.enqueue({ type: 'status', status: 503 });
+      await expect(client.complete(context, request_fixture)).rejects.toMatchObject({
+        kind: 'server',
+      });
+    };
+
+    await fail_once();
+    expect(await state()).toEqual({ failures: 1, open: false });
+    server.enqueue({ type: 'status', status: 401 });
+    await expect(client.complete(context, request_fixture)).rejects.toMatchObject({
+      kind: 'authentication',
+    });
+    expect(await state()).toEqual({ failures: 1, open: false });
+
+    await fail_once();
+    await fail_once();
+    expect(await state()).toEqual({ failures: 3, open: true });
+
+    server.enqueue({ type: 'text', text: 'back' });
+    await client.complete(context, request_fixture);
+    expect(await state()).toEqual({ failures: 0, open: false });
+  });
+
+  it('holds a provider to its parallel request limit', async () => {
+    const { server, context } = await connect('openai_chat_completions', 1);
+    for (let index = 0; index < 3; index += 1) {
+      server.enqueue({ type: 'text', text: `reply ${index}`, delay_ms: 150 });
+    }
+    const replies = await Promise.all(
+      [0, 1, 2].map(() => client.complete(context, request_fixture)),
+    );
+    expect(replies).toHaveLength(3);
+    expect(server.requests).toHaveLength(3);
+    expect(server.max_in_flight).toBe(1);
+
+    const { server: open, context: open_context } = await connect('openai_chat_completions');
+    for (let index = 0; index < 3; index += 1) {
+      open.enqueue({ type: 'text', text: `reply ${index}`, delay_ms: 150 });
+    }
+    await Promise.all([0, 1, 2].map(() => client.complete(open_context, request_fixture)));
+    expect(open.max_in_flight).toBe(3);
   });
 
   it('computes backoff with jitter under the ceiling', () => {

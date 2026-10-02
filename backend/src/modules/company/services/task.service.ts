@@ -20,6 +20,7 @@ export function to_task_view(record: TaskRecord): Task {
     delegator_agent_id: record.delegator_agent_id,
     parent_task_id: record.parent_task_id,
     status: record.status,
+    status_reason: record.status_reason,
     result: record.result,
     report_id: record.report_id,
     started_at: record.started_at?.toISOString() ?? null,
