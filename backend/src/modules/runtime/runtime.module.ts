@@ -3,16 +3,21 @@ import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
 import { CompanyModule } from '@/modules/company/company.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
+import { CacheController } from './controllers/cache.controller';
 import { CapWindowController } from './controllers/cap_window.controller';
 import { RunController } from './controllers/run.controller';
 import { SandboxJobController } from './controllers/sandbox_job.controller';
 import { TranscriptController } from './controllers/transcript.controller';
 import { RUN_REPOSITORY } from './repositories/interface/run_repository.interface';
+import { RUN_SOURCE_REPOSITORY } from './repositories/interface/run_source_repository.interface';
 import { SANDBOX_JOB_REPOSITORY } from './repositories/interface/sandbox_job_repository.interface';
 import { TRANSCRIPT_REPOSITORY } from './repositories/interface/transcript_repository.interface';
+import { WEB_CACHE_REPOSITORY } from './repositories/interface/web_cache_repository.interface';
 import { PrismaRunRepository } from './repositories/prisma_run.repository';
+import { PrismaRunSourceRepository } from './repositories/prisma_run_source.repository';
 import { PrismaSandboxJobRepository } from './repositories/prisma_sandbox_job.repository';
 import { PrismaTranscriptRepository } from './repositories/prisma_transcript.repository';
+import { PrismaWebCacheRepository } from './repositories/prisma_web_cache.repository';
 import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
 import { CapWindowService } from './services/caps/cap_window.service';
@@ -25,18 +30,26 @@ import { SubtaskDeliveryService } from './services/run_loop/subtask_delivery.ser
 import { TaskCompletionService } from './services/run_loop/task_completion.service';
 import { TurnService } from './services/run_loop/turn.service';
 import { SandboxJobService } from './services/sandbox/sandbox_job.service';
+import { RunSourceService } from './services/taint/run_source.service';
+import { CacheStatsService } from './services/web/cache_stats.service';
+import { FetchUrlService } from './services/web/fetch_url.service';
+import { LibraryService } from './services/web/library.service';
+import { WebSearchService } from './services/web/web_search.service';
 import { RunService } from './services/run.service';
 import { TranscriptService } from './services/transcript.service';
 import { WorkerSweepService } from './services/worker_sweep.service';
 import { DelegateTaskTool } from './tools/delegate_task.tool';
+import { FetchUrlTool } from './tools/fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './tools/file_tools';
 import { FinishTaskTool } from './tools/finish_task.tool';
 import { ListRosterTool } from './tools/list_roster.tool';
 import { LoadSkillTool } from './tools/load_skill.tool';
 import { RunCommandTool } from './tools/run_command.tool';
+import { SearchLibraryTool } from './tools/search_library.tool';
 import { SendMessageTool } from './tools/send_message.tool';
 import { ToolExecutorService } from './tools/tool_executor.service';
 import { ToolRegistryService } from './tools/tool_registry.service';
+import { WebSearchTool } from './tools/web_search.tool';
 
 /**
  * Run loop, checkpoints, tools, and the transcript of every agent: delegation to interns, paused
@@ -46,12 +59,25 @@ import { ToolRegistryService } from './tools/tool_registry.service';
  */
 @Module({
   imports: [DatabaseModule, QueueModule, RuntimeProvidersModule, CompanyModule, KnowledgeModule],
-  controllers: [RunController, TranscriptController, CapWindowController, SandboxJobController],
+  controllers: [
+    RunController,
+    TranscriptController,
+    CapWindowController,
+    SandboxJobController,
+    CacheController,
+  ],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
     { provide: TRANSCRIPT_REPOSITORY, useClass: PrismaTranscriptRepository },
     { provide: SANDBOX_JOB_REPOSITORY, useClass: PrismaSandboxJobRepository },
+    { provide: WEB_CACHE_REPOSITORY, useClass: PrismaWebCacheRepository },
+    { provide: RUN_SOURCE_REPOSITORY, useClass: PrismaRunSourceRepository },
     SandboxJobService,
+    RunSourceService,
+    WebSearchService,
+    FetchUrlService,
+    LibraryService,
+    CacheStatsService,
     ListFilesTool,
     ReadFileTool,
     WriteFileTool,
@@ -61,6 +87,9 @@ import { ToolRegistryService } from './tools/tool_registry.service';
     DelegateTaskTool,
     FinishTaskTool,
     RunCommandTool,
+    SearchLibraryTool,
+    WebSearchTool,
+    FetchUrlTool,
     ToolRegistryService,
     ToolExecutorService,
     PromptBuilderService,
@@ -84,6 +113,7 @@ import { ToolRegistryService } from './tools/tool_registry.service';
     AgentWakeService,
     WorkerSweepService,
     SandboxJobService,
+    RunSourceService,
   ],
 })
 export class RuntimeModule {}

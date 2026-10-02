@@ -87,6 +87,16 @@ export interface ReportRecord {
   created_at: Date;
 }
 
+/** A report the library found, with the excerpt around the match. */
+export interface ReportHit {
+  id: string;
+  task_id: string;
+  agent_id: string;
+  excerpt: string;
+  rank: number;
+  created_at: Date;
+}
+
 /** Fields of a new intern. The repository names it after its manager. */
 export interface InternWrite {
   role: string;

@@ -64,6 +64,8 @@ export interface RunRepository {
   ): Promise<RunRecord | null>;
   /** The runs of the given tasks. */
   ids_for_tasks(owner_id: string, task_ids: string[]): Promise<string[]>;
+  /** Records when the run first read outside content. A later call changes nothing. */
+  mark_tainted(owner_id: string, id: string, at: Date): Promise<void>;
   /**
    * Running runs whose lease has expired or was never taken, across every owner. The worker
    * re-sends a wake for each, which is how a run outlives the process that was running it.

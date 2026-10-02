@@ -3,13 +3,16 @@ import type { ToolPolicies, ToolPolicy } from '@tbn/contracts';
 import { z } from 'zod';
 import type { ToolDefinition } from '@/modules/runtime/types/model_request';
 import { DelegateTaskTool } from './delegate_task.tool';
+import { FetchUrlTool } from './fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './file_tools';
 import { FinishTaskTool } from './finish_task.tool';
 import { ListRosterTool } from './list_roster.tool';
 import { LoadSkillTool } from './load_skill.tool';
 import { RunCommandTool } from './run_command.tool';
+import { SearchLibraryTool } from './search_library.tool';
 import { SendMessageTool } from './send_message.tool';
 import type { Tool } from './tool.interface';
+import { WebSearchTool } from './web_search.tool';
 
 /** The built-in tools, which agents may use them, and the policy of each for a given agent. */
 @Injectable()
@@ -21,6 +24,9 @@ export class ToolRegistryService {
     read_file: ReadFileTool,
     write_file: WriteFileTool,
     load_skill: LoadSkillTool,
+    search_library: SearchLibraryTool,
+    web_search: WebSearchTool,
+    fetch_url: FetchUrlTool,
     list_roster: ListRosterTool,
     send_message: SendMessageTool,
     delegate_task: DelegateTaskTool,
@@ -32,6 +38,9 @@ export class ToolRegistryService {
       read_file,
       write_file,
       load_skill,
+      search_library,
+      web_search,
+      fetch_url,
       list_roster,
       send_message,
       delegate_task,

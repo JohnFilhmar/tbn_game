@@ -80,6 +80,7 @@ export function render_system_prompt(agent: AgentRecord, inputs: PromptInputs): 
     '# How you work',
     [
       '- You work on one task at a time, in the company workspace, with the file tools.',
+      '- Before you search the web, search the library: what the company has already read and written is there, and reading it costs nothing.',
       '- Messages from the owner and from other agents may arrive while you work. Answer them in your next reply and carry on.',
       '- Answer a question and act on a handoff from another agent. Do not reply to a finding unless it asks you something.',
       '- When a task is complete, call finish_task exactly once with the report. Nothing counts as done until you do.',
