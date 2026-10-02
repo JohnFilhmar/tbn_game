@@ -25,7 +25,7 @@ import {
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
-import { clear_queued_wakes, start_test_worker } from '@/testing/test_worker';
+import { reset_worker_state, start_test_worker } from '@/testing/test_worker';
 import { wait_for } from '@/testing/wait_for';
 
 const WireSchema = z.looseObject({
@@ -123,7 +123,7 @@ describe('run loop', () => {
       worker: { ...base.worker, concurrency: 2, run_lease_seconds: 10 },
     };
     app = await create_test_web_app(config);
-    await clear_queued_wakes(app);
+    await reset_worker_state(app);
     worker = await start_test_worker(config);
     owner = await create_test_owner(app);
   });
@@ -194,6 +194,9 @@ describe('run loop', () => {
       'read_file',
       'write_file',
       'load_skill',
+      'list_roster',
+      'send_message',
+      'delegate_task',
       'finish_task',
     ]);
   });

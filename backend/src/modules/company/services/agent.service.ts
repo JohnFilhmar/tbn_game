@@ -83,6 +83,11 @@ export class AgentService {
     return record;
   }
 
+  /** The agent with this name, or null. */
+  find_by_name(owner_id: string, name: string): Promise<AgentRecord | null> {
+    return this.agents.find_by_name(owner_id, name);
+  }
+
   /** True when the agent exists for this owner. */
   async exists(owner_id: string, id: string): Promise<boolean> {
     return (await this.agents.find(owner_id, id)) !== null;

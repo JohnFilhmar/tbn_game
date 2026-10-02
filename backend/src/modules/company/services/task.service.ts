@@ -108,6 +108,13 @@ export class TaskService {
     });
   }
 
+  /** Sets or clears the reason on a task in progress, such as the subtasks it waits for. */
+  set_reason(owner_id: string, id: string, reason: string | null): Promise<TaskRecord | null> {
+    return this.tasks.transition(owner_id, id, ['in_progress'], 'in_progress', {
+      status_reason: reason,
+    });
+  }
+
   /** Moves a blocked task back to `in_progress` when its run resumes. */
   unblock(owner_id: string, id: string): Promise<TaskRecord | null> {
     return this.tasks.transition(owner_id, id, ['blocked'], 'in_progress', { status_reason: null });

@@ -10,7 +10,7 @@ import {
   TEST_INTERN_MODEL,
 } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
-import { count_wakes } from '@/testing/test_worker';
+import { clear_wakes, count_wakes } from '@/testing/test_wakes';
 
 describe('delegation and blocking in the task repository', () => {
   let app: NestExpressApplication;
@@ -127,7 +127,7 @@ describe('delegation and blocking in the task repository', () => {
     expect(unstarted).toContain(queued.id);
     expect(unstarted).not.toContain(running.id);
 
-    const wakes = await count_wakes(app, first.id);
+    await clear_wakes(app, first.id);
     await tasks.requeue_unstarted(owner.owner_id, await tasks.require(owner.owner_id, queued.id));
     await tasks.requeue_unstarted(owner.owner_id, await tasks.require(owner.owner_id, running.id));
     expect(await tasks.require(owner.owner_id, queued.id)).toMatchObject({
@@ -135,7 +135,7 @@ describe('delegation and blocking in the task repository', () => {
       status_reason: null,
     });
     expect((await tasks.require(owner.owner_id, running.id)).status).toBe('blocked');
-    expect(await count_wakes(app, first.id)).toBe(wakes + 1);
+    expect(await count_wakes(app, first.id)).toBe(1);
   });
 
   it('finds open children, the tree, and finished results not yet given', async () => {
@@ -176,8 +176,8 @@ describe('delegation and blocking in the task repository', () => {
     const finished = await delegated(await intern(), parent);
     await tasks.start(owner.owner_id, finished.id);
     await tasks.complete(owner.owner_id, finished.id, 'Done.');
-    const helper_wakes = await count_wakes(app, helper.id);
-    const manager_wakes = await count_wakes(app, manager.id);
+    await clear_wakes(app, helper.id);
+    await clear_wakes(app, manager.id);
 
     await tasks.cancel(owner.owner_id, parent.id);
 
@@ -186,8 +186,8 @@ describe('delegation and blocking in the task repository', () => {
       status_reason: 'Its parent task was cancelled',
     });
     expect((await tasks.require(owner.owner_id, finished.id)).status).toBe('done');
-    expect(await count_wakes(app, helper.id)).toBe(helper_wakes + 1);
-    expect(await count_wakes(app, manager.id)).toBe(manager_wakes + 1);
+    expect(await count_wakes(app, helper.id)).toBe(1);
+    expect(await count_wakes(app, manager.id)).toBe(1);
     await expect(tasks.cancel(owner.owner_id, parent.id)).rejects.toThrow(ConflictException);
   });
 });

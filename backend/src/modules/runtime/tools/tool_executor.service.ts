@@ -46,6 +46,13 @@ export class ToolExecutorService {
     if (tool === undefined) {
       return { ...base, content: `Unknown tool: ${call.name}`, is_error: true };
     }
+    if (!this.registry.available_to(tool, context.agent.level)) {
+      return {
+        ...base,
+        content: `The tool ${call.name} is not available to agents at your level`,
+        is_error: true,
+      };
+    }
     const policy = this.registry.policy_of(tool, policies);
     if (policy === 'deny') {
       return { ...base, content: `The tool ${call.name} is not permitted for you`, is_error: true };
