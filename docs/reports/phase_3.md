@@ -30,7 +30,8 @@ one step left for you.
   every dashboard query ran. Backups ran with rotation, the failure path sent its notice, and a
   restore round trip removed a rule and a file made after the backup while keeping ownership.
 - **Tests.** 38 Vitest tests for the client, the six Playwright flows, and the backend suite of
-  413 tests in 83 files, all passing.
+  413 tests in 83 files, all passing. CI is green on the pull request, including both image jobs
+  with Trivy and signing.
 
 ## What could not be run here
 
@@ -119,6 +120,11 @@ The decisions table in `docs/architecture.md` has the full list. These came up w
 - **Lists the server caps show their newest rows.** Approvals, sandbox jobs, notifications, merge
   requests and branch reviews come at most 200 at a time from their routes, newest first. The
   sandbox jobs screen says so, as it is the one list likely to pass the cap.
+- **Two CI findings, fixed on the branch.** Semgrep's `express-res-sendfile` rule counts a string
+  parameter as input, so it flagged the page sent from the client directory; it is now sent by a
+  fixed name under `root`. The launcher's orphan test read a job's row as soon as its container was
+  gone, before the launcher marked it lost; it now waits for the row. A two second delay in the
+  launcher made the old test fail and the new one pass.
 - **Grafana 13.2.2 rather than 13.2.3.** The newest release was three days old, so the image
   follows the same seven days the npm configuration asks of packages.
 
