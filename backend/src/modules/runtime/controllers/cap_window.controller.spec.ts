@@ -28,7 +28,11 @@ describe('cap window routes', () => {
   });
 
   it('needs a token', async () => {
-    await api().get(`/providers/${provider.id}/cap_windows`).expect(401);
+    const path = `/providers/${provider.id}/cap_windows`;
+    await api().get(path).expect(401);
+    await api().post(path).send({}).expect(401);
+    await api().patch(`${path}/${provider.id}`).send({}).expect(401);
+    await api().delete(`${path}/${provider.id}`).expect(401);
   });
 
   it('lists the example windows of a new key, display only, with the default thresholds', async () => {
