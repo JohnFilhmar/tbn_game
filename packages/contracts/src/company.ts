@@ -140,7 +140,8 @@ export const OPEN_TASK_STATUSES: readonly TaskStatus[] = [
 /**
  * A unit of work for one agent. `delegator_agent_id` is null when the owner assigned it, and
  * `parent_task_id` points at the task a manager delegated it from. `status_reason` says why a task
- * is blocked or awaiting approval.
+ * is blocked or awaiting approval. A task on a repository names it, and an intern's task gets its
+ * feature branch when the intern checks the repository out.
  */
 export const TaskSchema = z.strictObject({
   id: IdSchema,
@@ -149,6 +150,8 @@ export const TaskSchema = z.strictObject({
   assignee_agent_id: IdSchema,
   delegator_agent_id: IdSchema.nullable(),
   parent_task_id: IdSchema.nullable(),
+  repository_id: IdSchema.nullable(),
+  feature_branch: z.string().nullable(),
   status: TaskStatusSchema,
   status_reason: z.string().nullable(),
   result: z.string().nullable(),
@@ -167,7 +170,8 @@ export const CreateTaskSchema = TaskSchema.pick({
   title: true,
   instructions: true,
   assignee_agent_id: true,
-});
+  repository_id: true,
+}).partial({ repository_id: true });
 
 /** Body of `POST /tasks`. */
 export type CreateTask = z.infer<typeof CreateTaskSchema>;

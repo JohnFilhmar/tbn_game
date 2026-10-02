@@ -161,6 +161,14 @@ export const PreferencesSchema = z.strictObject({
   cap_threshold_shorter_percent: z.number().int().min(1).max(100),
   max_interns_per_manager: z.number().int().min(1).max(1_000).nullable(),
   max_live_agents: z.number().int().min(1).max(10_000).nullable(),
+  sandbox_timeout_seconds: z.number().int().min(1).max(86_400),
+  sandbox_cpus: z.number().min(0.1).max(64),
+  sandbox_memory_mb: z.number().int().min(64).max(262_144),
+  sandbox_scratch_mb: z.number().int().min(16).max(65_536),
+  search_cache_ttl_minutes: z.number().min(0).max(525_600),
+  fetch_cache_ttl_minutes: z.number().min(0).max(525_600),
+  fetch_max_chars: z.number().int().min(1_000).max(2_000_000),
+  disk_alert_percent: z.number().int().min(1).max(100),
 });
 
 /** The owner's preferences. */
@@ -183,6 +191,14 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   cap_threshold_shorter_percent: 85,
   max_interns_per_manager: null,
   max_live_agents: null,
+  sandbox_timeout_seconds: 600,
+  sandbox_cpus: 1,
+  sandbox_memory_mb: 1024,
+  sandbox_scratch_mb: 512,
+  search_cache_ttl_minutes: 1440,
+  fetch_cache_ttl_minutes: 1440,
+  fetch_max_chars: 40_000,
+  disk_alert_percent: 90,
 };
 
 /** Body of `PUT /preferences/:key`. The value is checked against the key's own schema. */

@@ -19,6 +19,8 @@ export function to_task_view(record: TaskRecord): Task {
     assignee_agent_id: record.assignee_agent_id,
     delegator_agent_id: record.delegator_agent_id,
     parent_task_id: record.parent_task_id,
+    repository_id: record.repository_id,
+    feature_branch: record.feature_branch,
     status: record.status,
     status_reason: record.status_reason,
     result: record.result,

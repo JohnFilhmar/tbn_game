@@ -19,6 +19,7 @@ export function to_run_view(record: RunRecord): Run {
     pause_reason: record.pause_reason,
     resume_at: record.resume_at?.toISOString() ?? null,
     turn_count: record.turn_count,
+    tainted_at: record.tainted_at?.toISOString() ?? null,
     error: record.error,
     started_at: record.started_at.toISOString(),
     finished_at: record.finished_at?.toISOString() ?? null,

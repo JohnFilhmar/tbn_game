@@ -54,6 +54,8 @@ export interface TaskRecord {
   assignee_agent_id: string;
   delegator_agent_id: string | null;
   parent_task_id: string | null;
+  repository_id: string | null;
+  feature_branch: string | null;
   status: TaskStatus;
   status_reason: string | null;
   result: string | null;
@@ -71,6 +73,7 @@ export interface TaskWrite {
   instructions: string;
   assignee_agent_id: string;
   delegator_agent_id: string | null;
+  repository_id?: string | null;
   parent_task_id: string | null;
 }
 

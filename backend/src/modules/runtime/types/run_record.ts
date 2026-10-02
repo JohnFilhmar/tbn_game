@@ -14,6 +14,8 @@ export interface RunRecord {
   guard_turns: number;
   lease_owner: string | null;
   lease_expires_at: Date | null;
+  /** When the run first read web or plugin content; null while it is clean. */
+  tainted_at: Date | null;
   error: string | null;
   started_at: Date;
   finished_at: Date | null;

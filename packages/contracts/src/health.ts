@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
-/** The two process types the backend image runs as. */
-export const ProcessTypeSchema = z.enum(['web', 'worker']);
+/**
+ * The process types the backend image runs as: the web process, the worker, the sandbox launcher
+ * and the egress proxy.
+ */
+export const ProcessTypeSchema = z.enum(['web', 'worker', 'sandbox', 'egress_proxy']);
 
-/** A process type name: `web` or `worker`. */
+/** A process type name. */
 export type ProcessType = z.infer<typeof ProcessTypeSchema>;
 
 /** Result of one dependency check, and of the process as a whole. */
@@ -12,7 +15,7 @@ export const HealthCheckStatusSchema = z.enum(['ok', 'unavailable']);
 /** `ok` when the check passed, `unavailable` otherwise. */
 export type HealthCheckStatus = z.infer<typeof HealthCheckStatusSchema>;
 
-/** Body of `GET /health` on the web and worker processes. */
+/** Body of `GET /health` on every process. */
 export const HealthResponseSchema = z.strictObject({
   status: HealthCheckStatusSchema,
   process_type: ProcessTypeSchema,

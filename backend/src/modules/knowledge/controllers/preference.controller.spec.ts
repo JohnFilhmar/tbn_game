@@ -40,6 +40,14 @@ describe('preference routes', () => {
       cap_threshold_shorter_percent: 85,
       max_interns_per_manager: null,
       max_live_agents: null,
+      sandbox_timeout_seconds: 600,
+      sandbox_cpus: 1,
+      sandbox_memory_mb: 1024,
+      sandbox_scratch_mb: 512,
+      search_cache_ttl_minutes: 1440,
+      fetch_cache_ttl_minutes: 1440,
+      fetch_max_chars: 40_000,
+      disk_alert_percent: 90,
     });
 
     const set = await api()

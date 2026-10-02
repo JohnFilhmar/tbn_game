@@ -143,6 +143,7 @@ export class AgentWakeService implements OnApplicationBootstrap {
         return provider.out_of_credit_since === null;
       }
       case 'runaway_guard':
+      case 'awaiting_approval':
       case null:
         return false;
     }
