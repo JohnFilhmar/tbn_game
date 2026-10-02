@@ -9,7 +9,7 @@ import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
 
-const TOKEN = 'xoxb-LEAKCANARY-0123456789';
+const TOKEN = 'leakcanary-token-aaaa';
 
 describe('integration routes', () => {
   const logs = new LogCapture();

@@ -149,6 +149,7 @@ jobs:
         env:
           # Placeholders so the production file renders. Nothing starts from it here.
           BACKEND_IMAGE: example.invalid/backend@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          SANDBOX_IMAGE: example.invalid/sandbox@sha256:0000000000000000000000000000000000000000000000000000000000000000
           POSTGRES_PASSWORD: compose_validation_only
           SEARXNG_SECRET: compose_validation_only
           SECRETS_ENCRYPTION_KEY: compose_validation_only

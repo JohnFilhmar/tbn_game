@@ -7,7 +7,7 @@ import { LogCapture } from '@/testing/log_capture';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
 
-const API_KEY = 'BSA-LEAKCANARY-0123456789';
+const API_KEY = 'leakcanary-key-aaaa';
 
 describe('search provider routes', () => {
   const logs = new LogCapture();
