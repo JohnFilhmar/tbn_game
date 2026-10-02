@@ -27,8 +27,8 @@ which checks ran where.
 | Validation      | Zod 4.6                                   |                                                                                             |
 | Tests           | Jest 30 with SWC, supertest               |                                                                                             |
 | Logging         | pino through nestjs-pino                  | JSON on stdout, request ids, redaction.                                                     |
-| Metrics         | prom-client                               |                                                                                             |
-| Packages        | npm 11 workspaces                         | Ships with Node. npm 11 runs no install script unless `allowScripts` approves it.           |
+| Metrics         | `@prometheus-io/client`                   | The Prometheus org's client, formerly `prom-client`, which is now deprecated.              |
+| Packages        | npm 11 workspaces                         | Ships with Node. Only approved install scripts run, and `min-release-age=7` skips releases younger than a week. |
 | Build image     | `node:24.21.0-trixie-slim`                |                                                                                             |
 | Runtime image   | `gcr.io/distroless/nodejs24-debian13`     | No shell and no package manager in the shipped image. Runs as uid 65532.                    |
 | PostgreSQL      | 18.6                                      | 19 is still in beta.                                                                        |

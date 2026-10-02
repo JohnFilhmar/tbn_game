@@ -1,11 +1,14 @@
 # Keeps pinned versions and digests fresh. Updates arrive grouped, once a month per ecosystem, as
-# pull requests that go through every CI gate.
+# pull requests that go through every CI gate. Releases younger than 7 days are not proposed,
+# matching min-release-age in .npmrc.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     groups:
       npm:
         patterns: ['*']
@@ -13,6 +16,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     groups:
       docker:
         patterns: ['*']
@@ -20,6 +25,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     groups:
       docker-compose:
         patterns: ['*']
@@ -27,6 +34,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ['*']

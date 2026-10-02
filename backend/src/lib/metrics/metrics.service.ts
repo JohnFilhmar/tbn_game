@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ProcessType } from '@tbn/contracts';
-import { Gauge, Registry, collectDefaultMetrics } from 'prom-client';
+import { Gauge, Registry, collectDefaultMetrics } from '@prometheus-io/client';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 
