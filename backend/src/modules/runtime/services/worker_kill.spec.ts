@@ -12,7 +12,7 @@ import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
 import {
-  clear_queued_wakes,
+  reset_worker_state,
   start_worker_process,
   type WorkerProcess,
 } from '@/testing/test_worker';
@@ -37,7 +37,7 @@ describe('a worker killed mid-run', () => {
       worker: { ...load_test_config().worker, run_lease_seconds: 10 },
     };
     app = await create_test_web_app(config);
-    await clear_queued_wakes(app);
+    await reset_worker_state(app);
     owner = await create_test_owner(app);
     fake = await start_fake_provider_server('anthropic_messages');
   });

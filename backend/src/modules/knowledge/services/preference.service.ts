@@ -33,7 +33,8 @@ export class PreferenceService {
   }
 
   /**
-   * Sets one preference after checking the value against the key's schema.
+   * Sets one preference after checking the value against the key's schema. Null clears an
+   * optional setting such as a limit; every preference that accepts null defaults to null.
    *
    * @throws BadRequestException when the value does not fit the key.
    */
@@ -44,7 +45,11 @@ export class PreferenceService {
         `${key}: ${parsed.error.issues[0]?.message ?? 'invalid value'}`,
       );
     }
-    await this.preferences.set(owner_id, key, parsed.data);
+    if (parsed.data === null) {
+      await this.preferences.unset(owner_id, key);
+    } else {
+      await this.preferences.set(owner_id, key, parsed.data);
+    }
     return this.get(owner_id);
   }
 }

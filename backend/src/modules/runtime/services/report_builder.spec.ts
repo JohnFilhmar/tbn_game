@@ -43,4 +43,23 @@ describe('render_report', () => {
     expect(report).toContain('## What was decided\n\n(none)');
     expect(report).toContain('## Open questions\n\n(none)');
   });
+
+  it('lists the subtasks one line each and says the totals cover them', () => {
+    const report = render_report(
+      { task_title: 'Tea guide', agent_name: 'mira', report_style: 'concise' },
+      { outcome: 'The guide is ready.', what_was_done: '', decisions: '', open_questions: '' },
+      usage,
+      [
+        { title: 'Green tea', assignee_name: 'mira intern 1', status: 'done', report_id: 'r1' },
+        { title: 'Herbal tea', assignee_name: 'mira intern 2', status: 'failed', report_id: null },
+      ],
+    );
+    expect(report).toContain(
+      '## Subtasks\n\n- Green tea: done, by mira intern 1 (report r1)\n- Herbal tea: failed, by mira intern 2',
+    );
+    expect(report).toContain(
+      '## Tokens and cost\n\nThis task and its 2 subtasks.\n\n- Requests: 3',
+    );
+    expect(report.indexOf('## Subtasks')).toBeLessThan(report.indexOf('## Tokens and cost'));
+  });
 });

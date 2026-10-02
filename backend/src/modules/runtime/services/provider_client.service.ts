@@ -13,6 +13,7 @@ import type { ModelRequest, ModelResponse } from '@/modules/runtime/types/model_
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderModelRecord } from '@/modules/runtime/types/provider_record';
 import type { ModelUsage } from '@/modules/runtime/types/usage_record';
+import { KeyedSemaphore } from '@/utils/keyed_semaphore';
 import { ProviderService } from './provider.service';
 
 /** Who is calling, for the usage record and the logs. */
@@ -52,12 +53,18 @@ export function cost_of(usage: ModelUsage, model: ProviderModelRecord): number {
 
 /**
  * Calls a model through the adapter for its API format, with a timeout, retries with backoff and
- * jitter on retryable errors, and a usage record for every successful call.
+ * jitter on retryable errors, and a usage record for every successful call. It also keeps the
+ * provider's state: a call that fails after its retries counts towards the circuit breaker, a
+ * success closes it, and an out-of-credit answer marks the key. A provider's optional parallel
+ * request limit is held per attempt.
+ *
+ * Ceiling: the parallel request slots live in this process.
  */
 @Injectable()
 export class ProviderClientService {
   private readonly logger = new Logger(ProviderClientService.name);
   private readonly adapters: ReadonlyMap<ApiFormat, LlmAdapter>;
+  private readonly slots = new KeyedSemaphore();
 
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -89,9 +96,12 @@ export class ProviderClientService {
     const max_attempts = this.config.providers.max_attempts;
     for (let attempt = 0; ; attempt += 1) {
       try {
-        const response = await adapter.complete(connection, request, {
-          timeout_ms: this.config.providers.timeout_ms,
-        });
+        const response = await this.slots.run(
+          connection.provider_id,
+          connection.max_parallel_requests,
+          () =>
+            adapter.complete(connection, request, { timeout_ms: this.config.providers.timeout_ms }),
+        );
         await this.usage.create({
           owner_id: context.owner_id,
           provider_id: context.provider_id,
@@ -101,9 +111,20 @@ export class ProviderClientService {
           ...response.usage,
           cost: cost_of(response.usage, connection.model),
         });
+        if (connection.state.breaker_failures > 0 || connection.state.breaker_open_until !== null) {
+          await this.providers.record_success(context.owner_id, context.provider_id);
+        }
         return response;
       } catch (error: unknown) {
+        if (error instanceof ProviderError && error.kind === 'out_of_credit') {
+          await this.providers.mark_out_of_credit(context.owner_id, context.provider_id);
+          this.logger.warn(`Provider ${context.provider_id} is out of credit: ${error.message}`);
+          throw error;
+        }
         if (!(error instanceof ProviderError) || !error.retryable || attempt + 1 >= max_attempts) {
+          if (error instanceof ProviderError && error.retryable) {
+            await this.providers.record_failure(context.owner_id, context.provider_id);
+          }
           throw error;
         }
         const delay = retry_delay_ms(attempt, error.retry_after_ms);

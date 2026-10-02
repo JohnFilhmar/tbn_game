@@ -22,4 +22,8 @@ export class PrismaPreferenceRepository implements PreferenceRepository {
       update: { value },
     });
   }
+
+  async unset(owner_id: string, key: string): Promise<void> {
+    await this.prisma.preference.deleteMany({ where: { owner_id, key } });
+  }
 }

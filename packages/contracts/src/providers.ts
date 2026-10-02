@@ -27,18 +27,23 @@ export const ProviderModelSchema = z.strictObject({
   cache_read_price_per_million: PriceSchema,
   cache_write_price_per_million: PriceSchema,
   max_output_tokens: z.number().int().min(1).max(200_000),
+  context_window_tokens: z.number().int().min(1_000).max(10_000_000),
 });
 
 /** One model offered by a provider. */
 export type ProviderModel = z.infer<typeof ProviderModelSchema>;
 
-/** A model as written. Prices default to unknown and the output limit to 8192. */
+/**
+ * A model as written. Prices default to unknown, the output limit to 8192 and the context window to
+ * 128000 tokens.
+ */
 export const ProviderModelWriteSchema = ProviderModelSchema.partial({
   input_price_per_million: true,
   output_price_per_million: true,
   cache_read_price_per_million: true,
   cache_write_price_per_million: true,
   max_output_tokens: true,
+  context_window_tokens: true,
 });
 
 /** A model as written. */
@@ -53,7 +58,9 @@ const UNIQUE_MODEL_IDS = { message: 'model_id must be unique within a provider' 
 
 /**
  * An LLM connection. The API key is write-only: it is encrypted at rest and never returned,
- * which `api_key_set` makes visible.
+ * which `api_key_set` makes visible. `is_local` marks the one provider new interns fall back to
+ * when a key passes its cap threshold. `breaker_open_until` and `out_of_credit_since` are the
+ * runtime's own state and read-only.
  */
 export const ProviderSchema = z.strictObject({
   id: IdSchema,
@@ -66,6 +73,10 @@ export const ProviderSchema = z.strictObject({
     .min(1)
     .max(50)
     .refine(has_unique_model_ids, UNIQUE_MODEL_IDS),
+  is_local: z.boolean(),
+  max_parallel_requests: z.number().int().min(1).max(1_000).nullable(),
+  breaker_open_until: DateTimeSchema.nullable(),
+  out_of_credit_since: DateTimeSchema.nullable(),
   created_at: DateTimeSchema,
   updated_at: DateTimeSchema,
 });
@@ -78,14 +89,18 @@ export const CreateProviderSchema = ProviderSchema.pick({
   name: true,
   api_format: true,
   base_url: true,
-}).extend({
-  api_key: z.string().min(1).max(4_096),
-  models: z
-    .array(ProviderModelWriteSchema)
-    .min(1)
-    .max(50)
-    .refine(has_unique_model_ids, UNIQUE_MODEL_IDS),
-});
+  is_local: true,
+  max_parallel_requests: true,
+})
+  .partial({ is_local: true, max_parallel_requests: true })
+  .extend({
+    api_key: z.string().min(1).max(4_096),
+    models: z
+      .array(ProviderModelWriteSchema)
+      .min(1)
+      .max(50)
+      .refine(has_unique_model_ids, UNIQUE_MODEL_IDS),
+  });
 
 /** Body of `POST /providers`. */
 export type CreateProvider = z.infer<typeof CreateProviderSchema>;

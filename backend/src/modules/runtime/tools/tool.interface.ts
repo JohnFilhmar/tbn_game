@@ -1,10 +1,13 @@
-import type { ToolPolicy } from '@tbn/contracts';
+import type { AgentLevel, ToolPolicy } from '@tbn/contracts';
 import type { ZodType } from 'zod';
+import type { AgentRecord } from '@/modules/company/types/company_records';
 
 /** What a tool knows about the run that calls it. */
 export interface ToolContext {
   owner_id: string;
   agent_id: string;
+  /** The calling agent as it was when the turn started. */
+  agent: AgentRecord;
   run_id: string;
   task_id: string | null;
   /** The owner's workspace directory, an absolute path. */
@@ -28,12 +31,14 @@ export interface ToolOutcome {
 
 /**
  * A built-in tool. Each has a default policy; the agent's `tool_policy` overrides it. Tools that
- * act outside the server default to `ask`.
+ * act outside the server default to `ask`. `levels` limits a tool to some agent levels, whatever
+ * the policy says.
  */
 export interface Tool<I = unknown> {
   readonly name: string;
   readonly description: string;
   readonly default_policy: ToolPolicy;
+  readonly levels?: readonly AgentLevel[];
   readonly input_schema: ZodType<I>;
   execute(input: I, context: ToolContext): Promise<ToolOutcome>;
 }

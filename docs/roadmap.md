@@ -14,8 +14,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | Phase | Name | Status |
 | --- | --- | --- |
 | 0 | Foundations | Merged |
-| 1a | One agent, one task | In review |
-| 1b | The team | Not started |
+| 1a | One agent, one task | Merged |
+| 1b | The team | In review |
 | 1c | The outside world | Not started. Needs owner approval of the sandbox and proxy design before coding. |
 | 2 | Realtime | Not started |
 | 3 | Web app without 3D | Not started |

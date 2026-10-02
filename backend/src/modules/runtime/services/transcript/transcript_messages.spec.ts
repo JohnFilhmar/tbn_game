@@ -4,7 +4,7 @@ import {
   last_assistant_text,
   pending_tool_calls,
   transcript_to_messages,
-} from './transcript_messages';
+} from '@/modules/runtime/services/transcript/transcript_messages';
 
 function entry(
   seq: number,
@@ -87,5 +87,94 @@ describe('transcript messages', () => {
       ]),
     ).toBe('first');
     expect(last_assistant_text([entry(1, 'owner_message', { text: 'hi' })])).toBe('');
+  });
+
+  it('renders messages from agents and subtask results', () => {
+    const subtask_id = randomUUID();
+    const messages = transcript_to_messages([
+      entry(1, 'agent_message', {
+        from_agent_id: randomUUID(),
+        from_name: 'grace',
+        kind: 'question',
+        text: 'Which sources?',
+      }),
+      entry(2, 'subtask_result', {
+        task_id: subtask_id,
+        title: 'Find sources',
+        assignee_agent_id: randomUUID(),
+        assignee_name: 'ada intern 1',
+        status: 'done',
+        result: 'Three sources.',
+        report_id: null,
+        report_md: '# Find sources\n\nThree sources.',
+      }),
+      entry(3, 'subtask_result', {
+        task_id: randomUUID(),
+        title: 'Draft',
+        assignee_agent_id: randomUUID(),
+        assignee_name: 'ada intern 2',
+        status: 'failed',
+        result: 'Gave up.',
+        report_id: null,
+        report_md: null,
+      }),
+    ]);
+    expect(messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Message from grace (question):\nWhich sources?' },
+          {
+            type: 'text',
+            text: 'Subtask done: "Find sources" by ada intern 1.\n\n# Find sources\n\nThree sources.',
+          },
+          { type: 'text', text: 'Subtask failed: "Draft" by ada intern 2.\n\nGave up.' },
+        ],
+      },
+    ]);
+  });
+
+  it('puts tool results ahead of a message that landed between the call and its result', () => {
+    const messages = transcript_to_messages([
+      entry(1, 'assistant', { blocks: [call] }),
+      entry(2, 'owner_message', { text: 'Hurry up.' }),
+      entry(3, 'tool_result', {
+        results: [{ tool_use_id: 'call_1', name: 'read_file', content: 'notes', is_error: false }],
+      }),
+    ]);
+    expect(messages[1]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'tool_result', tool_use_id: 'call_1', content: 'notes', is_error: false },
+        { type: 'text', text: 'Message from the owner:\nHurry up.' },
+      ],
+    });
+  });
+
+  it('starts with the summary and shortens long tool results', () => {
+    const messages = transcript_to_messages(
+      [
+        entry(5, 'assistant', { blocks: [call] }),
+        entry(6, 'tool_result', {
+          results: [
+            { tool_use_id: 'call_1', name: 'read_file', content: 'x'.repeat(50), is_error: false },
+          ],
+        }),
+      ],
+      { summary: 'You wrote two drafts.', max_tool_result_chars: 10 },
+    );
+    expect(messages[0]).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: 'Summary of your earlier work in this session:\nYou wrote two drafts.',
+        },
+      ],
+    });
+    const result = messages[2]?.content[0];
+    expect(result?.type === 'tool_result' ? result.content : '').toMatch(
+      /^x{10}\n\.\.\. shortened/,
+    );
   });
 });

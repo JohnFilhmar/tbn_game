@@ -1,11 +1,24 @@
 import { z } from 'zod';
 import { DateTimeSchema, IdSchema } from './common';
+import { TaskStatusSchema } from './company';
 
-/** Where a run is in its life. */
-export const RunStatusSchema = z.enum(['running', 'done', 'failed', 'cancelled']);
+/** Where a run is in its life. A paused run keeps its agent and resumes from its checkpoint. */
+export const RunStatusSchema = z.enum(['running', 'paused', 'done', 'failed', 'cancelled']);
 
 /** A run status. */
 export type RunStatus = z.infer<typeof RunStatusSchema>;
+
+/** Why a run is paused. */
+export const RunPauseReasonSchema = z.enum([
+  'waiting_on_subtasks',
+  'cap_limit',
+  'breaker_open',
+  'out_of_credit',
+  'runaway_guard',
+]);
+
+/** Why a run is paused. */
+export type RunPauseReason = z.infer<typeof RunPauseReasonSchema>;
 
 /** One execution of an agent on a task, or on an owner message when the agent was idle. */
 export const RunSchema = z.strictObject({
@@ -13,6 +26,8 @@ export const RunSchema = z.strictObject({
   agent_id: IdSchema,
   task_id: IdSchema.nullable(),
   status: RunStatusSchema,
+  pause_reason: RunPauseReasonSchema.nullable(),
+  resume_at: DateTimeSchema.nullable(),
   turn_count: z.number().int().min(0),
   error: z.string().nullable(),
   started_at: DateTimeSchema,
@@ -52,6 +67,18 @@ export const AssistantBlockSchema = z.discriminatedUnion('type', [
   ToolUseBlockSchema,
 ]);
 
+/** What a message between agents carries: work handed over, a question, or a finding. */
+export const MessageKindSchema = z.enum(['handoff', 'question', 'finding']);
+
+/** `handoff`, `question` or `finding`. */
+export type MessageKind = z.infer<typeof MessageKindSchema>;
+
+/** How a delegated task ended. */
+export const SubtaskOutcomeSchema = TaskStatusSchema.extract(['done', 'failed', 'cancelled']);
+
+/** How a delegated task ended. */
+export type SubtaskOutcome = z.infer<typeof SubtaskOutcomeSchema>;
+
 /** The result of one tool call. */
 export const ToolResultSchema = z.strictObject({
   tool_use_id: z.string().min(1),
@@ -71,6 +98,26 @@ export const TranscriptContentSchemas = {
   assistant: z.strictObject({ blocks: z.array(AssistantBlockSchema) }),
   tool_result: z.strictObject({ results: z.array(ToolResultSchema) }),
   system_note: z.strictObject({ text: z.string() }),
+  agent_message: z.strictObject({
+    from_agent_id: IdSchema,
+    from_name: z.string(),
+    kind: MessageKindSchema,
+    text: z.string(),
+  }),
+  subtask_result: z.strictObject({
+    task_id: IdSchema,
+    title: z.string(),
+    assignee_agent_id: IdSchema,
+    assignee_name: z.string(),
+    status: SubtaskOutcomeSchema,
+    result: z.string().nullable(),
+    report_id: IdSchema.nullable(),
+    report_md: z.string().nullable(),
+  }),
+  compaction: z.strictObject({
+    summary: z.string(),
+    through_seq: z.number().int().min(0),
+  }),
 } as const;
 
 /** A transcript entry as written: its kind and content. */
@@ -86,6 +133,15 @@ export const TranscriptEntryWriteSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('assistant'), content: TranscriptContentSchemas.assistant }),
   z.strictObject({ kind: z.literal('tool_result'), content: TranscriptContentSchemas.tool_result }),
   z.strictObject({ kind: z.literal('system_note'), content: TranscriptContentSchemas.system_note }),
+  z.strictObject({
+    kind: z.literal('agent_message'),
+    content: TranscriptContentSchemas.agent_message,
+  }),
+  z.strictObject({
+    kind: z.literal('subtask_result'),
+    content: TranscriptContentSchemas.subtask_result,
+  }),
+  z.strictObject({ kind: z.literal('compaction'), content: TranscriptContentSchemas.compaction }),
 ]);
 
 /** A transcript entry as written. */
@@ -120,6 +176,18 @@ export const TranscriptEntrySchema = z.discriminatedUnion('kind', [
   TranscriptEntryBaseSchema.extend({
     kind: z.literal('system_note'),
     content: TranscriptContentSchemas.system_note,
+  }),
+  TranscriptEntryBaseSchema.extend({
+    kind: z.literal('agent_message'),
+    content: TranscriptContentSchemas.agent_message,
+  }),
+  TranscriptEntryBaseSchema.extend({
+    kind: z.literal('subtask_result'),
+    content: TranscriptContentSchemas.subtask_result,
+  }),
+  TranscriptEntryBaseSchema.extend({
+    kind: z.literal('compaction'),
+    content: TranscriptContentSchemas.compaction,
   }),
 ]);
 

@@ -20,15 +20,15 @@ The system is online only. It runs as one monolith on one private server that on
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
 workload the owner gives the agents.
 
-## Current state (phase 1a)
+## Current state (phase 1b)
 
 ```mermaid
 flowchart LR
   owner["Owner: curl today, the browser from phase 3"] -->|"HTTPS inside the tailnet"| serve["tailscale serve on the host"]
   serve -->|"127.0.0.1:3000"| web
   subgraph backend_network["backend network"]
-    web["web: auth, providers, agents, tasks, knowledge, transcripts, reports"]
-    worker["worker: agent_wake handler, run loop, tools"]
+    web["web: auth, providers, cap windows, agents, tasks, knowledge, transcripts, reports"]
+    worker["worker: agent_wake handler, run loop, tools, sweep"]
     postgres[("PostgreSQL 18: rows, transcripts, pg-boss queue")]
     searxng["SearXNG, unused until 1c"]
   end
@@ -37,13 +37,16 @@ flowchart LR
     egress_proxy["egress_proxy: idle placeholder"]
   end
   web -->|"rows and agent_wake jobs"| postgres
-  worker -->|"rows, leases, checkpoints"| postgres
+  worker -->|"rows, leases, checkpoints, delayed wakes"| postgres
   worker -->|"model calls through the adapters"| llm["LLM providers"]
+  worker -->|"interns past a cap threshold"| local_llm["local provider, such as Ollama"]
   worker -->|"file tools"| workspace[("workspace volume")]
 ```
 
-The company works over REST. The owner logs in, adds providers, recruits level 1 agents, assigns
-tasks, chats with agents and downloads reports. The worker drives one run per agent at a time.
+The company works over REST. The owner logs in, adds providers and their cap windows, recruits
+level 1 agents, assigns goals, chats with agents and downloads reports. A manager runs a team of
+interns it spawns and reuses inside its own department. The worker drives one run per agent at a
+time.
 
 - **Identity.** One owner account created with `dist/admin.js owner_create`, argon2id hashes,
   session tokens stored as hashes, a global guard with `@Public()` on `/health`, `/metrics` and
@@ -52,22 +55,40 @@ tasks, chats with agents and downloads reports. The worker drives one run per ag
   `SECRETS_ENCRYPTION_KEY` and never returned. Calls time out, retry with backoff and jitter on
   rate limits, server errors, timeouts and network errors, honour `retry-after`, and write a usage
   row with cost after every call. The Anthropic adapter marks the system prompt and the last tool
-  with `cache_control`; the OpenAI adapter reads `cached_tokens`.
-- **Company.** Recruiting a level 1 agent creates the department it heads, named after its role.
-  Tasks queue per agent and send an `agent_wake` job. Reports are one Markdown document per task.
+  with `cache_control`; the OpenAI adapter reads `cached_tokens`. One provider can be marked local.
+  A key may limit its parallel requests, and each model carries its context window. The runtime
+  keeps each key's state: a circuit breaker counted from calls that fail after their retries, and
+  an out-of-credit mark that a new key or `POST /providers/:id/resume` clears.
+- **Cap windows.** Each key has windows in tokens, requests or money, rolling or fixed from an
+  anchor in UTC, each with a threshold. A new key gets three example windows that show usage and
+  block nothing. Past an enforced threshold a key takes no new intern work, and new interns go to
+  the local provider. At an enforced limit every run on the key pauses until the window resets.
+- **Company.** Recruiting a level 1 agent creates the department it heads. Managers spawn level 2
+  interns in their own department, named after the manager, and an idle intern is reused before a
+  spawn. Tasks queue per agent and send an `agent_wake` job. A delegated task has a parent and a
+  delegator, and cancelling a task cancels its open subtasks. Reports are one Markdown document
+  per task; a manager's report lists its subtasks and counts the usage of the whole tree.
 - **Knowledge.** Instructions for every agent, a role or one agent; skills with a one-line
   description in the prompt and a body behind `load_skill`, imported and exported as `SKILL.md`;
-  typed preferences with defaults.
-- **Runs.** The wake handler resumes the agent's running run or starts one for its next queued
-  task or an unanswered owner message. The loop appends every model turn and tool result to
-  `transcript_entries` before going on, so the transcript is the checkpoint. A run carries a lease
-  that the worker extends during model calls; a lapsed lease is re-woken on boot and on a timer.
-  Tools: `list_files`, `read_file`, `write_file` inside the owner's workspace directory,
-  `load_skill`, `finish_task`. Policies `auto` and `deny` apply; `ask` answers the model with an
-  error until the approval inbox arrives in 1c.
-- **Not yet.** Interns, caps, the breaker and out-of-credit blocking, compaction and the runaway
-  guard are phase 1b. The sandbox, proxy, web tools, git, integrations, plugins, taint and approvals
-  are phase 1c. The event log, idempotent commands and Socket.IO are phase 2.
+  typed preferences with defaults, including the intern idle timeout, the runaway guard, the cap
+  threshold defaults and optional limits on interns and live agents.
+- **Runs.** The wake handler hands the agent its finished subtask results, then drives its running
+  run, resumes its paused run when the pause is over, or starts one for its next queued task or an
+  unread message. The loop appends every model turn and tool result to `transcript_entries` before
+  going on, so the transcript is the checkpoint. A run carries a lease that the worker extends
+  during each turn. A run that cannot go on pauses instead of failing: while it waits for its
+  subtasks, behind a cap window at its limit, an open breaker, a key out of credit, or after the
+  runaway guard, which waits for `POST /runs/:id/continue` or `/stop`. A long session is compacted
+  into a summary written by the key's intern model. Tools: `list_files`, `read_file`, `write_file`
+  inside the owner's workspace directory, `load_skill`, `list_roster`, `send_message`,
+  `delegate_task` for managers, and `finish_task`. Policies `auto` and `deny` apply; `ask` answers
+  the model with an error until the approval inbox arrives in 1c.
+- **Sweep.** Every `RUN_LEASE_SECONDS / 2` the worker re-wakes runs whose lease lapsed and paused
+  runs whose pause is over, returns tasks blocked behind a key that has credit again to the queue,
+  wakes managers with undelivered subtask results, and terminates interns idle past the owner's
+  timeout or whose manager left.
+- **Not yet.** Alerts, the sandbox, the proxy, web tools, git, integrations, plugins, taint and the
+  approval inbox are phase 1c. The event log, idempotent commands and Socket.IO are phase 2.
 
 ## Backend
 
@@ -106,6 +127,11 @@ One process and one database are assumed in these places. Each carries a comment
   `DATABASE_POOL_MAX` connections, so processes times pool size must stay below `max_connections`.
 - From phase 2, `LISTEN` and `NOTIFY` carry events from the worker to the web process, which
   assumes one database and a small number of web processes.
+- A provider's parallel request limit is held in the worker process, so with several worker
+  processes it holds per process.
+- Every worker process sweeps every owner. Sweeps overlap safely because each step is idempotent.
+- A worker process handles one wake per agent at a time. With several worker processes two wakes
+  of one agent can run at once, and the run lease keeps either from driving the other's run.
 
 ## Events and realtime
 
@@ -510,3 +536,25 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | 100 turns per run as a hard cap | Stops a loop until the runaway guard in 1b asks the owner instead. |
 | Fake provider servers in tests | The adapters, retries and usage accounting run for real against scripted HTTP replies. |
 | Jest runs test files one at a time | One database and one queue are shared; owner scoping keeps data apart without truncation. |
+
+## Decisions made in phase 1b
+
+| Decision | Why |
+| --- | --- |
+| Runs pause instead of failing | A full window, a failing provider, an empty balance and a manager waiting for its team are all temporary. The run keeps its checkpoint and its task says why it waits. |
+| Pausing drops the lease in the same update | A wake that arrives later finds the run paused with no lease and resumes it, and the loop checks once more for entries that arrived while it paused, so no wake-up is lost. |
+| Delayed wakes for time-based pauses, the sweep as the safety net | A cap reset or a breaker cooldown resumes the run on time without a polling loop per run. |
+| The worker polls every 2 s with LISTEN/NOTIFY on | pg-boss otherwise polls notify-enabled queues every 30 s, and a delayed job sends no NOTIFY when it comes due. |
+| A wake due now is skipped while another due wake for the agent is queued | Wakes from messages, results and the sweep would otherwise pile up behind a busy agent. |
+| A lease is never taken twice, not even by its holder | Two wakes for one agent handled at once in one process must not both drive its run. Phase 1a let the holder take it again. |
+| One wake per agent at a time in a worker | Wakes carry their agent as the pg-boss group, and the worker sets `localGroupConcurrency: 1`. Two handlers for one agent raced: one cancelled the run the other had just created. The limit lives in memory, so a dead worker's job blocks nothing, unlike a database-wide group limit. |
+| A run that never became active is cancelled only once it is older than a lease | The handler that created it, perhaps in another process, may be about to claim the agent for it. |
+| Example cap windows show usage and block nothing | The brief's figures are placeholders. Enforcement waits for real limits from the owner. |
+| Fixed windows step in UTC from their anchor; months keep the anchor's day | One rule for every window, whatever the owner's time zone. A 31st clamps to the month's last day. |
+| Reuse by role before a spawn | A manager that asks for a new intern still gets an idle one of the same role in its department. |
+| A manager's report fits in 2,000 characters | One screen, as the brief asks. The details stay in each intern's own report. |
+| Tool results first in a user turn | Both APIs reject a tool result that does not directly follow its call, and a message can now arrive between them. |
+| Compaction with the key's intern model | The summary is cheap work, counted and capped like any other call. |
+| Subtask results delivered once through a dedupe key | Two wakes racing for the same manager append one result entry. |
+| The runaway guard counts every turn, orchestration included | Built as the brief says, with a default of 50; the plan records the objection. |
+| Test files dismiss the agents earlier files left | The sweep reaches every owner, and leftover agents would otherwise keep calling fake providers that are gone. |

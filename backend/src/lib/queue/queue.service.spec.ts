@@ -46,6 +46,53 @@ describe('QueueService', () => {
   });
 });
 
+describe('QueueService wakes of one agent', () => {
+  const queue = new QueueService(load_test_config(), 'worker');
+
+  beforeAll(() => {
+    queue.onApplicationBootstrap();
+  });
+
+  afterAll(async () => {
+    await queue.beforeApplicationShutdown();
+  });
+
+  it('handles one wake of an agent at a time, and other agents meanwhile', async () => {
+    const owner_id = randomUUID();
+    const busy = randomUUID();
+    const other = randomUUID();
+    const spans: Array<{ agent_id: string; start: number; end: number }> = [];
+    await queue.work_agent_wake(async (job) => {
+      if (job.owner_id !== owner_id) return;
+      const start = Date.now();
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      spans.push({ agent_id: job.agent_id, start, end: Date.now() });
+    });
+
+    for (let index = 0; index < 3; index += 1) {
+      await queue.send_agent_wake({ owner_id, agent_id: busy }, 1);
+    }
+    await queue.send_agent_wake({ owner_id, agent_id: other }, 1);
+
+    await wait_for('every wake to be handled', () => (spans.length === 4 ? true : undefined), {
+      timeout_ms: 40_000,
+    });
+    const overlaps = (a: (typeof spans)[number], b: (typeof spans)[number]): boolean =>
+      a.start < b.end && b.start < a.end;
+    const busy_spans = spans.filter((span) => span.agent_id === busy);
+    expect(busy_spans).toHaveLength(3);
+    expect(
+      busy_spans.some((span, index) =>
+        busy_spans.slice(index + 1).some((next) => overlaps(span, next)),
+      ),
+    ).toBe(false);
+    const other_span = spans.find((span) => span.agent_id === other);
+    expect(other_span !== undefined && busy_spans.some((span) => overlaps(span, other_span))).toBe(
+      true,
+    );
+  });
+});
+
 describe('QueueService on a database without the queue schema', () => {
   it('waits for the migration release step instead of failing', async () => {
     const config = load_test_config();

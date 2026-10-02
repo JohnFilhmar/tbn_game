@@ -2,6 +2,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { TaskSchema, type Agent } from '@tbn/contracts';
 import request from 'supertest';
 import { PrismaService } from '@/lib/database/prisma.service';
+import { AgentService } from '@/modules/company/services/agent.service';
+import { TaskService } from '@/modules/company/services/task.service';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
 import { create_test_provider, recruit_test_agent } from '@/testing/test_company';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
@@ -88,6 +90,52 @@ describe('task routes', () => {
       .post(`/tasks/${task.id}/cancel`)
       .set('Authorization', `Bearer ${owner.token}`)
       .expect(409);
+  });
+
+  it('lists subtasks by parent and cancels them with it', async () => {
+    const created = await api()
+      .post('/tasks')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Goal', instructions: 'Split it.', assignee_agent_id: agent.id })
+      .expect(201);
+    const goal = TaskSchema.parse(created.body);
+    const agents = app.get(AgentService);
+    const manager = await agents.require(owner.owner_id, agent.id);
+    const helper = await agents.spawn_intern(owner.owner_id, manager, {
+      role: 'Helper',
+      job_description: 'Helps.',
+      provider_id: agent.provider_id,
+      primary_model: agent.intern_model,
+    });
+    const subtask = await app.get(TaskService).delegate(owner.owner_id, {
+      title: 'Part',
+      instructions: 'One part.',
+      assignee_agent_id: helper.id,
+      delegator_agent_id: agent.id,
+      parent_task_id: goal.id,
+    });
+
+    const listed = await api()
+      .get('/tasks')
+      .query({ parent_task_id: goal.id })
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(TaskSchema.array().parse(listed.body)).toEqual([
+      expect.objectContaining({ id: subtask.id, delegator_agent_id: agent.id, status: 'queued' }),
+    ]);
+
+    await api()
+      .post(`/tasks/${goal.id}/cancel`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    const after = await api()
+      .get(`/tasks/${subtask.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(TaskSchema.parse(after.body)).toMatchObject({
+      status: 'cancelled',
+      status_reason: 'Its parent task was cancelled',
+    });
   });
 
   it('rejects an unknown agent, an unknown field and a foreign task', async () => {

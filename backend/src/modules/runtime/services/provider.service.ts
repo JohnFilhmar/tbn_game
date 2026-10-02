@@ -1,5 +1,13 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { CreateProvider, Provider, UpdateProvider, UsageSummary } from '@tbn/contracts';
+import type {
+  CapLengthUnit,
+  CreateProvider,
+  Provider,
+  UpdateProvider,
+  UsageSummary,
+} from '@tbn/contracts';
+import type { AppConfig } from '@/config/config.schema';
+import { APP_CONFIG } from '@/config/config.tokens';
 import { SecretBoxService } from '@/lib/crypto/secret_box.service';
 import {
   PROVIDER_REPOSITORY,
@@ -10,14 +18,42 @@ import {
   USAGE_REPOSITORY,
   type UsageRepository,
 } from '@/modules/runtime/repositories/interface/usage_repository.interface';
+import type { CapWindowWrite } from '@/modules/runtime/types/cap_window_record';
 import type {
   ProviderConnection,
   ProviderModelRecord,
   ProviderRecord,
+  ProviderState,
 } from '@/modules/runtime/types/provider_record';
 import type { UsageTotals } from '@/modules/runtime/types/usage_record';
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
+const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
+
+function example_window(name: string, length_unit: CapLengthUnit, limit: number): CapWindowWrite {
+  return {
+    name,
+    length_count: 1,
+    length_unit,
+    reset_mode: 'rolling',
+    anchor_at: null,
+    unit: 'tokens',
+    limit,
+    threshold_percent: null,
+    enforced: false,
+    model_id: null,
+  };
+}
+
+/**
+ * The example windows a new key starts with: display only, with placeholder limits, so they show
+ * usage at once and block nothing until the owner sets real limits and enforces them.
+ */
+const EXAMPLE_WINDOWS: CapWindowWrite[] = [
+  example_window('Monthly', 'month', 100_000_000),
+  example_window('Weekly', 'week', 25_000_000),
+  example_window('Daily', 'day', 5_000_000),
+];
 
 function to_model_record(model: CreateProvider['models'][number]): ProviderModelRecord {
   return {
@@ -28,6 +64,7 @@ function to_model_record(model: CreateProvider['models'][number]): ProviderModel
     cache_read_price_per_million: model.cache_read_price_per_million ?? null,
     cache_write_price_per_million: model.cache_write_price_per_million ?? null,
     max_output_tokens: model.max_output_tokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+    context_window_tokens: model.context_window_tokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS,
   };
 }
 
@@ -47,7 +84,12 @@ export function to_provider_view(record: ProviderRecord): Provider {
       cache_read_price_per_million: model.cache_read_price_per_million,
       cache_write_price_per_million: model.cache_write_price_per_million,
       max_output_tokens: model.max_output_tokens,
+      context_window_tokens: model.context_window_tokens,
     })),
+    is_local: record.is_local,
+    max_parallel_requests: record.max_parallel_requests,
+    breaker_open_until: record.breaker_open_until?.toISOString() ?? null,
+    out_of_credit_since: record.out_of_credit_since?.toISOString() ?? null,
     created_at: record.created_at.toISOString(),
     updated_at: record.updated_at.toISOString(),
   };
@@ -74,10 +116,14 @@ function sum_totals(rows: UsageTotals[]): UsageTotals {
   );
 }
 
-/** LLM connections: the owner's providers, their models and the sealed keys. */
+/**
+ * LLM connections: the owner's providers, their models, the sealed keys, and the runtime's own
+ * state of each key: its circuit breaker and whether it ran out of credit.
+ */
 @Injectable()
 export class ProviderService {
   constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(PROVIDER_REPOSITORY) private readonly providers: ProviderRepository,
     @Inject(USAGE_REPOSITORY) private readonly usage: UsageRepository,
     private readonly secret_box: SecretBoxService,
@@ -91,7 +137,11 @@ export class ProviderService {
     return to_provider_view(await this.require(owner_id, id));
   }
 
-  /** @throws ConflictException when the name is taken. */
+  /**
+   * Adds a provider with the example cap windows. Marking it local unmarks the owner's others.
+   *
+   * @throws ConflictException when the name is taken.
+   */
   async create(owner_id: string, input: CreateProvider): Promise<Provider> {
     if ((await this.providers.find_by_name(owner_id, input.name)) !== null) {
       throw new ConflictException('Provider name is taken');
@@ -101,11 +151,18 @@ export class ProviderService {
       api_format: input.api_format,
       base_url: input.base_url,
       api_key_ciphertext: this.secret_box.seal(input.api_key),
+      is_local: input.is_local ?? false,
+      max_parallel_requests: input.max_parallel_requests ?? null,
       models: input.models.map(to_model_record),
+      cap_windows: EXAMPLE_WINDOWS,
     });
     return to_provider_view(record);
   }
 
+  /**
+   * Edits a provider. A new key clears the out-of-credit mark and the breaker, so blocked runs on
+   * the key resume.
+   */
   async update(owner_id: string, id: string, input: UpdateProvider): Promise<Provider> {
     if (input.name !== undefined) {
       const same_name = await this.providers.find_by_name(owner_id, input.name);
@@ -120,10 +177,26 @@ export class ProviderService {
       ...(input.api_key !== undefined && {
         api_key_ciphertext: this.secret_box.seal(input.api_key),
       }),
+      ...(input.is_local !== undefined && { is_local: input.is_local }),
+      ...(input.max_parallel_requests !== undefined && {
+        max_parallel_requests: input.max_parallel_requests,
+      }),
       ...(input.models !== undefined && { models: input.models.map(to_model_record) }),
     });
     if (record === null) throw new NotFoundException('Provider not found');
+    if (input.api_key !== undefined) return this.resume(owner_id, id);
     return to_provider_view(record);
+  }
+
+  /**
+   * The owner topped up the key or fixed the provider: clears the out-of-credit mark and the
+   * breaker. The worker resumes the paused runs on its next sweep.
+   */
+  async resume(owner_id: string, id: string): Promise<Provider> {
+    if (!(await this.providers.clear_state(owner_id, id))) {
+      throw new NotFoundException('Provider not found');
+    }
+    return this.get(owner_id, id);
   }
 
   /** @throws ConflictException when an agent still uses the provider. */
@@ -154,6 +227,22 @@ export class ProviderService {
   }
 
   /**
+   * The provider row, key still sealed, for the runtime.
+   *
+   * @throws NotFoundException when it is missing.
+   */
+  async require(owner_id: string, id: string): Promise<ProviderRecord> {
+    const record = await this.providers.find(owner_id, id);
+    if (record === null) throw new NotFoundException('Provider not found');
+    return record;
+  }
+
+  /** The provider marked local, or null. */
+  find_local(owner_id: string): Promise<ProviderRecord | null> {
+    return this.providers.find_local(owner_id);
+  }
+
+  /**
    * The connection details for one model call, with the key opened. Only the provider client
    * calls this, right before the request.
    *
@@ -173,12 +262,38 @@ export class ProviderService {
       base_url: record.base_url,
       api_key: this.secret_box.open(record.api_key_ciphertext),
       model,
+      max_parallel_requests: record.max_parallel_requests,
+      state: {
+        breaker_failures: record.breaker_failures,
+        breaker_open_until: record.breaker_open_until,
+        out_of_credit_since: record.out_of_credit_since,
+      },
     };
   }
 
-  private async require(owner_id: string, id: string): Promise<ProviderRecord> {
-    const record = await this.providers.find(owner_id, id);
-    if (record === null) throw new NotFoundException('Provider not found');
-    return record;
+  /**
+   * Counts a call that failed after its retries. At `PROVIDER_BREAKER_THRESHOLD` consecutive
+   * failures the breaker opens for `PROVIDER_BREAKER_COOLDOWN_SECONDS`.
+   */
+  async record_failure(owner_id: string, id: string): Promise<ProviderState | null> {
+    const open_until = new Date(
+      Date.now() + this.config.providers.breaker_cooldown_seconds * 1_000,
+    );
+    return this.providers.record_failure(
+      owner_id,
+      id,
+      this.config.providers.breaker_threshold,
+      open_until,
+    );
+  }
+
+  /** Closes the breaker after a successful call. */
+  record_success(owner_id: string, id: string): Promise<void> {
+    return this.providers.record_success(owner_id, id);
+  }
+
+  /** Marks the key out of credit. Its runs pause until the owner tops up or changes the key. */
+  mark_out_of_credit(owner_id: string, id: string): Promise<void> {
+    return this.providers.mark_out_of_credit(owner_id, id, new Date());
   }
 }

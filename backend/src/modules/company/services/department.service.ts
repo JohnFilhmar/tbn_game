@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Department } from '@tbn/contracts';
 import {
   DEPARTMENT_REPOSITORY,
@@ -25,5 +25,16 @@ export class DepartmentService {
 
   async list(owner_id: string): Promise<Department[]> {
     return (await this.departments.list(owner_id)).map(to_department_view);
+  }
+
+  /**
+   * The department row, for the runtime.
+   *
+   * @throws NotFoundException when it is missing.
+   */
+  async require(owner_id: string, id: string): Promise<DepartmentRecord> {
+    const record = await this.departments.find(owner_id, id);
+    if (record === null) throw new NotFoundException('Department not found');
+    return record;
   }
 }

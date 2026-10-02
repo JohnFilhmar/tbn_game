@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { TranscriptEntrySchema, type TranscriptEntry, type TranscriptQuery } from '@tbn/contracts';
 import { QueueService } from '@/lib/queue/queue.service';
-import { AgentService } from '@/modules/company/services/agent.service';
+import { AgentService, is_live } from '@/modules/company/services/agent.service';
 import {
   TRANSCRIPT_REPOSITORY,
   type TranscriptRepository,
@@ -54,7 +54,7 @@ export class TranscriptService {
     text: string,
   ): Promise<TranscriptEntry> {
     const agent = await this.agents.require(owner_id, agent_id);
-    if (agent.status === 'dismissed') throw new ConflictException('Agent is dismissed');
+    if (!is_live(agent.status)) throw new ConflictException(`Agent is ${agent.status}`);
     const record = await this.transcripts.append(owner_id, agent_id, agent.active_run_id, {
       kind: 'owner_message',
       content: { text },

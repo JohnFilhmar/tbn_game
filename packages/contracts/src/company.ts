@@ -11,10 +11,13 @@ export const AgentLevelSchema = z.union([z.literal(1), z.literal(2)]);
 /** `1` or `2`. */
 export type AgentLevel = z.infer<typeof AgentLevelSchema>;
 
-/** Whether an agent is waiting, working or gone. */
-export const AgentStatusSchema = z.enum(['idle', 'working', 'dismissed']);
+/**
+ * Whether an agent is waiting, working or gone. The owner dismisses agents; the runtime terminates
+ * interns that stay idle past the owner's timeout.
+ */
+export const AgentStatusSchema = z.enum(['idle', 'working', 'dismissed', 'terminated']);
 
-/** `idle`, `working` or `dismissed`. */
+/** `idle`, `working`, `dismissed` or `terminated`. */
 export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
 /** What happens when an agent calls a tool. */
@@ -93,6 +96,7 @@ export type UpdateAgent = z.infer<typeof UpdateAgentSchema>;
 export const AgentListQuerySchema = z.strictObject({
   department_id: IdSchema.optional(),
   status: AgentStatusSchema.optional(),
+  level: z.coerce.number().pipe(AgentLevelSchema).optional(),
 });
 
 /** Query of `GET /agents`. */
@@ -125,7 +129,19 @@ export const TaskStatusSchema = z.enum([
 /** A task status. */
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
-/** A unit of work for one agent. `delegator_agent_id` is null when the owner assigned it. */
+/** The statuses of a task that is not finished yet. */
+export const OPEN_TASK_STATUSES: readonly TaskStatus[] = [
+  'queued',
+  'in_progress',
+  'blocked',
+  'awaiting_approval',
+];
+
+/**
+ * A unit of work for one agent. `delegator_agent_id` is null when the owner assigned it, and
+ * `parent_task_id` points at the task a manager delegated it from. `status_reason` says why a task
+ * is blocked or awaiting approval.
+ */
 export const TaskSchema = z.strictObject({
   id: IdSchema,
   title: z.string().trim().min(1).max(200),
@@ -134,6 +150,7 @@ export const TaskSchema = z.strictObject({
   delegator_agent_id: IdSchema.nullable(),
   parent_task_id: IdSchema.nullable(),
   status: TaskStatusSchema,
+  status_reason: z.string().nullable(),
   result: z.string().nullable(),
   report_id: IdSchema.nullable(),
   started_at: DateTimeSchema.nullable(),
@@ -159,6 +176,7 @@ export type CreateTask = z.infer<typeof CreateTaskSchema>;
 export const TaskListQuerySchema = z.strictObject({
   status: TaskStatusSchema.optional(),
   agent_id: IdSchema.optional(),
+  parent_task_id: IdSchema.optional(),
 });
 
 /** Query of `GET /tasks`. */

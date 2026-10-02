@@ -1,3 +1,4 @@
+export * from './caps';
 export * from './common';
 export * from './company';
 export * from './health';
