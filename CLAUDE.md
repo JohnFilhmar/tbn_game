@@ -40,6 +40,7 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `npm test`                                                         | Jest. Needs `DATABASE_URL` for a disposable database.       |
 | `printf '%s' "$PASSWORD" \| docker compose -f docker-compose.development.yml run --rm -T web dist/admin.js owner_create <username>` | Create the owner account once. |
 | `scripts/demo_phase_1a.sh`                                         | The phase 1a demo over HTTP against a running stack.        |
+| `scripts/demo_phase_1b.sh`                                         | The phase 1b demo: one goal, a manager and its interns.     |
 
 Tests use a real PostgreSQL. With the development stack up:
 `DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
@@ -47,7 +48,10 @@ step creates `tbn_test`. Never point tests at the stack's own `tbn` database: th
 would take the suite's wake jobs. The backend test script applies migrations and builds `dist/`
 first, because one test starts the real worker process and kills it. Test files share one database
 and one queue, so Jest runs them one at a time and every test file creates its own owner; owner
-scoping keeps their data apart.
+scoping keeps their data apart. The worker's sweep reaches every owner, so a test file that starts
+a worker first calls `reset_worker_state`, which clears the queue and dismisses the agents earlier
+files left behind. A wake due now is skipped while another due wake for the agent is queued, so a
+test that counts wakes clears the agent's wakes first (`testing/test_wakes.ts`).
 
 After a Prisma upgrade, approve the new engine install script with
 `npm install-scripts approve @prisma/engines`; approvals are pinned to a version.
@@ -93,7 +97,12 @@ docs/               architecture, roadmap, plans, reports, runbook
   provider against the first without depending on the second.
 - The transcript is the run checkpoint. Every model turn and every tool result is a
   `transcript_entries` row before the loop goes on. A worker holds a lease on the run and extends
-  it while a model call is in flight; a run whose lease lapsed is re-woken by any worker.
+  it while a turn is in flight; a run whose lease lapsed is re-woken by any worker. Nobody takes a
+  live lease, its holder included. A worker handles one wake per agent at a time: each wake carries
+  its agent as the pg-boss group.
+- A run that cannot go on pauses instead of failing, with a `pause_reason`, and drops its lease in
+  the same update. A wake resumes it: a delayed one for a time-based pause, and the worker's sweep
+  as the safety net.
 - The worker runs as a Nest application context, so controllers are never mounted in it. Its
   `/health` and `/metrics` come from `lib/ops_server`.
 - One PostgreSQL database through Prisma. Every schema change ships with its migration in the same
@@ -168,7 +177,9 @@ and `process.env` rules. Prettier formats.
 - Jest runs with `--experimental-vm-modules` because NestJS 12 ships only ES modules. Keep the
   flag in the `test` script.
 - Model providers are never called in tests. `testing/fake_provider_server.ts` speaks both API
-  formats with scripted replies, so the real adapters, retries and usage accounting run.
+  formats with scripted replies, or a responder that answers from the request, so the real
+  adapters, retries and usage accounting run. `testing/team_harness.ts` starts a web app, a worker
+  and an owner for flows across several agents.
 - In Jest's VM realm `instanceof Error` is false for a `DOMException`; read `error.name` instead.
 
 ## Delivery
