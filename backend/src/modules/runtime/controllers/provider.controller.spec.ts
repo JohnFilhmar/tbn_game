@@ -124,7 +124,7 @@ describe('provider routes', () => {
       .expect(404);
   });
 
-  it('rejects a bad base URL, an empty model list, an unknown field and a duplicate name', async () => {
+  it('rejects a bad base URL, an empty model list, a repeated model id, an unknown field and a duplicate name', async () => {
     const bad_url = await api()
       .post('/providers')
       .set('Authorization', `Bearer ${owner.token}`)
@@ -137,6 +137,20 @@ describe('provider routes', () => {
       .set('Authorization', `Bearer ${owner.token}`)
       .send({ ...create_body, name: 'no-models', models: [] })
       .expect(400);
+
+    const repeated = await api()
+      .post('/providers')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        ...create_body,
+        name: 'repeated-model',
+        models: [
+          { model_id: 'same-model', cost_tier: 'premium' },
+          { model_id: 'same-model', cost_tier: 'cheap' },
+        ],
+      })
+      .expect(400);
+    expect(ValidationErrorBodySchema.parse(repeated.body).issues[0]?.path).toBe('models');
 
     await api()
       .post('/providers')

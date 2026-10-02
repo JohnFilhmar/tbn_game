@@ -44,6 +44,13 @@ export const ProviderModelWriteSchema = ProviderModelSchema.partial({
 /** A model as written. */
 export type ProviderModelWrite = z.infer<typeof ProviderModelWriteSchema>;
 
+/** True when no two models share a model id. */
+function has_unique_model_ids(models: readonly { model_id: string }[]): boolean {
+  return new Set(models.map((model) => model.model_id)).size === models.length;
+}
+
+const UNIQUE_MODEL_IDS = { message: 'model_id must be unique within a provider' };
+
 /**
  * An LLM connection. The API key is write-only: it is encrypted at rest and never returned,
  * which `api_key_set` makes visible.
@@ -54,7 +61,11 @@ export const ProviderSchema = z.strictObject({
   api_format: ApiFormatSchema,
   base_url: z.url({ protocol: /^https?$/ }),
   api_key_set: z.literal(true),
-  models: z.array(ProviderModelSchema).min(1).max(50),
+  models: z
+    .array(ProviderModelSchema)
+    .min(1)
+    .max(50)
+    .refine(has_unique_model_ids, UNIQUE_MODEL_IDS),
   created_at: DateTimeSchema,
   updated_at: DateTimeSchema,
 });
@@ -69,7 +80,11 @@ export const CreateProviderSchema = ProviderSchema.pick({
   base_url: true,
 }).extend({
   api_key: z.string().min(1).max(4_096),
-  models: z.array(ProviderModelWriteSchema).min(1).max(50),
+  models: z
+    .array(ProviderModelWriteSchema)
+    .min(1)
+    .max(50)
+    .refine(has_unique_model_ids, UNIQUE_MODEL_IDS),
 });
 
 /** Body of `POST /providers`. */
