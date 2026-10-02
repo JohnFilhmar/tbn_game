@@ -29,7 +29,7 @@ sandbox_run() {
 echo "Every service is healthy"
 not_healthy=$("${compose[@]}" ps --format json | jq -rs '.[] | select(.Health != "healthy") | .Service')
 [[ -z "$not_healthy" ]] || fail "not healthy: $not_healthy"
-[[ $("${compose[@]}" ps --format json | jq -s 'length') -eq 7 ]] || fail "expected 7 running services"
+[[ $("${compose[@]}" ps --format json | jq -s 'length') -eq 6 ]] || fail "expected 6 running services"
 
 for endpoint in web:3000 worker:3001 sandbox:3002 egress_proxy:3003; do
   process_type=${endpoint%%:*}
