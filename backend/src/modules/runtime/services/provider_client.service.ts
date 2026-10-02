@@ -26,6 +26,15 @@ export interface ModelCallContext {
   run_id: string | null;
 }
 
+/** Options for one call through the client. */
+export interface CompleteOptions {
+  /**
+   * Streams the answer: each piece of text arrives as it is generated, with the number of the
+   * attempt that produced it, so a retry can replace the text of a failed attempt.
+   */
+  on_text?: (text: string, attempt: number) => void;
+}
+
 const BASE_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 60_000;
 const MILLION = 1_000_000;
@@ -86,7 +95,11 @@ export class ProviderClientService {
    *
    * @throws ProviderError after the last attempt, or at once for an error that is not retryable.
    */
-  async complete(context: ModelCallContext, request: ModelRequest): Promise<ModelResponse> {
+  async complete(
+    context: ModelCallContext,
+    request: ModelRequest,
+    options: CompleteOptions = {},
+  ): Promise<ModelResponse> {
     const connection = await this.providers.open_connection(
       context.owner_id,
       context.provider_id,
@@ -102,7 +115,12 @@ export class ProviderClientService {
           connection.provider_id,
           connection.max_parallel_requests,
           () =>
-            adapter.complete(connection, request, { timeout_ms: this.config.providers.timeout_ms }),
+            adapter.complete(connection, request, {
+              timeout_ms: this.config.providers.timeout_ms,
+              ...(options.on_text !== undefined && {
+                on_text: (text: string) => options.on_text?.(text, attempt + 1),
+              }),
+            }),
         );
         await this.usage.create({
           owner_id: context.owner_id,

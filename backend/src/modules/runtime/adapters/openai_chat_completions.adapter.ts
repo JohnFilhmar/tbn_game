@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { ToolUseBlockSchema } from '@tbn/contracts';
 import { z } from 'zod';
 import type {
   AdapterCallOptions,
@@ -11,12 +10,13 @@ import type {
   ModelMessage,
   ModelRequest,
   ModelResponse,
-  StopReason,
-  ToolUseBlock,
 } from '@/modules/runtime/types/model_request';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderConnection } from '@/modules/runtime/types/provider_record';
-import { error_excerpt, post_json, retry_after_ms } from './http_call';
+import { error_excerpt, retry_after_ms, stream_failure } from './http/failures';
+import { post_json, post_stream, type PostJsonOptions } from './http/post';
+import { assemble_openai_stream, parse_arguments, to_stop_reason } from './openai_stream';
+import { read_sse } from './sse';
 
 const ResponseSchema = z.looseObject({
   choices: z
@@ -54,16 +54,6 @@ const ErrorBodySchema = z.looseObject({
   }),
 });
 
-function parse_arguments(raw: string): ToolUseBlock['input'] {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    const input = ToolUseBlockSchema.shape.input.safeParse(parsed);
-    return input.success ? input.data : {};
-  } catch {
-    return {};
-  }
-}
-
 function to_wire_messages(system: string, messages: ModelMessage[]): unknown[] {
   const wire: unknown[] = [{ role: 'system', content: system }];
   for (const message of messages) {
@@ -97,20 +87,6 @@ function to_wire_messages(system: string, messages: ModelMessage[]): unknown[] {
   return wire;
 }
 
-function to_stop_reason(reason: string | null | undefined, has_tool_calls: boolean): StopReason {
-  if (has_tool_calls) return 'tool_use';
-  switch (reason) {
-    case 'stop':
-      return 'end_turn';
-    case 'tool_calls':
-      return 'tool_use';
-    case 'length':
-      return 'max_tokens';
-    default:
-      return 'other';
-  }
-}
-
 function classify(status: number, body: unknown, text: string, headers: Headers): ProviderError {
   const parsed = ErrorBodySchema.safeParse(body);
   const code = parsed.success ? (parsed.data.error.code ?? parsed.data.error.type ?? '') : '';
@@ -135,7 +111,7 @@ function classify(status: number, body: unknown, text: string, headers: Headers)
 /**
  * OpenAI-compatible chat completions, which also serves local servers such as Ollama. The system
  * message comes first so the provider's automatic prefix caching applies; cached tokens are read
- * from `prompt_tokens_details`.
+ * from `prompt_tokens_details`. With `on_text` the answer streams, asking for usage in the stream.
  */
 @Injectable()
 export class OpenAiChatCompletionsAdapter implements LlmAdapter {
@@ -150,7 +126,7 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
       type: 'function',
       function: { name: tool.name, description: tool.description, parameters: tool.input_schema },
     }));
-    const result = await post_json({
+    const call = {
       url: `${connection.base_url.replace(/\/$/, '')}/chat/completions`,
       headers: { authorization: `Bearer ${connection.api_key}` },
       body: {
@@ -158,9 +134,16 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
         max_tokens: connection.model.max_output_tokens,
         messages: to_wire_messages(request.system, request.messages),
         ...(tools.length > 0 && { tools }),
+        ...(options.on_text !== undefined && {
+          stream: true,
+          stream_options: { include_usage: true },
+        }),
       },
       timeout_ms: options.timeout_ms,
-    });
+    };
+    if (options.on_text !== undefined) return this.stream(call, options.on_text);
+
+    const result = await post_json(call);
     if (result.status !== 200)
       throw classify(result.status, result.body, result.text, result.headers);
 
@@ -196,5 +179,20 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
         cache_write_tokens: 0,
       },
     };
+  }
+
+  private async stream(
+    call: PostJsonOptions,
+    on_text: (text: string) => void,
+  ): Promise<ModelResponse> {
+    const result = await post_stream(call);
+    if (result.body === null) {
+      throw classify(result.status, result.error_body, result.error_text, result.headers);
+    }
+    try {
+      return await assemble_openai_stream(read_sse(result.body), on_text);
+    } catch (error: unknown) {
+      throw stream_failure(error, call.timeout_ms);
+    }
   }
 }

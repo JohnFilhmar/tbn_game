@@ -147,7 +147,7 @@ describe('the realtime gateway', () => {
       owner_id: owner.owner_id,
       agent_id: owner.owner_id,
       run_id: owner.owner_id,
-      turn: 0,
+      after_seq: 0,
     });
     stream.text('Hello ', 1);
     stream.text('there.', 1);

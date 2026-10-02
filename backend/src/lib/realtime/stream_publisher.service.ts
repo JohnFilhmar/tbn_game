@@ -11,7 +11,8 @@ export interface StreamTarget {
   owner_id: string;
   agent_id: string;
   run_id: string;
-  turn: number;
+  /** The agent's last transcript entry when the call began. */
+  after_seq: number;
 }
 
 /** Splits text into pieces of at most `max_bytes` UTF-8 bytes, never inside a character. */
@@ -86,7 +87,7 @@ export class ModelStream {
       const chunk: StreamChunk = {
         agent_id: this.target.agent_id,
         run_id: this.target.run_id,
-        turn: this.target.turn,
+        after_seq: this.target.after_seq,
         attempt: this.attempt,
         index: this.index,
         text,

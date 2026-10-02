@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
+import { RealtimeModule } from '@/lib/realtime/realtime.module';
 import { CompanyModule } from '@/modules/company/company.module';
 import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
@@ -82,6 +83,7 @@ import { WebSearchTool } from './tools/web_search.tool';
   imports: [
     DatabaseModule,
     QueueModule,
+    RealtimeModule,
     RuntimeProvidersModule,
     CompanyModule,
     KnowledgeModule,

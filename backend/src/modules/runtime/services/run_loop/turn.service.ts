@@ -4,6 +4,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ToolPoliciesSchema } from '@tbn/contracts';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
+import { StreamPublisherService } from '@/lib/realtime/stream_publisher.service';
 import { AgentService } from '@/modules/company/services/agent.service';
 import { TaskService } from '@/modules/company/services/task.service';
 import type { AgentRecord } from '@/modules/company/types/company_records';
@@ -61,6 +62,7 @@ export class TurnService {
     private readonly lease: RunLeaseService,
     private readonly registry: ToolRegistryService,
     private readonly cap_notifier: CapNotifierService,
+    private readonly streams: StreamPublisherService,
   ) {}
 
   /** Plugin notes already written to a run's transcript, so each is written once. */
@@ -112,7 +114,9 @@ export class TurnService {
   /**
    * Builds the request and calls the model. A session past its share of the context window is
    * compacted first, unless a cap window at its limit forbids the summary call: the run then
-   * pauses like any call the caps stop.
+   * pauses like any call the caps stop. The answer streams to the owner's sockets while it is
+   * generated, and the stream is closed before the answer is stored, so its last chunk reaches a
+   * client before the transcript entry does.
    */
   private async request(
     run: RunRecord,
@@ -137,20 +141,31 @@ export class TurnService {
       const blocked = await this.gate.check_model(agent, agent.intern_model);
       if (blocked !== null) return blocked;
       if (await this.compaction.compact(run, agent, current, context_window)) {
-        const compacted = await this.transcripts.list_all(run.owner_id, agent.id);
-        request = await this.prompt_builder.build(agent, compacted, context_window, tool_set);
+        current = await this.transcripts.list_all(run.owner_id, agent.id);
+        request = await this.prompt_builder.build(agent, current, context_window, tool_set);
       }
     }
-    return this.provider_client.complete(
-      {
-        owner_id: run.owner_id,
-        provider_id: agent.provider_id,
-        model_id: agent.primary_model,
-        agent_id: agent.id,
-        run_id: run.id,
-      },
-      request,
-    );
+    const stream = this.streams.open({
+      owner_id: run.owner_id,
+      agent_id: agent.id,
+      run_id: run.id,
+      after_seq: current.at(-1)?.seq ?? 0,
+    });
+    try {
+      return await this.provider_client.complete(
+        {
+          owner_id: run.owner_id,
+          provider_id: agent.provider_id,
+          model_id: agent.primary_model,
+          agent_id: agent.id,
+          run_id: run.id,
+        },
+        request,
+        { on_text: (text, attempt) => stream.text(text, attempt) },
+      );
+    } finally {
+      await stream.close();
+    }
   }
 
   /**
