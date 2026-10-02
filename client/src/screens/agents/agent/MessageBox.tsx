@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { TextAreaField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putTranscriptEntry } from '@/lib/data/cacheWrites';
 import { useForm } from '@/lib/forms/useForm';
 import { useApi } from '@/providers/SessionProvider';
@@ -24,10 +23,10 @@ export function MessageBox({ agentId, agentName, closedReason }: MessageBoxProps
     initial: { text: '' },
     schema: OwnerMessageSchema,
     toInput: (draft) => ({ text: draft.text.trim() }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const entry = await api.send('POST', `/agents/${agentId}/messages`, TranscriptEntrySchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putTranscriptEntry(client, entry);
       form.reset({ text: '' });

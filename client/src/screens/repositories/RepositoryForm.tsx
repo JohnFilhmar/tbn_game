@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { optionalText } from '@/lib/forms/text';
@@ -22,10 +21,10 @@ export function RepositoryForm({ onDone }: { onDone: () => void }) {
       remote_url: optionalText(draft.remote_url),
       default_branch: optionalText(draft.default_branch),
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const repository = await api.send('POST', '/repositories', RepositorySchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.repositories, repository);
       onDone();

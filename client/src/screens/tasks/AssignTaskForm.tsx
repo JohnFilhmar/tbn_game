@@ -4,7 +4,6 @@ import { Button } from '@/components/Button';
 import { SelectField } from '@/components/fields/SelectField';
 import { TextAreaField, TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
@@ -36,10 +35,10 @@ export function AssignTaskForm({ assigneeId, onDone }: AssignTaskFormProps) {
       assignee_agent_id: draft.assignee_agent_id,
       repository_id: draft.repository_id.length > 0 ? draft.repository_id : null,
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const task = await api.send('POST', '/tasks', TaskSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.tasks, task);
       onDone(task.id);

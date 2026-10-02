@@ -5,7 +5,6 @@ import { Button, buttonClasses } from '@/components/Button';
 import { FormError } from '@/components/FormError';
 import { PageHeader } from '@/components/PageHeader';
 import { Panel } from '@/components/Panel';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useForm } from '@/lib/forms/useForm';
@@ -22,10 +21,10 @@ export function NewIntegrationScreen() {
     initial: EMPTY_INTEGRATION_DRAFT,
     schema: CreateIntegrationSchema,
     toInput: integrationInput,
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const integration = await api.send('POST', '/integrations', IntegrationSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.integrations, integration);
       await navigate(`/integrations/${integration.id}`);

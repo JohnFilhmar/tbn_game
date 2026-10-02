@@ -9,7 +9,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
-import { newCommandId } from '@/lib/api/apiClient';
 import { errorMessage } from '@/lib/api/apiError';
 import { dropRow, putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
@@ -30,10 +29,10 @@ function EditProvider({ provider }: { provider: Provider }) {
     initial: providerDraftOf(provider),
     schema: UpdateProviderSchema,
     toInput: providerInput,
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved = await api.send('PATCH', `/providers/${provider.id}`, ProviderSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.providers, saved);
       form.reset(providerDraftOf(saved));

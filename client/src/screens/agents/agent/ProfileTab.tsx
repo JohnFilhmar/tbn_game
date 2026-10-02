@@ -5,7 +5,6 @@ import { Button } from '@/components/Button';
 import { FormError } from '@/components/FormError';
 import { Panel } from '@/components/Panel';
 import { QueryStatus } from '@/components/states/QueryStatus';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
@@ -24,10 +23,10 @@ export function ProfileTab() {
     initial: agentDraftOf(agent),
     schema: UpdateAgentSchema,
     toInput: (draft) => agentInput(draft, agent.appearance.colors),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const updated = await api.send('PATCH', `/agents/${agent.id}`, AgentSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.agents, updated);
       form.reset(agentDraftOf(updated));

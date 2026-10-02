@@ -13,7 +13,6 @@ import { CheckboxField } from '@/components/fields/CheckboxField';
 import { SelectField } from '@/components/fields/SelectField';
 import { TextAreaField, TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
@@ -60,16 +59,16 @@ export function InstructionForm({ instruction, onDone }: InstructionFormProps) {
       position: numberOrNull(draft.position) ?? 0,
       enabled: draft.enabled,
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved =
         instruction === undefined
           ? await api.send('POST', '/instructions', InstructionSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             })
           : await api.send('PATCH', `/instructions/${instruction.id}`, InstructionSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             });
       putRow(client, COLLECTIONS.instructions, saved);
       onDone();

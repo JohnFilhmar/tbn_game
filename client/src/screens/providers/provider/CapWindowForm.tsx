@@ -14,7 +14,6 @@ import { CheckboxField } from '@/components/fields/CheckboxField';
 import { SelectField, optionsOf } from '@/components/fields/SelectField';
 import { TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { queryKeys } from '@/lib/data/collections';
 import { upsertRow } from '@/lib/realtime/applyChanges';
 import { humanize } from '@/lib/format/labels';
@@ -47,14 +46,14 @@ export function CapWindowForm({ provider, window, onDone }: CapWindowFormProps) 
     initial: window === undefined ? EMPTY_CAP_DRAFT : capDraftOf(window),
     schema: window === undefined ? CreateCapWindowSchema : UpdateCapWindowSchema,
     toInput: capInput,
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const base = `/providers/${provider.id}/cap_windows`;
       const saved =
         window === undefined
-          ? await api.send('POST', base, CapWindowStatusSchema, { body, commandId: newCommandId() })
+          ? await api.send('POST', base, CapWindowStatusSchema, { body, commandId })
           : await api.send('PATCH', `${base}/${window.id}`, CapWindowStatusSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             });
       client.setQueryData<CapWindowStatus[]>(queryKeys.capWindows(provider.id), (rows) =>
         rows === undefined ? rows : upsertRow(rows, saved),

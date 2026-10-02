@@ -5,7 +5,6 @@ import { Button, buttonClasses } from '@/components/Button';
 import { FormError } from '@/components/FormError';
 import { PageHeader } from '@/components/PageHeader';
 import { Panel } from '@/components/Panel';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useForm } from '@/lib/forms/useForm';
@@ -22,10 +21,10 @@ export function NewProviderScreen() {
     initial: EMPTY_PROVIDER_DRAFT,
     schema: CreateProviderSchema,
     toInput: providerInput,
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const provider = await api.send('POST', '/providers', ProviderSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.providers, provider);
       await navigate(`/providers/${provider.id}`);

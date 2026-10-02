@@ -9,7 +9,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
-import { newCommandId } from '@/lib/api/apiClient';
 import { errorMessage } from '@/lib/api/apiError';
 import { dropRow, putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
@@ -28,10 +27,10 @@ function EditIntegration({ integration }: { integration: Integration }) {
     initial: integrationDraftOf(integration),
     schema: UpdateIntegrationSchema,
     toInput: integrationInput,
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved = await api.send('PATCH', `/integrations/${integration.id}`, IntegrationSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.integrations, saved);
       form.reset(integrationDraftOf(saved));

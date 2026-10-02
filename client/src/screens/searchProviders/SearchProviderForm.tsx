@@ -12,7 +12,6 @@ import { CheckboxField } from '@/components/fields/CheckboxField';
 import { SelectField } from '@/components/fields/SelectField';
 import { TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { numberOrNull, numberText } from '@/lib/forms/numbers';
@@ -74,16 +73,16 @@ export function SearchProviderForm({ provider, onDone }: SearchProviderFormProps
       enabled: draft.enabled,
       price_per_thousand_requests: numberOrNull(draft.price_per_thousand_requests),
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved =
         provider === undefined
           ? await api.send('POST', '/search_providers', SearchProviderSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             })
           : await api.send('PATCH', `/search_providers/${provider.id}`, SearchProviderSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             });
       putRow(client, COLLECTIONS.searchProviders, saved);
       onDone();

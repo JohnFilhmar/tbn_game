@@ -13,7 +13,6 @@ import { CheckboxField } from '@/components/fields/CheckboxField';
 import { SelectField } from '@/components/fields/SelectField';
 import { TextAreaField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { humanize } from '@/lib/format/labels';
@@ -47,12 +46,12 @@ export function ChannelForm({ channel, events, integrations, onDone }: ChannelFo
       body_template: draft.body_template.trim().length > 0 ? draft.body_template : null,
       enabled: draft.enabled,
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved =
         channel === undefined
           ? await api.send('POST', '/notification_channels', NotificationChannelSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             })
           : await api.send(
               'PATCH',
@@ -60,7 +59,7 @@ export function ChannelForm({ channel, events, integrations, onDone }: ChannelFo
               NotificationChannelSchema,
               {
                 body,
-                commandId: newCommandId(),
+                commandId,
               },
             );
       putRow(client, COLLECTIONS.notificationChannels, saved);

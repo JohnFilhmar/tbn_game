@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { TextAreaField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useForm } from '@/lib/forms/useForm';
@@ -17,10 +16,10 @@ export function ImportSkillForm({ onDone }: { onDone: (skill: Skill | null) => v
     initial: { markdown: '' },
     schema: ImportSkillSchema,
     toInput: (draft) => ({ markdown: draft.markdown }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const skill = await api.send('POST', '/skills/import', SkillSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.skills, skill);
       onDone(skill);

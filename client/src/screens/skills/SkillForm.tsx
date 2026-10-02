@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { TextAreaField, TextField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useForm } from '@/lib/forms/useForm';
@@ -31,13 +30,13 @@ export function SkillForm({ skill, onDone }: SkillFormProps) {
       description: draft.description.trim(),
       body: draft.body.trim(),
     }),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const saved =
         skill === undefined
-          ? await api.send('POST', '/skills', SkillSchema, { body, commandId: newCommandId() })
+          ? await api.send('POST', '/skills', SkillSchema, { body, commandId })
           : await api.send('PATCH', `/skills/${skill.id}`, SkillSchema, {
               body,
-              commandId: newCommandId(),
+              commandId,
             });
       putRow(client, COLLECTIONS.skills, saved);
       onDone(saved);

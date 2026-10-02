@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
-import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
@@ -26,10 +25,10 @@ export function RecruitScreen() {
     initial: EMPTY_AGENT_DRAFT,
     schema: RecruitAgentSchema,
     toInput: (draft) => agentInput(draft),
-    onSubmit: async (body) => {
+    onSubmit: async (body, commandId) => {
       const agent = await api.send('POST', '/agents', AgentSchema, {
         body,
-        commandId: newCommandId(),
+        commandId,
       });
       putRow(client, COLLECTIONS.agents, agent);
       await navigate(`/agents/${agent.id}`);
