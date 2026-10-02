@@ -32,8 +32,13 @@ x-backend: &backend
     DATABASE_URL: postgresql://tbn:${POSTGRES_PASSWORD:?missing from the secrets file}@postgres:5432/tbn
     DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
     CORS_ORIGINS: ${CORS_ORIGINS:-}
+    SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?missing from the secrets file}
+    SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-720}
     WEB_PORT: '3000'
     WORKER_PORT: '3001'
+    WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+    WORKSPACE_DIR: /workspace
+    PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-300000}
   depends_on:
     postgres:
       condition: service_healthy

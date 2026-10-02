@@ -38,9 +38,16 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `npm run format:check`, `npm run lint`, `npm run typecheck`        | Static checks. Each first builds contracts and Prisma code. |
 | `npm run build`                                                    | Build `@tbn/contracts` and `@tbn/backend`.                  |
 | `npm test`                                                         | Jest. Needs `DATABASE_URL` for a disposable database.       |
+| `printf '%s' "$PASSWORD" \| docker compose -f docker-compose.development.yml run --rm -T web dist/admin.js owner_create <username>` | Create the owner account once. |
+| `scripts/demo_phase_1a.sh`                                         | The phase 1a demo over HTTP against a running stack.        |
 
 Tests use a real PostgreSQL. With the development stack up:
-`DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn npm test`.
+`DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
+step creates `tbn_test`. Never point tests at the stack's own `tbn` database: the stack's worker
+would take the suite's wake jobs. The backend test script applies migrations and builds `dist/`
+first, because one test starts the real worker process and kills it. Test files share one database
+and one queue, so Jest runs them one at a time and every test file creates its own owner; owner
+scoping keeps their data apart.
 
 After a Prisma upgrade, approve the new engine install script with
 `npm install-scripts approve @prisma/engines`; approvals are pinned to a version.
@@ -52,13 +59,15 @@ backend/            NestJS monolith, two process types: web and worker
   src/
     web.ts          web entry: HTTP and, from phase 2, WebSocket
     worker.ts       worker entry: agent runs, health and metrics listener
+    admin.ts        one-off commands in the same image: owner_create
     healthcheck.ts  container healthcheck probe
     config/         env schema, parsed once at bootstrap
-    lib/            reusable infrastructure: database, health, metrics, logging, http, process
+    lib/            reusable infrastructure: auth decorators, crypto, database, queue, validation,
+                    workspace paths, health, metrics, logging, http, process
     modules/        identity, company, runtime, knowledge, integrations, world, events
     utils/          generic helpers
-    testing/        test helpers, excluded from the build
-  prisma/           schema and migrations
+    testing/        test helpers and fakes, excluded from the build
+  prisma/           schema and migrations, including the pg-boss schema
 client/             phase 3: Vite, React 19, TypeScript, Tailwind v4, the game and virtual desktop
 desktop/            phase 6: Tauri v2 shell
 mobile/             phase 5: Capacitor shell
@@ -76,7 +85,15 @@ docs/               architecture, roadmap, plans, reports, runbook
 - Inside a module: `services/`, `repositories/`, `repositories/interface/`, `dto/`, `types/`,
   `interfaces/`. Controllers validate, delegate and map. Services depend on repository interfaces.
 - A module calls another module only through its exported service. No module queries another
-  module's tables.
+  module's tables. The dependency direction is `identity` alone, `company` on `runtime`'s
+  providers and the queue, `knowledge` on `company`, and `runtime`'s run loop on all of them. The
+  company module starts work by sending an `agent_wake` job, never by calling the run loop.
+- `runtime/` is two Nest modules in one directory: `RuntimeProvidersModule` (providers, keys,
+  adapters, usage) and `RuntimeModule` (runs, transcripts, tools, the loop). Agents validate their
+  provider against the first without depending on the second.
+- The transcript is the run checkpoint. Every model turn and every tool result is a
+  `transcript_entries` row before the loop goes on. A worker holds a lease on the run and extends
+  it while a model call is in flight; a run whose lease lapsed is re-woken by any worker.
 - The worker runs as a Nest application context, so controllers are never mounted in it. Its
   `/health` and `/metrics` come from `lib/ops_server`.
 - One PostgreSQL database through Prisma. Every schema change ships with its migration in the same
@@ -113,9 +130,13 @@ docs/               architecture, roadmap, plans, reports, runbook
   sends them, with no renaming layer.
 - Classes, types, interfaces and enums in `PascalCase`. Framework-fixed names stay as the framework
   requires, for example Nest lifecycle hooks and Nest option objects.
-- In `packages/contracts`, schema constants are `PascalCase` with a `Schema` suffix and the
-  inferred type takes the name without it (`HealthResponseSchema`, `HealthResponse`), so the
-  backend and the client import them unchanged.
+- Zod schema constants are `PascalCase` with a `Schema` suffix everywhere, and in
+  `packages/contracts` the inferred type takes the name without it (`HealthResponseSchema`,
+  `HealthResponse`), so the backend and the client import them unchanged.
+- A write-only secret (`api_key`, `password`) never appears in a model schema. The inbound schema
+  adds it with `.extend()` on top of the `.pick()`, and the response carries `api_key_set` instead.
+- Decorator factories keep Nest's `PascalCase` (`@Public()`, `@ZodBody()`) and live in
+  `*.decorator.ts` files.
 - Never `any`. Use `unknown` and narrow. No `as` cast to silence an error, no `@ts-ignore`.
 - One validation schema per model, defined once in `packages/contracts` with Zod. Every inbound
   shape derives from it with `.pick()`, `.omit()` or `.partial()`. Types come from `z.infer`. The
@@ -146,6 +167,9 @@ and `process.env` rules. Prettier formats.
 - `docs/roadmap.md` lists the tests each phase must add.
 - Jest runs with `--experimental-vm-modules` because NestJS 12 ships only ES modules. Keep the
   flag in the `test` script.
+- Model providers are never called in tests. `testing/fake_provider_server.ts` speaks both API
+  formats with scripted replies, so the real adapters, retries and usage accounting run.
+- In Jest's VM realm `instanceof Error` is false for a `DOMException`; read `error.name` instead.
 
 ## Delivery
 
