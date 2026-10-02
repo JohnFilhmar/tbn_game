@@ -39,16 +39,25 @@ an account anywhere.
 - **Tests.** 343 Jest tests in 69 files, 155 of them new in this phase. Every
   new repository method has an integration test, and every new route a supertest test for auth,
   the happy path and a rejection.
-- **Pull request and CI.** The draft pull request and its CI run are recorded below once CI has
-  run.
+- **CI is green on the draft pull request**,
+  [JohnFilhmar/tbn_game#7](https://github.com/JohnFilhmar/tbn_game/pull/7), after four rounds of
+  fixes for what only CI could find: the gitleaks and compose checks, a script without its
+  executable bit, the smoke test's service count, and Trivy on the sandbox image. In
+  [run 37033122745](https://github.com/JohnFilhmar/tbn_game/actions/runs/37033122745) the test job
+  built the real sandbox image and ran the whole suite against it, the compose job brought the six
+  services up and passed the smoke test with its network checks, and the image jobs pushed
+  `ghcr.io/johnfilhmar/tbn_game/backend@sha256:9e2369bd9d1f566901d5d0f7e10c8e2b2f67be3420a36c94d9bbe0e00c8ebae6`
+  and
+  `ghcr.io/johnfilhmar/tbn_game/sandbox@sha256:537f321011416165d0154139095c9852918062493ab078624f5f549a1c6ca000`,
+  signed both with cosign under the pull request identity and attested their SBOMs.
 
 ## What could not be run here
 
 - **The sandbox image.** The session's network proxy refuses Debian's package mirrors, so
   `Dockerfile.sandbox` could not be built here. Every sandbox test ran against a substitute image
   built from `node:24.21.0-trixie` with the same user id, the same `git_job.sh` and the same
-  tools, under the name `tbn/sandbox:test`. CI builds the real image for the test job and the
-  image job, and the compose smoke test runs the stack with it.
+  tools, under the name `tbn/sandbox:test`. CI built the real image for the test job and the
+  image job, and the compose smoke test ran the stack with it; both passed in the run above.
 - **The development stack and the demo.** With no sandbox image, neither `scripts/stack_up.sh` nor
   `scripts/smoke_test_stack.sh` ran here, and `scripts/demo_phase_1c.sh` needs a model. The
   Jest story is the verified path; the demo script follows it step by step over HTTP.
