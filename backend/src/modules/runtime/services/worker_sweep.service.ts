@@ -10,6 +10,7 @@ import {
   type RunRepository,
 } from '@/modules/runtime/repositories/interface/run_repository.interface';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
+import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
 
 const MINUTE_MS = 60_000;
 
@@ -35,6 +36,7 @@ export class WorkerSweepService implements OnApplicationShutdown {
     private readonly providers: ProviderService,
     private readonly preferences: PreferenceService,
     private readonly queue: QueueService,
+    private readonly approvals: ApprovalService,
   ) {}
 
   /** Sweeps now and then on a timer, until shutdown. */
@@ -88,6 +90,11 @@ export class WorkerSweepService implements OnApplicationShutdown {
       const agent = await this.agents.require(run.owner_id, run.agent_id);
       const provider = await this.providers.require(run.owner_id, agent.provider_id);
       if (provider.out_of_credit_since === null) {
+        await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
+      }
+    }
+    for (const run of await this.runs.find_paused(['awaiting_approval'], null)) {
+      if (!(await this.approvals.has_pending(run.owner_id, run.id))) {
         await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
       }
     }

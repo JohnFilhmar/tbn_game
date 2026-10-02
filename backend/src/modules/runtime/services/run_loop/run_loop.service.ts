@@ -39,7 +39,8 @@ function is_open(task: TaskRecord): boolean {
  * from the last entry. The loop holds a lease on the run and extends it while a turn is in flight,
  * so no two wake handlers, in one process or in several, drive the same run. A run that cannot go
  * on pauses instead of failing: while it waits for its subtasks, behind a cap window at its limit,
- * an open breaker or a key out of credit, or for the owner after the runaway guard.
+ * an open breaker or a key out of credit, or for the owner after the runaway guard or before a
+ * tool call that needs approval.
  */
 @Injectable()
 export class RunLoopService {
@@ -142,9 +143,13 @@ export class RunLoopService {
 
       const pending = pending_tool_calls(entries);
       if (pending.length > 0) {
-        const finished = await this.turns.run_tools(run, agent, pending);
-        if (finished !== null && task !== null) {
-          await this.completion.complete(run, agent, task, finished);
+        const outcome = await this.turns.run_tools(run, agent, pending);
+        if ('pause' in outcome) {
+          await this.gate.pause(run, task, outcome.pause);
+          return 'paused';
+        }
+        if (outcome.finished !== null && task !== null) {
+          await this.completion.complete(run, agent, task, outcome.finished);
           await this.finish(run, 'done', null);
           return 'finished';
         }

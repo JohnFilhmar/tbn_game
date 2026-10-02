@@ -30,15 +30,19 @@ export interface ToolOutcome {
 }
 
 /**
- * A built-in tool. Each has a default policy; the agent's `tool_policy` overrides it. Tools that
- * act outside the server default to `ask`. `levels` limits a tool to some agent levels, whatever
- * the policy says.
+ * A tool. Each has a default policy; the agent's `tool_policy` overrides it. Tools that act
+ * outside the server are `outward`, default to `ask`, and in a run that has read outside content
+ * wait for the owner whatever the policy says. `levels` limits a tool to some agent levels.
  */
 export interface Tool<I = unknown> {
   readonly name: string;
   readonly description: string;
   readonly default_policy: ToolPolicy;
   readonly levels?: readonly AgentLevel[];
+  /** True for integrations and plugins: the call leaves the server. */
+  readonly outward?: boolean;
   readonly input_schema: ZodType<I>;
   execute(input: I, context: ToolContext): Promise<ToolOutcome>;
+  /** What the call would send, with secrets redacted, for the owner's inbox. */
+  preview?(input: I, context: ToolContext): Promise<string | null>;
 }

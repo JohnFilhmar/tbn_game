@@ -8,6 +8,10 @@ import { AgentService } from '@/modules/company/services/agent.service';
 import { TaskService } from '@/modules/company/services/task.service';
 import type { AgentRecord } from '@/modules/company/types/company_records';
 import {
+  RUN_REPOSITORY,
+  type RunRepository,
+} from '@/modules/runtime/repositories/interface/run_repository.interface';
+import {
   TRANSCRIPT_REPOSITORY,
   type TranscriptRepository,
 } from '@/modules/runtime/repositories/interface/transcript_repository.interface';
@@ -29,6 +33,9 @@ const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
 /** What a model turn ended with: the answer, a pause the run must take, or a lost lease. */
 export type ModelTurn = { response: ModelResponse } | { pause: PauseDecision } | 'lost';
 
+/** What a tool phase ended with: the report when `finish_task` accepted one, or a pause. */
+export type ToolTurn = { finished: FinishedTask | null } | { pause: PauseDecision };
+
 /**
  * One step of a run: a model call or the tool calls it asked for. Each step is written to the
  * transcript before the loop goes on, and the lease is extended while it runs.
@@ -40,6 +47,7 @@ export class TurnService {
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(TRANSCRIPT_REPOSITORY) private readonly transcripts: TranscriptRepository,
+    @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     private readonly agents: AgentService,
     private readonly tasks: TaskService,
     private readonly providers: ProviderService,
@@ -127,26 +135,40 @@ export class TurnService {
 
   /**
    * Runs the tool calls of the last answer under the agent's tool policy and stores their
-   * results. Returns the report when `finish_task` accepted one.
+   * results. A call that waits for the owner pauses the run instead, with nothing stored: the
+   * whole phase runs again once the owner has decided.
    */
-  async run_tools(
-    run: RunRecord,
-    agent: AgentRecord,
-    calls: ToolUseBlock[],
-  ): Promise<FinishedTask | null> {
+  async run_tools(run: RunRecord, agent: AgentRecord, calls: ToolUseBlock[]): Promise<ToolTurn> {
     const policies = ToolPoliciesSchema.safeParse(agent.tool_policy);
     const workspace_dir = join(this.config.workspace.dir, 'owners', run.owner_id);
     await mkdir(workspace_dir, { recursive: true });
-    const { result: results } = await this.lease.with_heartbeat(run, () =>
-      this.tool_executor.execute_all(calls, policies.success ? policies.data : {}, {
-        owner_id: run.owner_id,
-        agent_id: run.agent_id,
-        agent,
-        run_id: run.id,
-        task_id: run.task_id,
-        workspace_dir,
-      }),
+    const current = (await this.runs.find(run.owner_id, run.id)) ?? run;
+    const { result: phase } = await this.lease.with_heartbeat(run, () =>
+      this.tool_executor.execute_all(
+        calls,
+        policies.success ? policies.data : {},
+        {
+          owner_id: run.owner_id,
+          agent_id: run.agent_id,
+          agent,
+          run_id: run.id,
+          task_id: run.task_id,
+          workspace_dir,
+        },
+        current.tainted_at !== null,
+      ),
     );
+    if ('awaiting' in phase) {
+      const names = [...new Set(phase.awaiting.map((call) => call.name))].join(', ');
+      return {
+        pause: {
+          reason: 'awaiting_approval',
+          resume_at: null,
+          status_reason: `Waiting for your decision on ${names}. See the approval inbox.`,
+        },
+      };
+    }
+    const results = phase.results;
     await this.transcripts.append(run.owner_id, run.agent_id, run.id, {
       kind: 'tool_result',
       content: {
@@ -158,7 +180,7 @@ export class TurnService {
         })),
       },
     });
-    return results.find((item) => item.finished !== undefined)?.finished ?? null;
+    return { finished: results.find((item) => item.finished !== undefined)?.finished ?? null };
   }
 
   /** A key out of credit blocks every open task of every agent on it, not only this run's. */

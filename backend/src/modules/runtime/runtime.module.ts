@@ -3,6 +3,7 @@ import { DatabaseModule } from '@/lib/database/database.module';
 import { QueueModule } from '@/lib/queue/queue.module';
 import { CompanyModule } from '@/modules/company/company.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
+import { ApprovalController } from './controllers/approval.controller';
 import { CacheController } from './controllers/cache.controller';
 import { CapWindowController } from './controllers/cap_window.controller';
 import {
@@ -13,11 +14,13 @@ import {
 import { RunController } from './controllers/run.controller';
 import { SandboxJobController } from './controllers/sandbox_job.controller';
 import { TranscriptController } from './controllers/transcript.controller';
+import { APPROVAL_REPOSITORY } from './repositories/interface/approval_repository.interface';
 import { RUN_REPOSITORY } from './repositories/interface/run_repository.interface';
 import { RUN_SOURCE_REPOSITORY } from './repositories/interface/run_source_repository.interface';
 import { SANDBOX_JOB_REPOSITORY } from './repositories/interface/sandbox_job_repository.interface';
 import { TRANSCRIPT_REPOSITORY } from './repositories/interface/transcript_repository.interface';
 import { WEB_CACHE_REPOSITORY } from './repositories/interface/web_cache_repository.interface';
+import { PrismaApprovalRepository } from './repositories/prisma_approval.repository';
 import { PrismaRunRepository } from './repositories/prisma_run.repository';
 import { PrismaRunSourceRepository } from './repositories/prisma_run_source.repository';
 import { PrismaSandboxJobRepository } from './repositories/prisma_sandbox_job.repository';
@@ -25,6 +28,8 @@ import { PrismaTranscriptRepository } from './repositories/prisma_transcript.rep
 import { PrismaWebCacheRepository } from './repositories/prisma_web_cache.repository';
 import { RuntimeProvidersModule } from './runtime_providers.module';
 import { AgentWakeService } from './services/agent_wake.service';
+import { ApprovalService } from './services/approvals/approval.service';
+import { RunControlService } from './services/approvals/run_control.service';
 import { CapWindowService } from './services/caps/cap_window.service';
 import { AgentBranchesService } from './services/git/agent_branches.service';
 import { GitJobService } from './services/git/git_job.service';
@@ -82,6 +87,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     RepositoryController,
     MergeRequestController,
     BranchReviewController,
+    ApprovalController,
   ],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
@@ -89,6 +95,9 @@ import { WebSearchTool } from './tools/web_search.tool';
     { provide: SANDBOX_JOB_REPOSITORY, useClass: PrismaSandboxJobRepository },
     { provide: WEB_CACHE_REPOSITORY, useClass: PrismaWebCacheRepository },
     { provide: RUN_SOURCE_REPOSITORY, useClass: PrismaRunSourceRepository },
+    { provide: APPROVAL_REPOSITORY, useClass: PrismaApprovalRepository },
+    RunControlService,
+    ApprovalService,
     SandboxJobService,
     RunSourceService,
     WebSearchService,
@@ -142,6 +151,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     WorkerSweepService,
     SandboxJobService,
     RunSourceService,
+    ApprovalService,
   ],
 })
 export class RuntimeModule {}
