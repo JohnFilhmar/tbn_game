@@ -39,6 +39,8 @@ export interface WebCacheRepository {
     delta: CacheEventDelta,
   ): Promise<void>;
   event_totals(owner_id: string): Promise<CacheTotals>;
+  /** Hits and misses of every owner's caches, by kind, for the operations dashboards. */
+  event_totals_by_kind(): Promise<Array<{ kind: string; hits: number; misses: number }>>;
   /** Cached pages matching a web-search style query, best first. */
   search_pages(owner_id: string, query: string, limit: number): Promise<PageHit[]>;
 }

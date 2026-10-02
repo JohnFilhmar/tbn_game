@@ -5,9 +5,15 @@ import { AdminModule } from '@/admin.module';
 import { load_config } from '@/config/load_config';
 import { report_fatal } from '@/lib/process/report_fatal';
 import { OwnerService } from '@/modules/identity/services/owner.service';
+import { NotificationService } from '@/modules/integrations/services/notification.service';
 import { SearchProviderService } from '@/modules/runtime/services/search/search_provider.service';
 
-const USAGE = 'usage: admin.js owner_create <username>   (reads the password from stdin)';
+const USAGE = [
+  'usage: admin.js owner_create <username>   (reads the password from stdin)',
+  '       admin.js backup_failed <reason>    (tells every owner listening for backup_failed)',
+].join('\n');
+
+const REASON_MAX = 1_000;
 
 function read_stdin(): string {
   return readFileSync(0, 'utf8').replace(/\r?\n$/, '');
@@ -47,11 +53,42 @@ async function owner_create(username_arg: string | undefined): Promise<void> {
   }
 }
 
+/**
+ * Tells every owner with a `backup_failed` channel that the backup failed. The backup script runs
+ * it, so its alert goes through the notification channels like every other one; the worker
+ * delivers it.
+ */
+async function backup_failed(reason_words: string[]): Promise<void> {
+  const reason = reason_words.join(' ').trim().slice(0, REASON_MAX);
+  if (reason.length === 0) throw new Error(`reason: required\n${USAGE}`);
+  const config = load_config();
+  const app = await NestFactory.createApplicationContext(AdminModule.register(config), {
+    logger: false,
+  });
+  try {
+    const notifications = app.get(NotificationService);
+    const owners = await notifications.owners_listening('backup_failed');
+    await notifications.emit_to_listeners({
+      event_type: 'backup_failed',
+      title: 'The backup failed',
+      message: reason,
+      priority: 'high',
+      values: { error: reason },
+    });
+    process.stdout.write(`${JSON.stringify({ notified_owners: owners.length })}\n`);
+  } finally {
+    await app.close();
+  }
+}
+
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
   switch (command) {
     case 'owner_create':
       await owner_create(args[0]);
+      return;
+    case 'backup_failed':
+      await backup_failed(args);
       return;
     default:
       throw new Error(USAGE);

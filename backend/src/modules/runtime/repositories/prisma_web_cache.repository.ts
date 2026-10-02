@@ -124,6 +124,19 @@ export class PrismaWebCacheRepository implements WebCacheRepository {
     };
   }
 
+  async event_totals_by_kind(): Promise<Array<{ kind: string; hits: number; misses: number }>> {
+    const groups = await this.prisma.cacheEvent.groupBy({
+      by: ['kind'],
+      _sum: { hits: true, misses: true },
+      orderBy: { kind: 'asc' },
+    });
+    return groups.map((group) => ({
+      kind: group.kind,
+      hits: group._sum.hits ?? 0,
+      misses: group._sum.misses ?? 0,
+    }));
+  }
+
   async search_pages(owner_id: string, query: string, limit: number): Promise<PageHit[]> {
     return PageHitRowSchema.array().parse(
       await this.prisma.$queryRaw`

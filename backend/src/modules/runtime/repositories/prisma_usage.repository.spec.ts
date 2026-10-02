@@ -105,4 +105,16 @@ describe('PrismaUsageRepository windows', () => {
     expect((await usage.summarize_for_runs(owner.owner_id, [])).requests).toBe(0);
     expect((await usage.summarize_for_runs(other.owner_id, runs)).requests).toBe(0);
   });
+
+  it("totals every owner's usage by provider, named, for the dashboards", async () => {
+    const totals = await usage.totals_by_provider();
+    const mine = totals.find((total) => total.provider_id === provider_id);
+    expect(mine).toMatchObject({
+      requests: 3,
+      input_tokens: 350,
+      output_tokens: 35,
+      cost: 3.5,
+    });
+    expect(mine?.provider_name).toMatch(/^provider_/);
+  });
 });

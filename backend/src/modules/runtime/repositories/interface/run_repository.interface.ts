@@ -76,4 +76,6 @@ export interface RunRepository {
    * whose `resume_at` has passed it.
    */
   find_paused(reasons: RunPauseReason[], due_before: Date | null): Promise<RunRecord[]>;
+  /** How many runs of every owner are in each status, for the operations dashboards. */
+  count_by_status(): Promise<Array<{ status: RunStatus; count: number }>>;
 }

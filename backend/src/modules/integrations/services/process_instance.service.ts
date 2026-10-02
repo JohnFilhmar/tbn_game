@@ -7,7 +7,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import type { ProcessType } from '@tbn/contracts';
-import { PROCESS_TYPE } from '@/config/config.tokens';
+import { ONE_OFF, PROCESS_TYPE } from '@/config/config.tokens';
 import {
   PROCESS_INSTANCE_REPOSITORY,
   type ProcessInstanceRepository,
@@ -27,12 +27,13 @@ export class ProcessInstanceService implements OnApplicationBootstrap, OnApplica
 
   constructor(
     @Inject(PROCESS_TYPE) private readonly process_type: ProcessType,
+    @Inject(ONE_OFF) private readonly one_off: boolean,
     @Inject(PROCESS_INSTANCE_REPOSITORY) private readonly instances: ProcessInstanceRepository,
     private readonly notifications: NotificationService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    if (this.process_type === 'egress_proxy') return;
+    if (this.process_type === 'egress_proxy' || this.one_off) return;
     try {
       await this.register_boot();
     } catch (error: unknown) {

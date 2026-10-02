@@ -20,6 +20,12 @@ export interface UsageScope {
   after: Date;
 }
 
+/** Usage of one provider, named, across its whole history. */
+export interface ProviderUsageTotals extends UsageTotals {
+  provider_id: string;
+  provider_name: string;
+}
+
 /** Usage rows, the runtime's own record of tokens, requests and cost per key. */
 export interface UsageRepository {
   create(record: UsageRecordWrite): Promise<void>;
@@ -35,4 +41,6 @@ export interface UsageRepository {
    * below it one window length after that time.
    */
   oldest_beyond(scope: UsageScope, excess: number): Promise<Date | null>;
+  /** Usage of every owner's providers, by provider, for the operations dashboards. */
+  totals_by_provider(): Promise<ProviderUsageTotals[]>;
 }

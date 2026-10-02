@@ -4,6 +4,7 @@ import { PrismaService } from '@/lib/database/prisma.service';
 import type { UsageRecordWrite, UsageTotals } from '@/modules/runtime/types/usage_record';
 import type {
   ModelUsageTotals,
+  ProviderUsageTotals,
   UsageRepository,
   UsageScope,
 } from './interface/usage_repository.interface';
@@ -34,6 +35,30 @@ export class PrismaUsageRepository implements UsageRepository {
 
   async create(record: UsageRecordWrite): Promise<void> {
     await this.prisma.usageRecord.create({ data: record });
+  }
+
+  async totals_by_provider(): Promise<ProviderUsageTotals[]> {
+    const groups = await this.prisma.usageRecord.groupBy({
+      by: ['provider_id'],
+      _count: { _all: true },
+      _sum: sum_fields,
+      orderBy: { provider_id: 'asc' },
+    });
+    const providers = await this.prisma.provider.findMany({
+      where: { id: { in: groups.map((group) => group.provider_id) } },
+      select: { id: true, name: true },
+    });
+    const names = new Map(providers.map((provider) => [provider.id, provider.name]));
+    return groups.map((group) => ({
+      provider_id: group.provider_id,
+      provider_name: names.get(group.provider_id) ?? group.provider_id,
+      requests: group._count._all,
+      input_tokens: group._sum.input_tokens ?? 0,
+      output_tokens: group._sum.output_tokens ?? 0,
+      cache_read_tokens: group._sum.cache_read_tokens ?? 0,
+      cache_write_tokens: group._sum.cache_write_tokens ?? 0,
+      cost: group._sum.cost ?? 0,
+    }));
   }
 
   async summarize_by_model(owner_id: string, provider_id: string): Promise<ModelUsageTotals[]> {
