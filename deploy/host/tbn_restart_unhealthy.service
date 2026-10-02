@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart unhealthy containers of the tbn stack
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tbn_restart_unhealthy

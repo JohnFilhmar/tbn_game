@@ -24,6 +24,8 @@ x-backend: &backend
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
   image: tbn/backend:development
   init: true
   restart: unless-stopped
