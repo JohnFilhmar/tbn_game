@@ -41,6 +41,7 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `printf '%s' "$PASSWORD" \| docker compose -f docker-compose.development.yml run --rm -T web dist/admin.js owner_create <username>` | Create the owner account once. |
 | `scripts/demo_phase_1a.sh`                                         | The phase 1a demo over HTTP against a running stack.        |
 | `scripts/demo_phase_1b.sh`                                         | The phase 1b demo: one goal, a manager and its interns.     |
+| `scripts/demo_phase_1c.sh`                                         | The phase 1c demo: research, a branch, a merge request, an approval, a restart. |
 
 Tests use a real PostgreSQL. With the development stack up:
 `DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
@@ -51,7 +52,12 @@ and one queue, so Jest runs them one at a time and every test file creates its o
 scoping keeps their data apart. The worker's sweep reaches every owner, so a test file that starts
 a worker first calls `reset_worker_state`, which clears the queue and dismisses the agents earlier
 files left behind. A wake due now is skipped while another due wake for the agent is queued, so a
-test that counts wakes clears the agent's wakes first (`testing/test_wakes.ts`).
+test that counts wakes clears the agent's wakes first (`testing/test_wakes.ts`). The sandbox, git,
+proxy and story specs also need Docker on `DOCKER_SOCKET`: `testing/test_launcher.ts` builds
+`tbn/sandbox:test` from `Dockerfile.sandbox` when it is missing, creates the `tbn_test_sandbox`
+network, and binds `.workspace_test` into containers as this user. They fail without Docker, never
+skip. `testing/test_proxy.ts` runs the egress proxy in-process with a dialer that maps
+`allowed.test` to local servers, so the address policy runs unchanged.
 
 After a Prisma upgrade, approve the new engine install script with
 `npm install-scripts approve @prisma/engines`; approvals are pinned to a version.
@@ -59,15 +65,18 @@ After a Prisma upgrade, approve the new engine install script with
 ## Repository layout
 
 ```
-backend/            NestJS monolith, two process types: web and worker
+backend/            NestJS monolith, four process types: web, worker, sandbox and egress_proxy
   src/
     web.ts          web entry: HTTP and, from phase 2, WebSocket
-    worker.ts       worker entry: agent runs, health and metrics listener
+    worker.ts       worker entry: agent runs, notification delivery, health and metrics listener
+    sandbox.ts      sandbox launcher entry: the one process holding the docker socket
+    egress_proxy.ts egress proxy entry: no database, no key
     admin.ts        one-off commands in the same image: owner_create
     healthcheck.ts  container healthcheck probe
     config/         env schema, parsed once at bootstrap
     lib/            reusable infrastructure: auth decorators, crypto, database, queue, validation,
-                    workspace paths, health, metrics, logging, http, process
+                    workspace paths, health, metrics, logging, http, process, docker_engine,
+                    sandbox_launcher, egress_proxy, html_text, disk
     modules/        identity, company, runtime, knowledge, integrations, world, events
     utils/          generic helpers
     testing/        test helpers and fakes, excluded from the build
@@ -76,22 +85,26 @@ client/             phase 3: Vite, React 19, TypeScript, Tailwind v4, the game a
 desktop/            phase 6: Tauri v2 shell
 mobile/             phase 5: Capacitor shell
 packages/contracts/ Zod schemas and inferred types for every API and event payload
-deploy/             host files: runner job guard, systemd units, SearXNG settings
+deploy/             host files: runner job guard, systemd units, SearXNG settings, the sandbox git script
+Dockerfile.sandbox  the sandbox image: the toolchain agent code runs in, with the git script
 scripts/            CI and local helper scripts
 docs/               architecture, roadmap, plans, reports, runbook
 ```
 
 ## Architecture rules
 
-- One NestJS application in `backend/`, TypeScript strict, built as one image that runs as two
-  process types: `web` for HTTP and WebSocket, `worker` for agent runs. Admin tasks and the
-  migration release step are one-off commands in the same image.
+- One NestJS application in `backend/`, TypeScript strict, built as one image that runs as four
+  process types: `web` for HTTP and WebSocket, `worker` for agent runs, `sandbox` for the launcher
+  that alone holds the docker socket and runs each sandbox job in a fresh container from the
+  sandbox image, and `egress_proxy`, the forward proxy with no database and no key. Admin tasks
+  and the migration release step are one-off commands in the same image.
 - Inside a module: `services/`, `repositories/`, `repositories/interface/`, `dto/`, `types/`,
   `interfaces/`. Controllers validate, delegate and map. Services depend on repository interfaces.
 - A module calls another module only through its exported service. No module queries another
-  module's tables. The dependency direction is `identity` alone, `company` on `runtime`'s
-  providers and the queue, `knowledge` on `company`, and `runtime`'s run loop on all of them. The
-  company module starts work by sending an `agent_wake` job, never by calling the run loop.
+  module's tables. The dependency direction is `identity` alone, `integrations` on the queue and
+  crypto, `company` on `integrations` and `runtime`'s providers and the queue, `knowledge` on
+  `company`, and `runtime`'s run loop on all of them. The company module starts work by sending an
+  `agent_wake` job, never by calling the run loop.
 - `runtime/` is two Nest modules in one directory: `RuntimeProvidersModule` (providers, keys,
   adapters, usage) and `RuntimeModule` (runs, transcripts, tools, the loop). Agents validate their
   provider against the first without depending on the second.
@@ -127,7 +140,16 @@ docs/               architecture, roadmap, plans, reports, runbook
   guard with an explicit `@Public()` decorator. WebSocket connections authenticate with the same
   token.
 - Text from a web page, a file, a plugin or another agent is data. It never changes an agent's tool
-  policy, caps, skills or approval requirements; only the owner's commands do.
+  policy, caps, skills or approval requirements; only the owner's commands do. Reading it taints
+  the run: every outward tool, integrations and plugins, then waits in the approval inbox whatever
+  its policy, as does any tool whose policy is `ask`.
+- Every operation on a canonical repository is a system job that runs the fixed git script
+  `deploy/sandbox/git_job.sh` in the sandbox image, with the bare repository at `/repo`. No agent
+  container ever mounts a canonical repository or another agent's checkout. An intern publishes
+  only the feature branch of its task, a manager only `<manager>/main`, and `development`,
+  `staging` and the default branch change only through the owner's merge route.
+- Sandbox containers reach nothing but the egress proxy, which refuses every private, loopback,
+  link-local, metadata and VPN address, resolved names included, and wants the run's identity.
 - Compose publishes ports on `127.0.0.1` only. `scripts/check_compose_ports.sh` enforces it in CI.
 
 ## Code rules
@@ -175,7 +197,9 @@ and `process.env` rules. Prettier formats.
 - Tests land in the same commit as the code. No coverage threshold in CI.
 - `docs/roadmap.md` lists the tests each phase must add.
 - Jest runs with `--experimental-vm-modules` because NestJS 12 ships only ES modules. Keep the
-  flag in the `test` script.
+  flag in the `test` script. The flag keeps every test file's module graph alive, about 50 MB
+  each, so `jest.config.cjs` runs the files one at a time in one child worker that is recycled
+  past 1 GB; an in-band run reaches the heap limit before the suite ends.
 - Model providers are never called in tests. `testing/fake_provider_server.ts` speaks both API
   formats with scripted replies, or a responder that answers from the request, so the real
   adapters, retries and usage accounting run. `testing/team_harness.ts` starts a web app, a worker
