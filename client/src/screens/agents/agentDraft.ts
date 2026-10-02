@@ -1,5 +1,5 @@
 import type { Agent, ToolPolicy } from '@tbn/contracts';
-import { optionalText } from '@/lib/forms/convert';
+import { optionalText } from '@/lib/forms/text';
 
 /** One row of the tool policy editor. */
 export interface ToolPolicyRow {

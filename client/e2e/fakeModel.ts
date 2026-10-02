@@ -71,7 +71,7 @@ function plan(body: z.infer<typeof RequestSchema>): Reply {
       },
     };
   }
-  const last = texts.at(-1) ?? '';
+  const last = (texts.at(-1) ?? '').trim().split('\n').at(-1) ?? '';
   return { kind: 'text', text: `Hello from the fake model. You wrote: ${last.slice(0, 200)}` };
 }
 
