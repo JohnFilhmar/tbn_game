@@ -47,6 +47,7 @@ describe('a model stream', () => {
       {
         agent_id: TARGET.agent_id,
         run_id: TARGET.run_id,
+        call_id: chunks[0]?.call_id,
         after_seq: 7,
         attempt: 1,
         index: 0,
@@ -56,6 +57,7 @@ describe('a model stream', () => {
       {
         agent_id: TARGET.agent_id,
         run_id: TARGET.run_id,
+        call_id: chunks[0]?.call_id,
         after_seq: 7,
         attempt: 1,
         index: 1,
@@ -71,6 +73,7 @@ describe('a model stream', () => {
     stream.text('Second', 2);
     stream.text(' try', 2);
     await stream.close();
+    expect(new Set(chunks.map((chunk) => chunk.call_id)).size).toBe(1);
     expect(
       chunks.map(({ attempt, index, text, done }) => ({ attempt, index, text, done })),
     ).toEqual([
@@ -99,5 +102,14 @@ describe('a model stream', () => {
     const { stream, chunks } = open();
     await stream.close();
     expect(chunks).toEqual([expect.objectContaining({ index: 0, text: '', done: true })]);
+  });
+
+  it('gives every call an id of its own', async () => {
+    const first = open();
+    const second = open();
+    await first.stream.close();
+    await second.stream.close();
+    expect(first.chunks[0]?.call_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.chunks[0]?.call_id).not.toBe(second.chunks[0]?.call_id);
   });
 });

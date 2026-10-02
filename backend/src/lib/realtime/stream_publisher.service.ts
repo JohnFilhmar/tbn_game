@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import type { StreamChunk } from '@tbn/contracts';
 import { PrismaService } from '@/lib/database/prisma.service';
@@ -35,11 +36,12 @@ export function split_utf8(text: string, max_bytes: number): string[] {
 }
 
 /**
- * The output of one model call as it streams. Text is gathered for up to 100 ms or 1,000 bytes and
- * published in order; a new attempt of the call closes the last one; `close` publishes the rest
- * with `done`. Publishing is best effort: a failed notice is logged and never fails the call.
+ * The output of one model call as it streams, under an id of its own. Text is gathered for up to
+ * 100 ms or 1,000 bytes and published in order; a new attempt of the call closes the last one;
+ * `close` publishes the rest with `done`. Publishing is best effort: a failed notice is logged and never fails the call.
  */
 export class ModelStream {
+  private readonly call_id = randomUUID();
   private attempt = 1;
   private index = 0;
   private buffer = '';
@@ -87,6 +89,7 @@ export class ModelStream {
       const chunk: StreamChunk = {
         agent_id: this.target.agent_id,
         run_id: this.target.run_id,
+        call_id: this.call_id,
         after_seq: this.target.after_seq,
         attempt: this.attempt,
         index: this.index,

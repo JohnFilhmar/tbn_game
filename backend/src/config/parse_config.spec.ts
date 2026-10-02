@@ -63,6 +63,7 @@ describe('parse_config', () => {
       fetch: { max_bytes: 2_097_152 },
       integrations: { timeout_ms: 15_000 },
       search: { searxng_url: undefined },
+      retention: { event_days: 30, command_hours: 24 },
     });
   });
 
@@ -107,6 +108,8 @@ describe('parse_config', () => {
       FETCH_MAX_BYTES: '65536',
       INTEGRATION_TIMEOUT_MS: '2000',
       SEARXNG_URL: 'http://searxng:8080',
+      EVENT_RETENTION_DAYS: '7',
+      COMMAND_RETENTION_HOURS: '2',
       PATH: '/usr/bin',
     });
     expect(config).toEqual({
@@ -155,6 +158,7 @@ describe('parse_config', () => {
       fetch: { max_bytes: 65_536 },
       integrations: { timeout_ms: 2_000 },
       search: { searxng_url: 'http://searxng:8080' },
+      retention: { event_days: 7, command_hours: 2 },
     });
   });
 

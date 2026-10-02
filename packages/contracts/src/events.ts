@@ -162,14 +162,17 @@ export type ResyncRequired = z.infer<typeof ResyncRequiredSchema>;
 
 /**
  * A piece of an agent's model output while it is generated. Chunks are never stored or replayed:
- * the finished reply arrives as the `transcript_entry` event after `after_seq` in the agent's
- * transcript. A retried model call starts a new attempt, whose chunks replace those of the failed
- * one, and the last chunk of an attempt is marked `done`.
+ * the finished reply arrives as the agent's next assistant entry after `after_seq`. Every model
+ * call has its own `call_id`. A retry within the call starts a new attempt, whose chunks replace
+ * those of the failed one, and the last chunk of an attempt is marked `done`. A call that failed
+ * for good stores nothing; the call that resumes the run later has the same `after_seq` and a new
+ * `call_id`.
  */
 export const StreamChunkSchema = z.strictObject({
   agent_id: IdSchema,
   run_id: IdSchema,
-  /** The agent's last transcript entry when the call began; the reply will follow it. */
+  call_id: IdSchema,
+  /** The seq of the agent's last transcript entry when the call began; the reply follows it. */
   after_seq: z.number().int().min(0),
   attempt: z.number().int().min(1),
   index: z.number().int().min(0),
