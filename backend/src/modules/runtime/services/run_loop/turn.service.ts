@@ -65,28 +65,11 @@ export class TurnService {
     const context_window =
       provider.models.find((model) => model.model_id === agent.primary_model)
         ?.context_window_tokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
-    let outcome: { result: ModelResponse; lost: boolean };
+    let outcome: { result: ModelResponse | PauseDecision; lost: boolean };
     try {
-      outcome = await this.lease.with_heartbeat(run, async () => {
-        let request = await this.prompt_builder.build(agent, entries, context_window);
-        if (
-          this.compaction.needs_compaction(request, context_window) &&
-          (await this.compaction.compact(run, agent, entries, context_window))
-        ) {
-          const compacted = await this.transcripts.list_all(run.owner_id, agent.id);
-          request = await this.prompt_builder.build(agent, compacted, context_window);
-        }
-        return this.provider_client.complete(
-          {
-            owner_id: run.owner_id,
-            provider_id: agent.provider_id,
-            model_id: agent.primary_model,
-            agent_id: agent.id,
-            run_id: run.id,
-          },
-          request,
-        );
-      });
+      outcome = await this.lease.with_heartbeat(run, () =>
+        this.request(run, agent, entries, context_window),
+      );
     } catch (error: unknown) {
       if (!(error instanceof ProviderError)) throw error;
       const pause = await this.gate.after_error(run, agent, error);
@@ -98,6 +81,7 @@ export class TurnService {
       this.logger.warn(`Run ${run.id} lost its lease during a model call, discarding the answer`);
       return 'lost';
     }
+    if ('reason' in outcome.result) return { pause: outcome.result };
     const blocks =
       outcome.result.content.length > 0
         ? outcome.result.content
@@ -107,6 +91,38 @@ export class TurnService {
       content: { blocks },
     });
     return { response: outcome.result };
+  }
+
+  /**
+   * Builds the request and calls the model. A session past its share of the context window is
+   * compacted first, unless a cap window at its limit forbids the summary call: the run then
+   * pauses like any call the caps stop.
+   */
+  private async request(
+    run: RunRecord,
+    agent: AgentRecord,
+    entries: TranscriptEntryRecord[],
+    context_window: number,
+  ): Promise<ModelResponse | PauseDecision> {
+    let request = await this.prompt_builder.build(agent, entries, context_window);
+    if (this.compaction.needs_compaction(request, context_window)) {
+      const blocked = await this.gate.check_model(agent, agent.intern_model);
+      if (blocked !== null) return blocked;
+      if (await this.compaction.compact(run, agent, entries, context_window)) {
+        const compacted = await this.transcripts.list_all(run.owner_id, agent.id);
+        request = await this.prompt_builder.build(agent, compacted, context_window);
+      }
+    }
+    return this.provider_client.complete(
+      {
+        owner_id: run.owner_id,
+        provider_id: agent.provider_id,
+        model_id: agent.primary_model,
+        agent_id: agent.id,
+        run_id: run.id,
+      },
+      request,
+    );
   }
 
   /**

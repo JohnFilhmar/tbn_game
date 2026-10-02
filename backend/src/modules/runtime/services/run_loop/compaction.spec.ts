@@ -1,8 +1,11 @@
+import { RunSchema } from '@tbn/contracts';
 import { z } from 'zod';
+import { PrismaService } from '@/lib/database/prisma.service';
 import type { ScriptedReply } from '@/testing/fake_provider_server';
 import { finish_reply, read_request } from '@/testing/fake_requests';
 import { start_team_harness, type TeamHarness } from '@/testing/team_harness';
 import { TEST_INTERN_MODEL, TEST_PRIMARY_MODEL } from '@/testing/test_company';
+import { wait_for } from '@/testing/wait_for';
 
 const BlockSchema = z.looseObject({
   type: z.string(),
@@ -110,5 +113,63 @@ describe('compaction', () => {
     });
     expect(transcript.filter((entry) => entry.kind === 'task_assignment')).toHaveLength(1);
     expect(transcript.filter((entry) => entry.kind === 'tool_result').length).toBeGreaterThan(2);
+  });
+
+  it('pauses instead of summarising while a window that counts the intern model is at its limit', async () => {
+    const fake = await team.fake('anthropic_messages');
+    let turns = 0;
+    fake.respond((): ScriptedReply => {
+      turns += 1;
+      return turns === 1
+        ? { type: 'tool_use', name: 'write_file', input: { path: 'notes/full.md', content: PAGE } }
+        : { type: 'tool_use', name: 'read_file', input: { path: 'notes/full.md' } };
+    });
+    const key = await team.provider(fake, {
+      models: [
+        { model_id: TEST_PRIMARY_MODEL, cost_tier: 'premium', context_window_tokens: 8_000 },
+        { model_id: TEST_INTERN_MODEL, cost_tier: 'cheap' },
+      ],
+    });
+    const agent = await team.manager(key);
+    await team
+      .api()
+      .post(`/providers/${key.id}/cap_windows`)
+      .set('Authorization', `Bearer ${team.owner.token}`)
+      .send({
+        name: 'Cheap model',
+        length_count: 1,
+        length_unit: 'day',
+        reset_mode: 'rolling',
+        unit: 'requests',
+        limit: 1,
+        enforced: true,
+        model_id: TEST_INTERN_MODEL,
+      })
+      .expect(201);
+    await team.app.get(PrismaService).usageRecord.create({
+      data: {
+        owner_id: team.owner.owner_id,
+        provider_id: key.id,
+        agent_id: agent.id,
+        model_id: TEST_INTERN_MODEL,
+        input_tokens: 10,
+        output_tokens: 1,
+      },
+    });
+
+    const task = await team.assign(agent, 'Read until full', 'Write the notes, then reread them.');
+    const run = await wait_for('the run to pause', async () => {
+      const [found] = await team.runs(agent.id);
+      return found?.status === 'paused' ? RunSchema.parse(found) : undefined;
+    });
+    expect(run.pause_reason).toBe('cap_limit');
+    const blocked = await team.task(task.id);
+    expect(blocked.status).toBe('blocked');
+    expect(blocked.status_reason).toContain('Cap window Cheap model');
+    const models = fake.requests.map((recorded) => BodySchema.parse(recorded.body).model);
+    expect(models).not.toContain(TEST_INTERN_MODEL);
+    expect((await team.transcript(agent.id)).some((entry) => entry.kind === 'compaction')).toBe(
+      false,
+    );
   });
 });

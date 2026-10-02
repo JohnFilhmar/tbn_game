@@ -71,15 +71,35 @@ export class RunGateService {
         status_reason: `${provider.name} keeps failing. Its runs wait until ${provider.breaker_open_until.toISOString()}.`,
       };
     }
-    const block = await this.caps.limit_block(run.owner_id, provider.id, agent.primary_model, now);
-    if (block !== null) {
-      return {
-        reason: 'cap_limit',
-        resume_at: block.resume_at,
-        status_reason: `Cap window ${block.window_names.join(', ')} on ${provider.name} reached its limit. Resumes at ${block.resume_at.toISOString()}.`,
-      };
-    }
-    return null;
+    return this.limit_pause(provider, agent.primary_model, now);
+  }
+
+  /**
+   * The pause a call to `model_id` on the agent's key must take while an enforced cap window that
+   * counts the model is at its limit, or null when it may call. The compaction summary, which uses
+   * the intern model, checks it too.
+   */
+  async check_model(
+    agent: AgentRecord,
+    model_id: string,
+    now = new Date(),
+  ): Promise<PauseDecision | null> {
+    const provider = await this.providers.require(agent.owner_id, agent.provider_id);
+    return this.limit_pause(provider, model_id, now);
+  }
+
+  private async limit_pause(
+    provider: ProviderRecord,
+    model_id: string,
+    now: Date,
+  ): Promise<PauseDecision | null> {
+    const block = await this.caps.limit_block(provider.owner_id, provider.id, model_id, now);
+    if (block === null) return null;
+    return {
+      reason: 'cap_limit',
+      resume_at: block.resume_at,
+      status_reason: `Cap window ${block.window_names.join(', ')} on ${provider.name} reached its limit. Resumes at ${block.resume_at.toISOString()}.`,
+    };
   }
 
   /**
