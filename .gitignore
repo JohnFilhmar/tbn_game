@@ -4,6 +4,7 @@ coverage/
 *.tsbuildinfo
 *.log
 backend/src/generated/
+backend/.workspace_test/
 
 # Local secrets never enter git. Only the example file is tracked.
 .env
@@ -14,3 +15,4 @@ backend/src/generated/
 # Scan and build outputs
 sbom*.json
 trivy*.json
+demo_reports/

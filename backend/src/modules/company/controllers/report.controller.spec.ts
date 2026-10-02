@@ -24,13 +24,11 @@ describe('report routes', () => {
     owner = await create_test_owner(app);
     const provider = await create_test_provider(app, owner.owner_id, 'openai_chat_completions');
     agent = await recruit_test_agent(app, owner.owner_id, provider.id);
-    const task = await app
-      .get(TaskService)
-      .create(owner.owner_id, {
-        title: 'Reported',
-        instructions: 'x',
-        assignee_agent_id: agent.id,
-      });
+    const task = await app.get(TaskService).create(owner.owner_id, {
+      title: 'Reported',
+      instructions: 'x',
+      assignee_agent_id: agent.id,
+    });
     const report = await app
       .get(ReportService)
       .create_for_task(owner.owner_id, task.id, agent.id, BODY);

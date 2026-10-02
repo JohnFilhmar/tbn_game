@@ -1,4 +1,8 @@
+import type { z } from 'zod';
+import type { ToolUseBlockSchema } from '@tbn/contracts';
 import type { ModelUsage } from './usage_record';
+
+type ContractToolUseBlock = z.infer<typeof ToolUseBlockSchema>;
 
 /** A tool the model may call, with its input as a JSON schema. */
 export interface ToolDefinition {
@@ -21,13 +25,8 @@ export interface ToolResultBlock {
   is_error: boolean;
 }
 
-/** A tool call the model made. */
-export interface ToolUseBlock {
-  type: 'tool_use';
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
-}
+/** A tool call the model made. Its input is JSON, as the transcript contract stores it. */
+export type ToolUseBlock = ContractToolUseBlock;
 
 /** A block in a user message. */
 export type UserBlock = TextBlock | ToolResultBlock;

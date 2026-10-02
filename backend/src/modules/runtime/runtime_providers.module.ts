@@ -26,6 +26,6 @@ import { ProviderService } from './services/provider.service';
     ProviderService,
     ProviderClientService,
   ],
-  exports: [ProviderService, ProviderClientService],
+  exports: [ProviderService, ProviderClientService, USAGE_REPOSITORY],
 })
 export class RuntimeProvidersModule {}

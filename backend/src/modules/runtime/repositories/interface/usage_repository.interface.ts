@@ -12,4 +12,5 @@ export interface ModelUsageTotals extends UsageTotals {
 export interface UsageRepository {
   create(record: UsageRecordWrite): Promise<void>;
   summarize_by_model(owner_id: string, provider_id: string): Promise<ModelUsageTotals[]>;
+  summarize_for_run(owner_id: string, run_id: string): Promise<UsageTotals>;
 }

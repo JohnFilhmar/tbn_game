@@ -54,7 +54,7 @@ export default tseslint.config(
         // Zod schemas keep the contracts naming everywhere: PascalCase with a Schema suffix.
         {
           selector: 'variable',
-          filter: { regex: 'Schema$', match: true },
+          filter: { regex: 'Schemas?$', match: true },
           format: ['PascalCase'],
         },
         { selector: 'typeLike', format: ['PascalCase'] },
@@ -92,7 +92,7 @@ export default tseslint.config(
         { selector: 'variable', format: ['snake_case', 'UPPER_CASE'] },
         {
           selector: 'variable',
-          filter: { regex: 'Schema$', match: true },
+          filter: { regex: 'Schemas?$', match: true },
           format: ['PascalCase'],
         },
         { selector: 'function', format: ['snake_case'] },
@@ -105,6 +105,8 @@ export default tseslint.config(
       'backend/src/config/load_config.ts',
       'backend/prisma.config.ts',
       'backend/src/testing/jest_setup.ts',
+      'backend/src/testing/test_database.ts',
+      'backend/src/testing/test_worker.ts',
     ],
     rules: { 'no-restricted-syntax': 'off' },
   },

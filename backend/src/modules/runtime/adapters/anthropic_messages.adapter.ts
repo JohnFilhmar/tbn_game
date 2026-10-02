@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ToolUseBlockSchema } from '@tbn/contracts';
 import { z } from 'zod';
 import type {
   AdapterCallOptions,
@@ -26,7 +27,7 @@ const ResponseSchema = z.looseObject({
         type: z.literal('tool_use'),
         id: z.string(),
         name: z.string(),
-        input: z.record(z.string(), z.unknown()),
+        input: ToolUseBlockSchema.shape.input,
       }),
     ]),
   ),

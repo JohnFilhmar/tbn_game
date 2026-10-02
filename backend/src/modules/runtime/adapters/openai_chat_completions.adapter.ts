@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { ToolUseBlockSchema } from '@tbn/contracts';
 import { z } from 'zod';
 import type {
   AdapterCallOptions,
@@ -11,6 +12,7 @@ import type {
   ModelRequest,
   ModelResponse,
   StopReason,
+  ToolUseBlock,
 } from '@/modules/runtime/types/model_request';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderConnection } from '@/modules/runtime/types/provider_record';
@@ -52,12 +54,11 @@ const ErrorBodySchema = z.looseObject({
   }),
 });
 
-function parse_arguments(raw: string): Record<string, unknown> {
+function parse_arguments(raw: string): ToolUseBlock['input'] {
   try {
     const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-      ? Object.fromEntries(Object.entries(parsed))
-      : {};
+    const input = ToolUseBlockSchema.shape.input.safeParse(parsed);
+    return input.success ? input.data : {};
   } catch {
     return {};
   }
