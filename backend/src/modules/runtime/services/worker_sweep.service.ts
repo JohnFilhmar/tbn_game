@@ -136,7 +136,7 @@ export class WorkerSweepService implements OnApplicationShutdown {
         )
       ) {
         this.logger.log(
-          `Terminated intern ${intern.id}: ${manager_left ? 'its manager left' : `idle for more than ${ttl} minutes`}`,
+          `Terminated intern ${intern.id}: ${manager_left ? 'its manager left' : `idle for more than ${ttl} minute${ttl === 1 ? '' : 's'}`}`,
         );
       }
     }
