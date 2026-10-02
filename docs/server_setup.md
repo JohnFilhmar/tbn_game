@@ -25,8 +25,10 @@ Commands marked `server$` run on the server, `you$` on your workstation. Replace
 
 ## 2. Docker
 
-Install Docker Engine and the compose plugin from Docker's apt repository (docs.docker.com, "Install
-Docker Engine"), then make both daemons start at boot and rotate container logs by default:
+Install Docker Engine 28 or newer and the compose plugin from Docker's apt repository
+(docs.docker.com, "Install Docker Engine"). The sandbox network uses the isolated gateway mode,
+which older engines do not have. Then make both daemons start at boot and rotate container logs
+by default:
 
 ```
 server$ sudo systemctl enable --now containerd docker
@@ -38,6 +40,11 @@ server$ sudo systemctl restart docker
 
 Docker bypasses host firewall rules for published ports. That is why both compose files publish
 ports on `127.0.0.1` only and CI fails any other binding.
+
+The sandbox launcher container joins the host's `docker` group to use `/var/run/docker.sock`. The
+deploy job reads the group id from the socket and passes it as `DOCKER_GID`; nothing to configure.
+Only that one container holds the socket: the web process, the worker, the proxy and every sandbox
+container run without it.
 
 ## 3. Tailscale, HTTPS and the firewall
 
@@ -241,18 +248,19 @@ server$ rm -rf /tmp/tbn_game
 
 ## 8. First deploy
 
-1. Merge the phase pull request into `main` yourself. CI runs on `main` and signs the image. The run
-   summary shows the digest and the deploy command.
-2. Dispatch the deploy, in the Actions tab or with:
+1. Merge the phase pull request into `main` yourself. CI runs on `main` and signs both images, the
+   backend and the sandbox. The run summary of each image job shows its digest.
+2. Dispatch the deploy with both digests, in the Actions tab or with:
 
    ```
-   you$ gh workflow run deploy.yml --repo JohnFilhmar/tbn_game --ref main -f image_digest=sha256:<digest>
+   you$ gh workflow run deploy.yml --repo JohnFilhmar/tbn_game --ref main \
+     -f image_digest=sha256:<backend digest> -f sandbox_image_digest=sha256:<sandbox digest>
    ```
 
 3. Approve the `production` deployment when GitHub asks.
 4. The job runs on the server. It:
-   1. verifies the cosign signature and the SBOM attestation from CI on `main`;
-   2. pulls the image;
+   1. verifies the cosign signatures and the SBOM attestations of both images from CI on `main`;
+   2. pulls both images;
    3. decrypts the secrets into the runner's temporary directory;
    4. copies the stack files to `/opt/tbn`;
    5. runs `prisma migrate deploy`;
@@ -265,8 +273,13 @@ server$ rm -rf /tmp/tbn_game
 
 - **Status.** The production compose file needs its secrets to render, so read state from Docker:
   `docker ps --filter label=com.docker.compose.project=tbn`.
-- **Logs.** `docker logs --since 1h tbn-web-1`, and the same for `tbn-worker-1` and the other
-  services. Container logs rotate at 10 MB times 5 files.
+- **Logs.** `docker logs --since 1h tbn-web-1`, and the same for `tbn-worker-1`, `tbn-sandbox-1`,
+  `tbn-egress_proxy-1` and the other services. Container logs rotate at 10 MB times 5 files. The
+  proxy logs every request with the run and agent ids; a sandbox container's output is in its
+  job row, `GET /sandbox_jobs/:id`.
+- **Notifications.** Attach an integration to `process_restarted`, `run_failed`,
+  `disk_nearly_full` and the other events in `GET /notification_events` to hear about them; the
+  log of every notification is `GET /notifications`.
 - **Rollback.** Dispatch the deploy again with an earlier digest from a previous run summary.
   Migrations only move forward, so a rollback across a migration needs a forward fix instead.
 - **Reboot test.** Run `sudo reboot`. Afterwards every container is up and healthy,
