@@ -159,6 +159,18 @@ test('the owner goes to an agent and sits back down at the desk', async ({ page 
   await expect(page.getByText('Press E to use the computer')).toBeVisible();
 });
 
+test('an idle agent takes a break and comes back to the desk', async ({ page }) => {
+  await signIn(page);
+  await expect(worldReady(page)).toBeAttached();
+  const agents = page.getByRole('list', { name: 'Agents in the world' });
+  await expect(narration(page)).toContainText(
+    /goes for a drink|looks out of the window|checks on a plant|doodles on the whiteboard|touches some grass|stretches their legs|has a look around|chats with/,
+    { timeout: 45_000 },
+  );
+  await expect(agents).toContainText('taking a break');
+  await expect(agents).toContainText(`${MANAGER}: at the desk`, { timeout: 45_000 });
+});
+
 test('an agent walks, works, hands off, and the intern arrives and leaves', async ({ page }) => {
   await signIn(page);
   await expect(worldReady(page)).toBeAttached();
@@ -194,8 +206,35 @@ test('an agent walks, works, hands off, and the intern arrives and leaves', asyn
   });
   await expect(happened).toContainText(`${MANAGER} finishes "${TASK}".`, { timeout: 60_000 });
   await expect(happened).toContainText('leaves.', { timeout: 60_000 });
+  // Done and resting: at its desk, or off on a break of its own.
   await expect(page.getByRole('list', { name: 'Agents in the world' })).toContainText(
-    `${MANAGER}: at the desk`,
+    new RegExp(`${MANAGER}: (at the desk|taking a break)`),
     { timeout: 30_000 },
   );
+});
+
+test('the owner talks to an agent in the world', async ({ page }) => {
+  await signIn(page);
+  await expect(worldReady(page)).toBeAttached();
+  await page
+    .getByRole('list', { name: 'Agents in the world' })
+    .getByRole('button', { name: `Talk to ${MANAGER}` })
+    .click();
+  const panel = page.getByRole('complementary', { name: `Conversation with ${MANAGER}` });
+  await expect(panel).toBeVisible();
+  const box = panel.getByLabel(`Message to ${MANAGER}`);
+  await expect(box).toBeFocused();
+  await box.fill('How is the office?');
+  await panel.getByRole('button', { name: 'Send' }).click();
+  const log = panel.getByRole('log', { name: `Chat with ${MANAGER}` });
+  await expect(log).toContainText('How is the office?');
+  // The fake model's words depend on what came before; any reply from the agent will do.
+  await expect(log).toContainText(new RegExp(`How is the office[?]${MANAGER} · `), {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('list', { name: 'Agents in the world' })).toBeHidden();
+
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page.getByRole('list', { name: 'Agents in the world' })).toBeVisible();
 });

@@ -1,4 +1,4 @@
-import type { Vector3 } from 'three';
+import type { Camera, Vector3 } from 'three';
 
 /** The key of the owner's character in `livePositions`; agents are keyed by their id. */
 export const OWNER_KEY = 'owner';
@@ -11,3 +11,6 @@ export const OWNER_KEY = 'owner';
 // ponytail: one module-level map, fine for one world per page; move into the world store if a
 // second canvas ever appears.
 export const livePositions = new Map<string, Vector3>();
+
+/** The camera the world draws with, for DOM overlays that follow something in the scene. */
+export const liveView: { camera: Camera | null } = { camera: null };

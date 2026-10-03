@@ -187,6 +187,9 @@ output as it is generated.
   owner signs in at their desk's monitor in first person, and the monitor then shows the desk.
   Standing up and sitting down are camera glides, the Desk button and the number keys teleport,
   and the desk, sign in and HUD share the world's low poly look.
+- **Phase 4c brought the agents to life.** Idle agents wander to spots in the room and chat with
+  each other, and the owner talks to any agent in the world: an over the shoulder camera, a panel
+  with the agent's live session beside the scene, and a speech bubble over its head.
 - **Not yet.** The mobile and desktop shells come in phases 5 and 6. The production deploy is
   ready for the owner to dispatch.
 
@@ -664,6 +667,26 @@ How phase 4b changed it:
 - **The look.** One stylesheet: the world's palette as the `slate` and `teal` scales,
   `corner-shape: bevel` on every element, a hard offset shadow, Chakra Petch and Rubik
   self-hosted. The HUD always wears the dark theme; F3 shows the frame counter.
+
+How phase 4c changed it:
+
+- **Spots and clips.** Each pack's manifest lists `spots`: where an idle agent can go, which way
+  it faces, the clip it plays and how long. The characters carry seven more clips for them:
+  `drink`, `look`, `write`, `touch`, `stretch`, `talk` and `press`.
+- **Wandering** is the client's alone, like every walk. `npcs/wander.ts` sends each idle actor
+  to a free spot every 8 to 25 seconds, or over to a nearby idle colleague to chat. Each agent's
+  randomness is seeded by its id, a spot holds one agent at a time, and the actor drops any
+  wander the moment a task, a hand-off or a departure arrives.
+- **Talking.** `talkingTo` in the world store is the conversation, a moment in the world, never a
+  route. E within reach, the Talk button on an agent's HUD row or a click on the agent starts it
+  (`world/talk.ts`), with a teleport first when the agent is far. `world/prompt.ts` gives E to the
+  nearest of the computer and the agents in front of the owner. The owner turns but never moves;
+  the camera rig leans in over the owner's right shoulder onto the agent; the agent waves and
+  keeps a talking pose.
+- **One chat, two places.** `components/conversation/Conversation.tsx` is the chat the desk's tab
+  and the world's `ConversationPanel` both render, with `useTranscript` in `lib/data/`. The
+  `SpeechBubble` follows the agent on screen through the camera the world publishes in
+  `livePositions.ts`.
 
 ### Online later
 

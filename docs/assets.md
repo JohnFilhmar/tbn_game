@@ -45,13 +45,18 @@ Three ship: `office`, `home` and `warehouse`. The `environment` preference names
 | `computer`  | anchor with `use_radius`    | The in-world computer: `position` is its screen; the owner within `use_radius` metres on the floor can use it. |
 | `zones`     | zone[]                      | One per department, in the order departments take them.          |
 | `waiting`   | anchor[]                    | Overflow anchors: an agent past its zone's last desk stands here. |
+| `spots`     | spot[]                      | Places an idle agent wanders to and what it does there. |
 | `lighting`  | lighting                    | The pack's lighting profile.                                     |
 
 An anchor is `{position, yaw_deg}`. A zone is `{name, label, desks}`, with the manager's desk
 first; a desk is `{position, yaw_deg, seat}`, where `position` is the centre of the desk top,
 `yaw_deg` the way a seated character faces, and `seat` the floor point it sits at. Every seat,
-`spawn`, `entry`, `exit` and every `waiting` anchor lies on the navigation mesh and can be reached
-from the entry; the generator refuses to write a pack where one does not.
+`spawn`, `entry`, `exit`, every `waiting` anchor and every spot lies on the navigation mesh and can
+be reached from the entry; the generator refuses to write a pack where one does not.
+
+A spot is an anchor with `kind`, `clip` and `seconds`: the standing point and facing, what the spot
+is (`water`, `window`, `plant`, `board`, `grass`, `stretch` or `look`), the clip an agent plays
+there, and how long it stays.
 
 Lighting is `{ambient, sun_azimuth_deg, interior}`. `ambient` is the hex colour of the ambient
 light at noon; the time of day scales and tints it. `sun_azimuth_deg` is the compass direction
@@ -118,8 +123,11 @@ Each mesh carries one material named after its palette slot: `skin`, `hair`, `to
 `shoes` or `accent`; `eyes` is fixed. Recolouring a slot recolours every mesh with that material
 on the body and on its parts.
 
-The clips are `idle`, `walk`, `work`, `sit` and `wave`, as quaternion and position tracks on the
-named nodes, so one clip plays on every body variant. `walk` is a cycle of 0.8 seconds at a
+The clips are `idle`, `walk`, `work`, `sit`, `wave`, `drink`, `look`, `write`, `touch`, `stretch`,
+`talk` and `press`, as quaternion and position tracks on the named nodes, so one clip plays on
+every body variant. Every clip sets every node of `spine`, `head`, both arms, both legs and both
+shins, so a crossfade never leaves a node posed by the clip before. `touch` crouches; the runtime
+puts a cup in `hand_r` while `drink` plays. `walk` is a cycle of 0.8 seconds at a
 walking speed of 1.4 metres per second; the runtime scales its speed when the character runs.
 `work` and `sit` lower `hips` to a seated height; `work` types.
 

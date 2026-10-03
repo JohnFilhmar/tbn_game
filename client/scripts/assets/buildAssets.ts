@@ -1,7 +1,13 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Mesh, MeshStandardMaterial, type Object3D } from 'three';
-import { BODY_VARIANTS, PALETTE_DEFAULTS, buildCharacter, buildParts } from './characters.ts';
+import {
+  BODY_VARIANTS,
+  CLIP_NAMES,
+  PALETTE_DEFAULTS,
+  buildCharacter,
+  buildParts,
+} from './characters.ts';
 import { writeGlb, writeJson } from './export.ts';
 import { buildHome } from './packs/home.ts';
 import { buildOffice } from './packs/office.ts';
@@ -51,7 +57,7 @@ async function writeCharacters(): Promise<void> {
     version: 1,
     scale: 1,
     bodies,
-    clips: ['idle', 'walk', 'work', 'sit', 'wave'],
+    clips: CLIP_NAMES,
     attach: { hair: 'head', outfit: 'spine', accessory: 'head' },
     parts,
     palette: PALETTE_DEFAULTS,

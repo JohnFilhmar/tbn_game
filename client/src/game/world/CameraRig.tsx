@@ -1,7 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { Vector3, type Object3D } from 'three';
+import { PerspectiveCamera, Vector3, type Object3D } from 'three';
 import { radiansOf } from '@/game/assets/geometry';
+import { livePositions } from './livePositions';
 import { prefersReducedMotion } from './motion';
 import type { SeatPose } from './seat';
 import type { CameraMode } from './worldStore';
@@ -18,6 +19,8 @@ export interface CameraRigProps {
   viewYawRef: RefObject<number>;
   /** The pose at the monitor while the owner is seated, or null in the world. */
   seatPose: SeatPose | null;
+  /** The agent the owner is talking to: the camera leans in over the shoulder onto it. */
+  talkingTo: string | null;
 }
 
 const DEG = Math.PI / 180;
@@ -29,6 +32,17 @@ const SHOULDER = 0.45;
 const FOLLOW_RATE = 10;
 const GLIDE_RATE = 4;
 const GLIDE_SECONDS = 1.5;
+/**
+ * The conversation pose: behind and right of the owner's head, looking just right of the agent's,
+ * so the owner's shoulder and the agent share the part of the screen the panel leaves free.
+ */
+const TALK_BACK = 1;
+const TALK_SIDE = 0.75;
+const TALK_LIFT = 0.05;
+const LOOK_SHIFT = 0.45;
+const AGENT_HEAD = 1.5;
+const FOV = 50;
+const TALK_FOV = 42;
 const UP = new Vector3(0, 1, 0);
 const NORTH_UP = new Vector3(0, 0, -1);
 
@@ -50,6 +64,7 @@ export function CameraRig({
   initialYawDeg,
   viewYawRef,
   seatPose,
+  talkingTo,
 }: CameraRigProps) {
   const camera = useThree((state) => state.camera);
   const element = useThree((state) => state.gl.domElement);
@@ -112,17 +127,33 @@ export function CameraRig({
 
   useEffect(() => {
     glide.current.until = performance.now() / 1000 + GLIDE_SECONDS;
-  }, [isSeated]);
+  }, [isSeated, talkingTo]);
 
-  useFrame((_, delta) => {
+  useFrame((frame, delta) => {
     const target = targetRef.current;
     const state = orbit.current;
     let up = UP;
+    let fov = FOV;
+    const partner = talkingTo === null ? undefined : livePositions.get(talkingTo);
     if (seatPose !== null) {
       desired.copy(seatPose.eye);
       focus.copy(seatPose.look);
     } else if (target === null) {
       return;
+    } else if (partner !== undefined) {
+      // Over the owner's right shoulder, onto the agent's face.
+      const dx = partner.x - target.position.x;
+      const dz = partner.z - target.position.z;
+      const length = Math.hypot(dx, dz) || 1;
+      const forwardX = dx / length;
+      const forwardZ = dz / length;
+      desired.set(
+        target.position.x - forwardX * TALK_BACK - forwardZ * TALK_SIDE,
+        target.position.y + FOCUS_HEIGHT + TALK_LIFT,
+        target.position.z - forwardZ * TALK_BACK + forwardX * TALK_SIDE,
+      );
+      focus.set(partner.x - forwardZ * LOOK_SHIFT, AGENT_HEAD, partner.z + forwardX * LOOK_SHIFT);
+      fov = TALK_FOV;
     } else if (mode === 'third_person') {
       // The right of the view, so the character stands left of the middle of the screen.
       focus.set(
@@ -152,6 +183,11 @@ export function CameraRig({
     look.lerp(focus, ease);
     camera.up.lerp(up, ease).normalize();
     camera.lookAt(look);
+    const lens = frame.camera;
+    if (lens instanceof PerspectiveCamera && Math.abs(lens.fov - fov) > 0.01) {
+      lens.fov += (fov - lens.fov) * ease;
+      lens.updateProjectionMatrix();
+    }
   });
 
   return null;

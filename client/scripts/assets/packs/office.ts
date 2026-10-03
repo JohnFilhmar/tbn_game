@@ -12,7 +12,7 @@ import {
   windowPane,
 } from '../furniture.ts';
 import { PackBuilder } from '../kit.ts';
-import { anchorsOf, type PackResult, type Zone } from '../manifest.ts';
+import { anchorsOf, spot, type PackResult, type Zone } from '../manifest.ts';
 
 const BOUNDS = { min_x: -11, max_x: 11, min_z: -8, max_z: 8 };
 const CEILING = 3;
@@ -89,6 +89,16 @@ export function buildOffice(): PackResult {
       { position: [2.5, 0, -0.25], yaw_deg: 270 },
       { position: [0, 0, -1.75], yaw_deg: 0 },
       { position: [0, 0, 1.25], yaw_deg: 180 },
+    ],
+    spots: [
+      spot('water', [9, 6.7], [9.6, 7.3]),
+      spot('window', [-7.5, -7.2], [-7.5, -8]),
+      spot('window', [7.5, -7.2], [7.5, -8]),
+      spot('window', [10.1, 0], [11, 0]),
+      spot('plant', [-9.7, -6.8], [-10.4, -7.4]),
+      spot('board', [1.5, -7.3], [0.6, -7.86]),
+      spot('stretch', [0, 4], [0, 8]),
+      spot('stretch', [8.5, 6], [8.5, 8]),
     ],
     lighting: {
       ambient: '#9fb4c8',

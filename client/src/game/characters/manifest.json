@@ -6,7 +6,20 @@
     "slim": { "file": "body_slim.glb", "width": 0.85, "height": 1.02 },
     "broad": { "file": "body_broad.glb", "width": 1.2, "height": 0.96 }
   },
-  "clips": ["idle", "walk", "work", "sit", "wave"],
+  "clips": [
+    "idle",
+    "walk",
+    "work",
+    "sit",
+    "wave",
+    "drink",
+    "look",
+    "write",
+    "touch",
+    "stretch",
+    "talk",
+    "press"
+  ],
   "attach": { "hair": "head", "outfit": "spine", "accessory": "head" },
   "parts": {
     "hair": {

@@ -100,6 +100,12 @@ export interface WorldState {
   /** The frame counter, shown with F3. */
   isFpsShown: boolean;
   toggleFps: () => void;
+  /** The agent within the owner's reach and in front of them, whom E talks to; null when none. */
+  nearAgentId: string | null;
+  setNearAgentId: (agentId: string | null) => void;
+  /** The agent the owner is talking to, or null. A moment in the world, never a route. */
+  talkingTo: string | null;
+  setTalkingTo: (agentId: string | null) => void;
 }
 
 let nextLineId = 1;
@@ -172,4 +178,8 @@ export const useWorldStore = create<WorldState>((set) => ({
     })),
   isFpsShown: false,
   toggleFps: () => set((state) => ({ isFpsShown: !state.isFpsShown })),
+  nearAgentId: null,
+  setNearAgentId: (nearAgentId) => set({ nearAgentId }),
+  talkingTo: null,
+  setTalkingTo: (talkingTo) => set({ talkingTo }),
 }));

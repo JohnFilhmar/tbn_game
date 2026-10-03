@@ -47,9 +47,12 @@ furniture it already places:
 | window pane      | `window`   | `look`  |
 | plant, tree      | `plant`    | `look`  |
 | whiteboard       | `board`    | `write` |
-| sofa             | `sofa`     | `sit`   |
 | grass (home)     | `grass`    | `touch` |
 | open floor space | `stretch`  | `stretch` |
+| pallets, shelves, forklift (warehouse) | `look` | `look` |
+
+As built, the sofa has no spot: its seat is blocked furniture, so no path reaches it, and a
+seated spot waits for the props of phase 4d.
 
 Phase 4d replaces the manifest list with spots derived from the placed props, so this list is the
 seam, not a throwaway.
@@ -88,8 +91,9 @@ character uses the same set, which phase 4e needs.
   degrees. The glide is the one built in phase 4b.
 - **The owner** turns to face the agent and plays `idle`. Its position never changes, as asked.
 - **The agent.** An idle or wandering agent drops its wander, turns to the owner, plays `wave` and
-  then loops `talk`. A working agent waves from its chair and keeps working. When the conversation
-  ends, the scheduler takes it from there.
+  then loops `talk`. A working agent keeps working: as built, it does not wave, because the wave
+  clip stands the agent up out of its chair. When the conversation ends, the scheduler takes it
+  from there.
 - **The panel.** `game/hud/ConversationPanel.tsx`, an `aside` with the label "Conversation with
   <name>". It is not a modal, so the world stays visible:
   - it slides in from the right in 260 ms with a slight overshoot;

@@ -12,6 +12,8 @@ const ACTIVITY_LABELS: Record<Activity, string> = {
   arriving: 'arriving',
   leaving: 'leaving',
   gone: 'gone',
+  wandering: 'taking a break',
+  talking: 'talking with you',
 };
 
 const LABELS_BY_NAME = new Map<string, string>(Object.entries(ACTIVITY_LABELS));

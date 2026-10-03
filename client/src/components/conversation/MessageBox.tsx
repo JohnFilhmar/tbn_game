@@ -13,10 +13,17 @@ export interface MessageBoxProps {
   agentName: string;
   /** Why the agent cannot take messages, if it cannot. */
   closedReason: string | null;
+  /** Takes the focus when it appears, as the world's conversation panel wants. */
+  isAutoFocused?: boolean;
 }
 
 /** Where the owner writes to an agent. Ctrl or Cmd with Enter sends. */
-export function MessageBox({ agentId, agentName, closedReason }: MessageBoxProps) {
+export function MessageBox({
+  agentId,
+  agentName,
+  closedReason,
+  isAutoFocused = false,
+}: MessageBoxProps) {
   const api = useApi();
   const client = useQueryClient();
   const form = useForm({
@@ -38,6 +45,8 @@ export function MessageBox({ agentId, agentName, closedReason }: MessageBoxProps
         label={`Message to ${agentName}`}
         hint={closedReason ?? 'Ctrl or Cmd with Enter sends.'}
         rows={3}
+        // The owner opened the conversation to write to the agent.
+        autoFocus={isAutoFocused}
         disabled={closedReason !== null}
         value={form.draft.text}
         onChange={(value) => form.setField('text', value)}

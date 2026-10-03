@@ -1,6 +1,14 @@
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { AnimationMixer, type AnimationAction, type AnimationClip, type Group } from 'three';
+import {
+  AnimationMixer,
+  CylinderGeometry,
+  Mesh,
+  MeshStandardMaterial,
+  type AnimationAction,
+  type AnimationClip,
+  type Group,
+} from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import type { ClipName, PaletteSlot } from '@/game/assets/characterManifest';
@@ -30,6 +38,18 @@ function recolour(root: Group, colors: Record<PaletteSlot, string>): void {
       if (only !== undefined) mesh.material = only;
     }
   }
+}
+
+const CUP_GEOMETRY = new CylinderGeometry(0.045, 0.035, 0.1, 8);
+const CUP_MATERIAL = new MeshStandardMaterial({ color: '#f4efe6', flatShading: true });
+
+/** A cup in the right hand, shown only while the character drinks. */
+function cupIn(model: Group): Mesh {
+  const cup = new Mesh(CUP_GEOMETRY, CUP_MATERIAL);
+  cup.position.set(0, -0.04, 0.08);
+  cup.visible = false;
+  model.getObjectByName('hand_r')?.add(cup);
+  return cup;
 }
 
 /** A body with its parts attached and its palette applied, ready to animate. */
@@ -67,7 +87,7 @@ export interface CharacterProps {
 
 /**
  * A character built from the set: a body variant with its parts attached and its palette applied,
- * playing one of the five clips with a short crossfade between them. It stands at the origin of its
+ * playing one of its clips with a short crossfade between them, with a cup in hand to drink. It stands at the origin of its
  * group facing +Z; the owner of the group moves it.
  */
 export function Character({
@@ -85,12 +105,22 @@ export function Character({
   );
   const model = useMemo(() => buildModel(body, parts, appearance), [body, parts, appearance]);
   const mixer = useMemo(() => new AnimationMixer(model), [model]);
+  const cupRef = useRef<Mesh | null>(null);
   const actions = useMemo(() => {
     const byName = new Map<string, AnimationAction>();
     for (const clip of body.animations) byName.set(clip.name, mixer.clipAction(clip));
     return byName;
   }, [body, mixer]);
   const playing = useRef<AnimationAction | null>(null);
+
+  useEffect(() => {
+    const cup = cupIn(model);
+    cupRef.current = cup;
+    return () => {
+      cup.removeFromParent();
+      cupRef.current = null;
+    };
+  }, [model]);
 
   useEffect(() => {
     playing.current = null;
@@ -109,6 +139,8 @@ export function Character({
     }
     const walk = actions.get('walk');
     if (walk !== undefined && timeScaleRef !== undefined) walk.timeScale = timeScaleRef.current;
+    const cup = cupRef.current;
+    if (cup !== null) cup.visible = clipRef.current === 'drink';
     mixer.update(delta);
   });
 
