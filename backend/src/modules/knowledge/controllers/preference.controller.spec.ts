@@ -37,6 +37,7 @@ describe('preference routes', () => {
       environment: 'office',
       time_of_day: 'clock',
       owner_appearance: {},
+      grass_touched: 0,
       intern_idle_ttl_minutes: 30,
       runaway_guard_turns: 50,
       cap_threshold_longest_percent: 75,
