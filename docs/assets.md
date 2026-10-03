@@ -78,8 +78,9 @@ The layout makes what the world used to read from the manifest:
 - **Spots.** Each prop's spots join the shell's. A spot nobody can reach is left out.
 
 A spot is an anchor with `kind`, `clip` and `seconds`: the standing point and facing, what the spot
-is (`water`, `coffee`, `window`, `plant`, `board`, `grass`, `stretch` or `look`), the clip an
-agent plays there, and how long it stays.
+is (`water`, `coffee`, `window`, `plant`, `board`, `grass`, `rest`, `stretch` or `look`), the clip
+an agent plays there, and how long it stays. A spot may carry a `seat`, a point inside its
+furniture: the agent sits there for the clip and steps back to the spot after.
 
 Lighting is `{ambient, sun_azimuth_deg}`. `ambient` is the hex colour of the ambient light at
 noon; the time of day scales and tints it. `sun_azimuth_deg` is the compass direction the sun
@@ -100,14 +101,24 @@ plays, what it gives off, and its agent spots:
 | `blinds`       | close the blinds, open the blinds     | Turns the slats; the daylight dims with the share closed, down to 40 percent. |
 | `light_switch` | use the light switch                  | Opens the panel of lamps by zone: Auto, On or Off. |
 | `grass_patch`  | touch grass                           | `touch`, flying blades, and a running count.      |
+| `inbox_tray`   | check the inbox                       | Sits the owner at the approvals screen; its papers stack with the approvals waiting. |
+| `cork_board`   | read the cork board                   | Lists the pinned reports, the six latest, one card each. |
+| `server_rack`  | check the server rack                 | Sits the owner at the sandbox jobs; a light blinks for each running job. |
+| `wall_clock`   | check the time                        | Opens the time of day; its hands show the world's hour. |
+| `sofa`, `beanbag` | sit back                           | `sit` on the seat until the owner moves; agents nap there. |
+| `exit_sign`    | leave for another place               | Offers the other environments and travels through a fade. |
+| `plant`, `tree` | water the plant, water the tree      | Drops, and the plant stands up; it droops before its first watering and three days after its last. |
+| `trophy_shelf` | look at the trophies                  | Lists the milestones; a trophy stands for each one reached. |
+| `radio`        | turn the radio on, turn the radio off | Plays a calm loop made in the browser. |
 
 A lamp is a prop too, in two variants: `panel` hangs at 2.7 metres and `high_bay` at 5.2. Each
 gives a point light; only the eight lit lamps nearest the camera cast real light, and the others
 glow.
 
-Blinds, lamps and whiteboards keep a state per placement, apart from the layout: blinds
-`{open}`, a lamp `{mode}` of `auto`, `on` or `off`, and a whiteboard's strokes and texts in board
-shares from 0 to 1. A prop with no saved state is open, on auto, or empty.
+Blinds, lamps, whiteboards, plants, trees and radios keep a state per placement, apart from the
+layout: blinds `{open}`, a lamp `{mode}` of `auto`, `on` or `off`, a whiteboard's strokes and texts
+in board shares from 0 to 1, a plant or tree `{watered_at}`, and a radio `{on}`. A prop with no
+saved state is open, on auto, empty, never watered, or off.
 
 ### The shell
 

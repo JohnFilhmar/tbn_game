@@ -2,6 +2,16 @@ import type { PropKind } from '@tbn/contracts';
 import type { DeskAnchor, PackBuilder, Vec3 } from './builder.ts';
 import { blindsRail, coffeeSet, grassPatch, lampFixture, lightSwitch } from './fixtures.ts';
 import {
+  beanbag,
+  corkBoard,
+  exitSign,
+  inboxTray,
+  radio,
+  serverRack,
+  trophyShelf,
+  wallClock,
+} from './gadgets.ts';
+import {
   computerDesk,
   counter,
   desk,
@@ -41,7 +51,8 @@ export interface PropAnchors {
 }
 
 /** How the build panel groups the catalog. */
-export type PropCategory = 'desks' | 'furniture' | 'lights' | 'plants' | 'storage' | 'zones';
+export type PropCategory =
+  'desks' | 'work' | 'furniture' | 'lights' | 'plants' | 'storage' | 'zones';
 
 /** One kind of prop: how it is offered in build mode and how it is built. */
 export interface PropSpec {
@@ -116,7 +127,7 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     colorSlot: 'fabric',
     build: (b, size) => {
       sofa(b, [0, 0], 0, size.width);
-      return none();
+      return withSpots(interactionSpots('sofa'));
     },
   },
   low_table: {
@@ -215,7 +226,7 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     colorSlot: 'plant',
     build: (b) => {
       plant(b, [0, 0]);
-      return withSpots([spot('plant', [0, 0.9], [0, 0])]);
+      return withSpots(interactionSpots('plant'));
     },
   },
   tree: {
@@ -226,7 +237,7 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     colorSlot: 'plant',
     build: (b, _size, variant) => {
       tree(b, [0, 0], variant === 'small' ? 2.2 : 2.6);
-      return withSpots([spot('plant', [0, 1], [0, 0])]);
+      return withSpots(interactionSpots('tree'));
     },
   },
   grass_patch: {
@@ -293,6 +304,94 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     build: (b) => {
       forklift(b, [0, 0], 0);
       return withSpots([spot('look', [0, -1.7], [0, 0])]);
+    },
+  },
+  inbox_tray: {
+    label: 'Inbox tray',
+    category: 'work',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      inboxTray(b);
+      return none();
+    },
+  },
+  cork_board: {
+    label: 'Cork board',
+    category: 'work',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      corkBoard(b);
+      return withSpots(interactionSpots('cork_board'));
+    },
+  },
+  server_rack: {
+    label: 'Server rack',
+    category: 'work',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      serverRack(b);
+      return withSpots(interactionSpots('server_rack'));
+    },
+  },
+  trophy_shelf: {
+    label: 'Trophy shelf',
+    category: 'work',
+    size: null,
+    variants: [],
+    colorSlot: 'wood',
+    build: (b) => {
+      trophyShelf(b);
+      return withSpots(interactionSpots('trophy_shelf'));
+    },
+  },
+  wall_clock: {
+    label: 'Wall clock',
+    category: 'furniture',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      wallClock(b);
+      return none();
+    },
+  },
+  beanbag: {
+    label: 'Beanbag',
+    category: 'furniture',
+    size: null,
+    variants: [],
+    colorSlot: 'fabric',
+    build: (b) => {
+      beanbag(b);
+      return withSpots(interactionSpots('beanbag'));
+    },
+  },
+  exit_sign: {
+    label: 'Exit sign',
+    category: 'furniture',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      exitSign(b);
+      return none();
+    },
+  },
+  radio: {
+    label: 'Radio',
+    category: 'furniture',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      radio(b);
+      return none();
     },
   },
   zone_rug: {

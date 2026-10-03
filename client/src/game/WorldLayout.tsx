@@ -5,7 +5,7 @@ import { CHARACTER_SET } from '@/game/assets/characters';
 import { PACKS } from '@/game/assets/packs';
 import { Hud } from '@/game/hud/Hud';
 import { isSeatedPath } from '@/game/world/seat';
-import { useWorldHour } from '@/game/world/useWorldHour';
+import { useNow, useWorldHour } from '@/game/world/useWorldHour';
 import { canRenderWorld } from '@/game/world/webgl';
 import { useWorldStore } from '@/game/world/worldStore';
 import { COLLECTIONS } from '@/lib/data/collections';
@@ -15,7 +15,9 @@ import {
   useWorldLayout,
   useWorldPropStates,
 } from '@/lib/data/queries';
-import { propStatesOf } from '@/game/objects/propStates';
+import { milestonesOf, pinnedReports, type LiveData } from '@/game/objects/liveData';
+import { isThirsty, propStatesOf, stateOf } from '@/game/objects/propStates';
+import { RadioPlayer } from '@/game/objects/RadioPlayer';
 import { BuildPanel } from '@/game/build/BuildPanel';
 import { useBuildStore } from '@/game/build/buildStore';
 import { arrangePack } from '@/game/props/arrangedPack';
@@ -68,6 +70,11 @@ export function WorldLayout() {
   const { data: agents } = useCollection(COLLECTIONS.agents);
   const { data: departments } = useCollection(COLLECTIONS.departments);
   const { data: approvals } = useCollection(COLLECTIONS.approvals);
+  const { data: reports } = useCollection(COLLECTIONS.reports);
+  const { data: sandboxJobs } = useCollection(COLLECTIONS.sandboxJobs);
+  const { data: mergeRequests } = useCollection(COLLECTIONS.mergeRequests);
+  const { data: tasks } = useCollection(COLLECTIONS.tasks);
+  const setHasSat = useWorldStore((state) => state.setHasSat);
   const setLastDesktopPath = useWorldStore((state) => state.setLastDesktopPath);
   const environment = useWorldStore((state) => state.environment);
   const setEnvironment = useWorldStore((state) => state.setEnvironment);
@@ -75,6 +82,10 @@ export function WorldLayout() {
   const isFaded = useWorldStore((state) => state.isFaded);
   const { pathname, search } = location;
   useGlide(isSeated);
+  // The owner's character, should it first appear after this, stands up beside the chair.
+  useEffect(() => {
+    if (isSeated) setHasSat(true);
+  }, [isSeated, setHasSat]);
 
   useEffect(() => {
     if (isSeated && pathname !== '/sign_in') setLastDesktopPath(`${pathname}${search}`);
@@ -144,6 +155,30 @@ export function WorldLayout() {
       ),
     [approvals],
   );
+  const live = useMemo(
+    (): LiveData => ({
+      pendingApprovals: (approvals ?? []).filter((approval) => approval.status === 'pending')
+        .length,
+      runningJobs: (sandboxJobs ?? []).filter((job) => job.status === 'running').length,
+      pinned: pinnedReports(reports ?? []),
+      milestones: milestonesOf(mergeRequests ?? [], reports ?? [], tasks ?? []),
+    }),
+    [approvals, sandboxJobs, reports, mergeRequests, tasks],
+  );
+  const now = useNow();
+  const thirstyIds = useMemo(
+    () =>
+      new Set(
+        arranged.placements
+          .filter((placement) => placement.kind === 'plant' || placement.kind === 'tree')
+          .filter((placement) => isThirsty(stateOf.wateredAt(propStates, placement.id), now))
+          .map((placement) => placement.id),
+      ),
+    [arranged.placements, propStates, now],
+  );
+  const isRadioOn = saved.placements.some(
+    (placement) => placement.kind === 'radio' && stateOf.isRadioOn(propStates, placement.id),
+  );
   const canRender = useMemo(() => canRenderWorld(), []);
 
   return (
@@ -162,6 +197,8 @@ export function WorldLayout() {
             pendingAgentIds={pendingAgentIds}
             isBuilding={isBuilding}
             propStates={propStates}
+            live={live}
+            thirstyIds={thirstyIds}
           />
         </Suspense>
       ) : (
@@ -174,9 +211,11 @@ export function WorldLayout() {
           onBuild={openBuild}
           arranged={saved}
           propStates={propStates}
+          live={live}
         />
       )}
       {isBuilding && <BuildPanel arranged={saved} defaults={pack.manifest.default_layout} />}
+      <RadioPlayer isOn={isSignedIn && isRadioOn} />
       <Outlet />
       <div
         aria-hidden="true"

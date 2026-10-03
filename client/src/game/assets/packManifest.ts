@@ -37,6 +37,7 @@ export const SpotKindSchema = z.enum([
   'plant',
   'board',
   'grass',
+  'rest',
   'stretch',
   'look',
 ]);
@@ -46,6 +47,8 @@ export const SpotSchema = AnchorSchema.extend({
   kind: SpotKindSchema,
   clip: ClipNameSchema,
   seconds: z.number().positive(),
+  /** Where the agent sits for the clip, when the spot is sat on. */
+  seat: Vec3Schema.optional(),
 });
 
 /** A spot. */

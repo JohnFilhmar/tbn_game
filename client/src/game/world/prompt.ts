@@ -37,7 +37,7 @@ function distanceTo(owner: Vector3, x: number, z: number): number {
 
 /**
  * The one thing E acts on: the nearest of the computer, the agents and the props within reach in
- * front of the owner, so the HUD shows a single prompt.
+ * front of the owner, so the HUD shows a single prompt. The computer, in reach, beats every prop.
  */
 export function promptAt(scene: PromptScene): Prompt {
   const [forwardX, forwardZ] = forwardOf(scene.facingDeg);
@@ -58,6 +58,8 @@ export function promptAt(scene: PromptScene): Prompt {
     best = { kind: 'agent', agentId };
     bestDistance = distance;
   }
+  // A prop never takes E from the computer, such as the inbox tray on the computer's own desk.
+  if (best?.kind === 'computer') return best;
   for (const prop of scene.props) {
     const distance = distanceTo(scene.owner, prop.x, prop.z);
     if (distance > prop.reach || distance >= bestDistance) continue;

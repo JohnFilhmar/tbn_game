@@ -20,6 +20,7 @@ const GOING: Record<Spot['kind'], string> = {
   plant: 'checks on a plant',
   board: 'doodles on the whiteboard',
   grass: 'touches some grass',
+  rest: 'sits back for a nap',
   stretch: 'stretches their legs',
   look: 'has a look around',
 };
@@ -66,6 +67,7 @@ export class WanderScheduler {
       clip: spot.clip,
       seconds: spot.seconds,
       effect: SPOT_EFFECTS[spot.kind],
+      seat: spot.seat === undefined ? undefined : new Vector3(...spot.seat),
     }));
   }
 

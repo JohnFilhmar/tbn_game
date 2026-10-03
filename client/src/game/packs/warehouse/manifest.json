@@ -463,6 +463,54 @@
       "zone": null,
       "variant": null,
       "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bdd",
+      "kind": "inbox_tray",
+      "x": -3.05,
+      "z": 5.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bde",
+      "kind": "wall_clock",
+      "x": 0,
+      "z": -7.85,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bdf",
+      "kind": "radio",
+      "x": -5.6,
+      "z": 7.85,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000be0",
+      "kind": "exit_sign",
+      "x": -8,
+      "z": 7.85,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
     }
   ],
   "scene": "scene.glb"

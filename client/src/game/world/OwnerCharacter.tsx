@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Vector3, type Group } from 'three';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import type { ClipName } from '@/game/assets/characterManifest';
@@ -12,7 +12,7 @@ import type { MoveAction } from './keyboard';
 import { livePositions, OWNER_KEY } from './livePositions';
 import type { Navigation, NavNode } from './navmesh';
 import { promptAt, propsInReach, type Prompt, type UsableProp } from './prompt';
-import type { SeatPose } from './seat';
+import { seatPoseOf, type SeatPose } from './seat';
 import { useWorldStore } from './worldStore';
 
 /** Props of `OwnerCharacter`. */
@@ -74,12 +74,14 @@ export function OwnerCharacter({
   const setCanUseComputer = useWorldStore((state) => state.setCanUseComputer);
   const setNearAgentId = useWorldStore((state) => state.setNearAgentId);
   const setNearProps = useWorldStore((state) => state.setNearProps);
+  // An owner who sat at the computer before the world drew stands up beside the chair.
+  const [startsAtChair] = useState(() => useWorldStore.getState().hasSat);
   const state = useRef<OwnerState>({
-    position: vec3(spawn.position),
-    yawDeg: spawn.yaw_deg,
+    position: startsAtChair ? seatPoseOf(computer).chair : vec3(spawn.position),
+    yawDeg: startsAtChair ? computer.yaw_deg : spawn.yaw_deg,
     node: null,
     promptKey: '',
-    wasSeated: false,
+    wasSeated: startsAtChair,
     teleportId: useWorldStore.getState().teleport?.id ?? 0,
   });
   const clipRef = useRef<ClipName>('idle');
@@ -115,6 +117,7 @@ export function OwnerCharacter({
     group.visible = true;
     if (own.wasSeated) {
       own.wasSeated = false;
+      useWorldStore.getState().setHasSat(false);
       own.node = navigation.clampStep(navigation.snap(own.position), own.position, null, clamped);
       own.position.set(clamped.x, 0, clamped.z);
     }
@@ -170,7 +173,7 @@ export function OwnerCharacter({
     if (isActing) {
       // Using a prop: the owner turns to it and plays its clip where they stand.
       own.yawDeg = turnTowards(own.yawDeg, acting.yawDeg, TURN_SPEED * dt);
-      group.position.copy(own.position);
+      group.position.copy(acting.seat ?? own.position);
       group.rotation.y = radiansOf(own.yawDeg);
       clipRef.current = acting.clip;
       return;

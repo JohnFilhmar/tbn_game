@@ -12,6 +12,8 @@ import { Blinds } from '@/game/objects/Blinds';
 import { BoardFaces } from '@/game/objects/BoardFaces';
 import { Effects } from '@/game/objects/Effects';
 import { Lamps } from '@/game/objects/Lamps';
+import { LiveProps } from '@/game/objects/LiveProps';
+import type { LiveData } from '@/game/objects/liveData';
 import { daylightScale } from '@/game/objects/lighting';
 import { stateOf, type PropStates } from '@/game/objects/propStates';
 import { boardFrame, boardPoseOf } from '@/game/objects/whiteboard/frame';
@@ -49,9 +51,16 @@ export interface WorldProps {
   pendingAgentIds: ReadonlySet<string>;
   /** True while the owner builds: the camera looks down at an angle and props can be picked. */
   isBuilding: boolean;
-  /** The saved state of each prop that keeps one: blinds, lamps and whiteboards. */
+  /** The saved state of each prop that keeps one: blinds, lamps, whiteboards, plants, radios. */
   propStates: PropStates;
+  /** What the company's objects show: the inbox, the cork board, the rack, the trophies. */
+  live: LiveData;
+  /** The plants and trees that droop for want of water. */
+  thirstyIds: ReadonlySet<string>;
 }
+
+/** The yellow of a plant that wants water. */
+const THIRSTY_COLOR = '#a39a45';
 
 function FrameCounter() {
   const setFps = useWorldStore((state) => state.setFps);
@@ -110,6 +119,8 @@ function PackWorld({
   pendingAgentIds,
   isBuilding,
   propStates,
+  live,
+  thirstyIds,
 }: PackWorldProps) {
   const { pack, manifest } = arranged;
   // ponytail: rebuilt whole on every layout change; a grid of a few thousand cells takes
@@ -131,6 +142,14 @@ function PackWorld({
         ? arranged.placements
         : arranged.placements.filter((placement) => placement.id !== heldId),
     [arranged.placements, heldId],
+  );
+  // A thirsty plant is drawn yellowed, which the batching keeps as one draw per colour.
+  const shown = useMemo(
+    () =>
+      placements.map((placement) =>
+        thirstyIds.has(placement.id) ? { ...placement, color: THIRSTY_COLOR } : placement,
+      ),
+    [placements, thirstyIds],
   );
   const byKind = useMemo(() => {
     const of = (kind: PropKind): WorldPlacement[] =>
@@ -170,7 +189,8 @@ function PackWorld({
     <>
       <Ground />
       <PackScene pack={pack} isLit={isLit} theme={arranged.theme} />
-      <Props placements={placements} theme={arranged.theme} onPick={onPick} />
+      <Props placements={shown} theme={arranged.theme} onPick={onPick} />
+      <LiveProps placements={placements} live={live} hour={hour} onPick={onPick} />
       <Lamps lamps={byKind.lamps} states={propStates} isInteriorOn={isLit} onPick={onPick} />
       <Blinds blinds={byKind.blinds} states={propStates} onPick={onPick} />
       <BoardFaces boards={byKind.boards} states={propStates} theme={arranged.theme} />
@@ -246,12 +266,14 @@ export function World({
   pendingAgentIds,
   isBuilding,
   propStates,
+  live,
+  thirstyIds,
 }: WorldProps) {
   const talkingTo = useWorldStore((state) => state.talkingTo);
   const drawingOn = useWorldStore((state) => state.drawingOn);
-  const isLightsOpen = useWorldStore((state) => state.isLightsOpen);
+  const panel = useWorldStore((state) => state.panel);
   const keysRef = useMovementKeys(
-    isActive && talkingTo === null && drawingOn === null && !isLightsOpen,
+    isActive && talkingTo === null && drawingOn === null && panel === null,
   );
   useEffect(() => {
     useLoader.preload(GLTFLoader, characterFiles());
@@ -279,6 +301,8 @@ export function World({
           pendingAgentIds={pendingAgentIds}
           isBuilding={isBuilding}
           propStates={propStates}
+          live={live}
+          thirstyIds={thirstyIds}
         />
       </Suspense>
       <FrameCounter />
