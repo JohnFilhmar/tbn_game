@@ -14,8 +14,10 @@ const BoardSchema = z.object({
 });
 const PreferencesSchema = z.object({ grass_touched: z.number() });
 
-// Each flow leaves the office's objects as the pack ships them, for the flows after it.
-test.describe.configure({ mode: 'serial' });
+// Each flow leaves the office's objects as the pack ships them, for the flows after it. The
+// owner walks to some of them, and in CI's software renderer walking is slow, so each flow gets
+// three minutes.
+test.describe.configure({ mode: 'serial', timeout: 180_000 });
 
 /** Reads a path of the API as the signed-in owner. */
 async function read(page: Page, path: string): Promise<unknown> {
@@ -63,13 +65,16 @@ function withinReach(page: Page) {
 }
 
 /**
- * Walks the owner with a movement key until `button` is within reach. The camera faces north
- * behind the owner, so `a` walks west and `w` walks north.
+ * Runs the owner with a movement key until `button` is within reach. The camera faces north
+ * behind the owner, so `a` runs west and `w` runs north. A step lasts one frame, so a slow
+ * renderer walks slowly.
  */
 async function walkTo(page: Page, key: 'a' | 'w', button: Locator): Promise<void> {
+  await page.keyboard.down('Shift');
   await page.keyboard.down(key);
-  await expect(button).toBeVisible({ timeout: 15_000 });
+  await expect(button).toBeVisible({ timeout: 45_000 });
   await page.keyboard.up(key);
+  await page.keyboard.up('Shift');
 }
 
 /** Walks from the computer to the blinds of the west window: left to the board, then up. */

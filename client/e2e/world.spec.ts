@@ -71,6 +71,8 @@ test('the owner lands in the world and walks to the computer', async ({ page }, 
 });
 
 test('the three environments and the night', async ({ page }, testInfo) => {
+  // Three environments load one after another, which outlasts the default time in CI.
+  test.slow();
   await signIn(page);
   await expect(worldReady(page)).toBeAttached();
   for (const environment of ['Home', 'Warehouse']) {
