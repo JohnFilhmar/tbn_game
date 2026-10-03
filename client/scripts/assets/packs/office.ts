@@ -36,11 +36,11 @@ function island(b: PackBuilder, cx: number, cz: number, name: string, label: str
 export function buildOffice(): PackResult {
   const b = new PackBuilder({ ...BASE_MATERIALS, floor: '#b9b1a3', wall: '#ece7dd' });
   b.floor('floor', 22, 16);
-  b.wall('wall', [-11, -8], [11, -8], CEILING);
-  b.wall('wall', [-11, 8], [-0.9, 8], CEILING);
-  b.wall('wall', [0.9, 8], [11, 8], CEILING);
-  b.wall('wall', [-11, -8], [-11, 8], CEILING);
-  b.wall('wall', [11, -8], [11, 8], CEILING);
+  b.outerWall('wall', [-11, -8], [11, -8], CEILING);
+  b.outerWall('wall', [-11, 8], [-0.9, 8], CEILING);
+  b.outerWall('wall', [0.9, 8], [11, 8], CEILING);
+  b.outerWall('wall', [-11, -8], [-11, 8], CEILING);
+  b.outerWall('wall', [11, -8], [11, 8], CEILING);
   doorFrame(b, [0, 8], 0, 1.8);
   for (const x of [-7.5, -2.5, 2.5, 7.5]) windowPane(b, [x, -7.88], 0, 2);
   for (const z of [-4, 0, 4]) windowPane(b, [10.88, z], 270, 2);

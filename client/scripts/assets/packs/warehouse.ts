@@ -18,11 +18,11 @@ const CEILING = 6;
 export function buildWarehouse(): PackResult {
   const b = new PackBuilder({ ...BASE_MATERIALS, floor: '#8e8e8e', wall: '#b9b9b4' });
   b.floor('concrete', 24, 16);
-  b.wall('wall', [-12, -8], [12, -8], CEILING, 0.3);
-  b.wall('wall', [-12, -8], [-12, 8], CEILING, 0.3);
-  b.wall('wall', [12, -8], [12, 8], CEILING, 0.3);
-  b.wall('wall', [-12, 8], [-9.5, 8], CEILING, 0.3);
-  b.wall('wall', [-6.5, 8], [12, 8], CEILING, 0.3);
+  b.outerWall('wall', [-12, -8], [12, -8], CEILING, 0.3);
+  b.outerWall('wall', [-12, -8], [-12, 8], CEILING, 0.3);
+  b.outerWall('wall', [12, -8], [12, 8], CEILING, 0.3);
+  b.outerWall('wall', [-12, 8], [-9.5, 8], CEILING, 0.3);
+  b.outerWall('wall', [-6.5, 8], [12, 8], CEILING, 0.3);
   doorFrame(b, [-8, 8], 0, 3);
   b.box('metal', [3.3, 0.45, 0.35], [-8, 3.2, 8], 0, false);
 

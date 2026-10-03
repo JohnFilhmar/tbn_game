@@ -124,6 +124,33 @@ export class PackBuilder {
     this.box(material, [thickness, height, length], centre, yawDeg);
   }
 
+  /**
+   * An outer wall: one face, turned towards the origin, so a camera outside the room looks
+   * straight through it. It blocks the floor like a wall `thickness` thick.
+   */
+  outerWall(
+    material: string,
+    from: [number, number],
+    to: [number, number],
+    height = 3,
+    thickness = 0.2,
+  ): void {
+    const dx = to[0] - from[0];
+    const dz = to[1] - from[1];
+    const length = Math.hypot(dx, dz);
+    const centre: Vec3 = [(from[0] + to[0]) / 2, height / 2, (from[1] + to[1]) / 2];
+    let normalX = dz / length;
+    let normalZ = -dx / length;
+    if (normalX * -centre[0] + normalZ * -centre[2] < 0) {
+      normalX = -normalX;
+      normalZ = -normalZ;
+    }
+    const facingDeg = (Math.atan2(normalX, normalZ) * 180) / Math.PI;
+    this.add(new PlaneGeometry(length, height), material, centre, facingDeg);
+    const wallDeg = (Math.atan2(dx, dz) * 180) / Math.PI;
+    this.block(footprintOfBox([thickness, height, length], centre, wallDeg));
+  }
+
   /** Marks floor nobody walks through, with or without geometry. */
   block(footprint: Footprint): void {
     this.footprints.push(footprint);

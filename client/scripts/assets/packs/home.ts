@@ -29,11 +29,11 @@ export function buildHome(): PackResult {
   b.floor('grass', 9, 7, [4.5, 0, 3.5]);
   rug(b, [-4.5, 3.6], [3.2, 2.4], 'fabric');
 
-  b.wall('wall', [-9, -7], [9, -7], CEILING);
-  b.wall('wall', [-9, -7], [-9, 7], CEILING);
-  b.wall('wall', [9, -7], [9, 0], CEILING);
-  b.wall('wall', [-9, 7], [-5.2, 7], CEILING);
-  b.wall('wall', [-3.8, 7], [0, 7], CEILING);
+  b.outerWall('wall', [-9, -7], [9, -7], CEILING);
+  b.outerWall('wall', [-9, -7], [-9, 7], CEILING);
+  b.outerWall('wall', [9, -7], [9, 0], CEILING);
+  b.outerWall('wall', [-9, 7], [-5.2, 7], CEILING);
+  b.outerWall('wall', [-3.8, 7], [0, 7], CEILING);
   b.wall('wall', [0, 0], [0, 2.3], CEILING);
   b.wall('wall', [0, 3.7], [0, 7], CEILING);
   b.wall('wall', [0, -7], [0, -4.7], CEILING);
