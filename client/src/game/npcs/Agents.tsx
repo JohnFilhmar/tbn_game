@@ -184,7 +184,7 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
       const seat = seats.get(agent.id);
       const actor = actors.current.get(agent.id);
       if (seat === undefined) {
-        if (actor !== undefined && actor.activity !== 'leaving' && !actor.isGone) actor.leave(exit);
+        actor?.leave(exit);
         continue;
       }
       const home = homeOf(seat, navigation);
@@ -211,7 +211,7 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
       }
     }
     for (const [id, actor] of actors.current) {
-      if (!agents.some((agent) => agent.id === id) && !actor.isGone) actor.leave(exit);
+      if (!agents.some((agent) => agent.id === id)) actor.leave(exit);
     }
     if (changed) setRoster([...actors.current.values()]);
     hasRoster.current = true;

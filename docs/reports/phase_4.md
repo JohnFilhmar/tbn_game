@@ -118,6 +118,9 @@ up while building:
 - **The idle agent stands by its desk.** An agent that sat at its desk all day would never walk
   when a task starts; an idle agent stands behind its chair and walks to the seat to work, so
   every task is a walk, and every finish a walk back.
+- **A leaving agent finishes its errand first.** The sweep ends an idle intern seconds after its
+  part is done, often while it is still walking in; dropping its queued steps lost the walk that
+  brings the result back. An agent told to leave now walks out after what it was doing.
 - **The HUD's dialogs sit outside the overlay.** The overlay lets pointer events through to the
   canvas, which the dialogs inherited; they now render beside it.
 - **The desk's Escape returns to the world** unless the focus is in a field or a dialog, so

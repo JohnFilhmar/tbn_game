@@ -123,9 +123,12 @@ test('an agent walks, works, hands off, and the intern arrives and leaves', asyn
   // Idle interns end almost at once, so the departure is part of the flow.
   await openDesk(page);
   await openScreen(page, 'Preferences');
-  await page.getByLabel('Intern idle time (minutes)').fill('0.01');
-  await page.getByRole('button', { name: 'Save Intern idle time' }).click();
-  await expect(page.getByLabel('Intern idle time (minutes)')).toHaveValue('0.01');
+  const idleTime = page.getByLabel('Intern idle time (minutes)');
+  if ((await idleTime.inputValue()) !== '0.01') {
+    await idleTime.fill('0.01');
+    await page.getByRole('button', { name: 'Save Intern idle time' }).click();
+  }
+  await expect(idleTime).toHaveValue('0.01');
 
   await openScreen(page, 'Tasks');
   await page.getByRole('button', { name: 'Assign a task' }).click();

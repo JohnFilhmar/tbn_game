@@ -55,6 +55,7 @@ export class AgentActor {
   private timer = 0;
   private isWorking = false;
   private isSeated = false;
+  private hasLeaveQueued = false;
 
   constructor(options: {
     id: string;
@@ -135,15 +136,24 @@ export class AgentActor {
     );
   }
 
-  /** Walks out through the exit and disappears. */
+  /** True once told to leave, whether or not it is out of the door yet. */
+  get isLeaving(): boolean {
+    return this.hasLeaveQueued;
+  }
+
+  /**
+   * Walks out through the exit and disappears, after finishing what it was doing: an intern
+   * ended while bringing its result back still brings it back first.
+   */
   leave(exit: Vector3): void {
-    this.queue = [
+    if (this.hasLeaveQueued || this.isGone) return;
+    this.hasLeaveQueued = true;
+    this.isWorking = false;
+    this.queue = this.queue.filter((step) => step.kind !== 'settle');
+    this.queue.push(
       { kind: 'walk', to: exit, activity: 'leaving', narration: `${this.name} leaves.` },
       { kind: 'vanish' },
-    ];
-    this.path = [];
-    this.timer = 0;
-    this.isSeated = false;
+    );
   }
 
   /** Puts the agent at a new home at once, as a pack switch does. */
@@ -237,7 +247,7 @@ export class AgentActor {
       return;
     }
     // Nothing queued: the resting state follows the work flag, whenever it changed.
-    if (this.isWorking !== (this.activity === 'working')) this.settle();
+    if (!this.hasLeaveQueued && this.isWorking !== (this.activity === 'working')) this.settle();
   }
 
   private follow(dt: number): void {

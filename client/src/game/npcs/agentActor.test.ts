@@ -106,6 +106,23 @@ describe('an agent actor', () => {
     expect(lines).toEqual(['Agent 2 arrives.', 'Agent 2 leaves.']);
   });
 
+  it('finishes an errand before it leaves, and leaves only once', () => {
+    const { actor: intern, lines } = actorAt(6, 0, new Vector3(6, 0, 8));
+    const { actor: manager } = actorAt(0, 0);
+    intern.visit(manager, 'returning', 'Agent 6 brings the result back to Agent 0.');
+    intern.leave(new Vector3(6, 0, 8));
+    intern.leave(new Vector3(6, 0, 8));
+    expect(intern.isLeaving).toBe(true);
+    run(intern, 30);
+    expect(intern.isGone).toBe(true);
+    expect(lines).toEqual([
+      'Agent 6 arrives.',
+      'Agent 6 brings the result back to Agent 0.',
+      'Agent 6 returns to the desk.',
+      'Agent 6 leaves.',
+    ]);
+  });
+
   it('moves home at once on a pack switch and keeps working there', () => {
     const { actor } = actorAt(0, 0);
     actor.startWork();
