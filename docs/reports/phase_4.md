@@ -41,7 +41,9 @@ rendering numbers are below, and the demo puts the frame counter in your HUD.
   against the built stack and a fake model that now plays a delegation: landing, the camera
   toggle, walking to the computer and opening the desk; the three environments in both cameras
   and the night, with a screenshot of each; customising the owner; and the whole agent story read
-  from the narration. The six phase 3 flows still pass through the desk overlay.
+  from the narration. The six phase 3 flows still pass through the desk overlay, and the whole
+  suite passed twice in a row here. CI is green on the pull request, including both image jobs
+  with Trivy and signing.
 
 ## What could not be done here
 
