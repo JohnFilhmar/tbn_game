@@ -21,7 +21,9 @@ export interface CameraRigProps {
 }
 
 const DEG = Math.PI / 180;
-const FOCUS_HEIGHT = 1.2;
+/** Third person looks from behind the right shoulder, at head height, as GTA San Andreas does. */
+const FOCUS_HEIGHT = 1.55;
+const SHOULDER = 0.45;
 /** How fast the camera follows: briskly while walking, slower while it glides to or from the
  * seat, so sitting down and standing up read as one move. */
 const FOLLOW_RATE = 10;
@@ -35,7 +37,8 @@ function clamp(value: number, low: number, high: number): number {
 }
 
 /**
- * The camera rigs. Third person orbits behind the character: drag to look around, wheel to zoom.
+ * The camera rigs. Third person sits close behind the character's right shoulder: drag to look
+ * around, wheel to zoom out.
  * Top down looks straight down from above the character with north up: wheel to zoom. Seated looks
  * at the monitor from the owner's chair. A change between them glides; the first frame and a
  * device that asks for reduced motion snap. The movement keys stay relative to what is on screen.
@@ -52,8 +55,8 @@ export function CameraRig({
   const element = useThree((state) => state.gl.domElement);
   const orbit = useRef({
     yaw: radiansOf(initialYawDeg + 180),
-    pitch: 0.45,
-    distance: 6,
+    pitch: 0.2,
+    distance: 3.2,
     height: Math.max(ceiling + 10, 18),
   });
   const focus = useMemo(() => new Vector3(), []);
@@ -77,7 +80,7 @@ export function CameraRig({
       if (!isDragging || mode !== 'third_person') return;
       const state = orbit.current;
       state.yaw -= (event.clientX - lastX) * 0.006;
-      state.pitch = clamp(state.pitch + (event.clientY - lastY) * 0.004, 0.08, 1.3);
+      state.pitch = clamp(state.pitch + (event.clientY - lastY) * 0.004, -0.1, 1.1);
       lastX = event.clientX;
       lastY = event.clientY;
     };
@@ -90,7 +93,7 @@ export function CameraRig({
       event.preventDefault();
       const factor = Math.exp(event.deltaY * 0.0012);
       const state = orbit.current;
-      if (mode === 'third_person') state.distance = clamp(state.distance * factor, 2, 14);
+      if (mode === 'third_person') state.distance = clamp(state.distance * factor, 1.4, 7);
       else state.height = clamp(state.height * factor, ceiling + 4, 60);
     };
     element.addEventListener('pointerdown', onPointerDown);
@@ -121,7 +124,12 @@ export function CameraRig({
     } else if (target === null) {
       return;
     } else if (mode === 'third_person') {
-      focus.set(target.position.x, target.position.y + FOCUS_HEIGHT, target.position.z);
+      // The right of the view, so the character stands left of the middle of the screen.
+      focus.set(
+        target.position.x + Math.cos(state.yaw) * SHOULDER,
+        target.position.y + FOCUS_HEIGHT,
+        target.position.z - Math.sin(state.yaw) * SHOULDER,
+      );
       const flat = Math.cos(state.pitch) * state.distance;
       desired.set(
         focus.x + Math.sin(state.yaw) * flat,
