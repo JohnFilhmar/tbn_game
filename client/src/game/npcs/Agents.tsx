@@ -109,6 +109,9 @@ function play(event: WorldEvent, actors: Map<string, AgentActor>): boolean {
 }
 
 const MARKER_HEIGHT = 2.25;
+/** The longest step an actor takes, and the most time one frame catches up on. */
+const TICK = 0.1;
+const MOST_CATCH_UP = 0.5;
 
 /** A faceted gem that floats and turns over an agent waiting on the owner's approval. */
 function ApprovalMarker({ actor }: { actor: AgentActor }) {
@@ -159,7 +162,10 @@ function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharact
   useFrame((_, delta) => {
     const group = groupRef.current;
     if (group === null) return;
-    actor.tick(Math.min(delta, 0.1));
+    // Steps of at most 0.1 s, so a slow frame rate never slows the agents down.
+    for (let left = Math.min(delta, MOST_CATCH_UP); left > 0; left -= TICK) {
+      actor.tick(Math.min(left, TICK));
+    }
     group.position.copy(actor.position);
     group.rotation.y = radiansOf(actor.yawDeg);
     group.visible = !actor.isGone;

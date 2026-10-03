@@ -51,12 +51,15 @@ function FrameCounter() {
   return null;
 }
 
-/** The ground every pack stands on, a low poly disc that runs out into the fog. */
+/**
+ * The ground every pack stands on, a low poly disc that runs out into the fog. It takes no shadow
+ * and the cheapest lit material, since it can fill a third of the screen.
+ */
 function Ground() {
   return (
-    <mesh rotation-x={-Math.PI / 2} position-y={-0.02} receiveShadow>
+    <mesh rotation-x={-Math.PI / 2} position-y={-0.02}>
       <circleGeometry args={[160, 9]} />
-      <meshStandardMaterial color="#7d8f6a" flatShading />
+      <meshLambertMaterial color="#7d8f6a" />
     </mesh>
   );
 }
