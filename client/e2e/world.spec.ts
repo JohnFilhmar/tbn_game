@@ -125,6 +125,7 @@ test('a desk screen reloads seated, and an expired session signs in again at the
 }) => {
   await signIn(page);
   await openScreen(page, 'Tasks');
+  await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
