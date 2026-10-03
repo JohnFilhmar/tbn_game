@@ -1,7 +1,9 @@
 import type { PropKind } from '@tbn/contracts';
+import type { PackManifest } from '@/game/assets/packManifest';
 import { PROP_CATALOG, type PropCategory } from '@/game/props/catalog';
 import { useBuildStore } from './buildStore';
 import { newPlacement } from './draft';
+import { nearestFit } from './placing';
 
 const CATEGORIES: { category: PropCategory; title: string }[] = [
   { category: 'desks', title: 'Desks' },
@@ -15,15 +17,23 @@ const KINDS = Object.keys(PROP_CATALOG).filter(
   (kind): kind is PropKind => kind in PROP_CATALOG && kind !== 'computer_desk',
 );
 
+/** Props of `BuildCatalog`. */
+export interface BuildCatalogProps {
+  /** The pack being built, whose walls and doorways a new prop must keep clear. */
+  manifest: PackManifest;
+}
+
 /**
- * Every prop the owner can add, by category. Picking one puts a new one in hand at the middle of
- * the view; a click on the floor drops it. There is one computer, which can move but not multiply.
+ * Every prop the owner can add, by category. Picking one puts a new one in hand at the nearest
+ * free spot to the middle of the view; a click on the floor, or Enter, drops it. There is one
+ * computer, which can move but not multiply.
  */
-export function BuildCatalog() {
+export function BuildCatalog({ manifest }: BuildCatalogProps) {
   const hold = useBuildStore((state) => state.hold);
   const take = (kind: PropKind): void => {
-    const { focus } = useBuildStore.getState();
-    hold(newPlacement(kind, focus.x, focus.z, crypto.randomUUID()));
+    const { focus, history } = useBuildStore.getState();
+    const fresh = newPlacement(kind, focus.x, focus.z, crypto.randomUUID());
+    hold(nearestFit(manifest.bounds, manifest, fresh, history?.present.placements ?? []));
   };
   return (
     <div className="flex flex-col gap-3">

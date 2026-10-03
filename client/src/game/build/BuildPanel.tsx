@@ -12,6 +12,7 @@ import { BuildSelection } from './BuildSelection';
 import { hasUnsavedChanges, useBuildStore } from './buildStore';
 import { BuildTheme } from './BuildTheme';
 import { turned, withPlacement, withoutPlacement } from './draft';
+import { dropHeld } from './placing';
 import { useLayoutCommands } from './useLayoutCommands';
 
 /** Props of `BuildPanel`. */
@@ -80,6 +81,9 @@ export function BuildPanel({ arranged, defaults }: BuildPanelProps) {
         else if (chosen !== undefined) state.change((d) => withPlacement(d, turned(chosen)));
       } else if ((event.key === 'Delete' || event.key === 'Backspace') && chosen !== undefined) {
         if (chosen.kind !== 'computer_desk') state.change((d) => withoutPlacement(d, chosen.id));
+      } else if (event.key === 'Enter' && state.holding !== null) {
+        event.preventDefault();
+        dropHeld(arranged.manifest.bounds, arranged.manifest);
       } else if (event.key === 'Escape') {
         if (state.holding !== null) state.hold(null);
         else if (state.selectedId !== null) state.select(null);
@@ -144,7 +148,10 @@ export function BuildPanel({ arranged, defaults }: BuildPanelProps) {
             type="button"
             role="tab"
             aria-selected={tab === name}
-            onClick={() => setTab(name)}
+            onClick={() => {
+              setTab(name);
+              store.select(null);
+            }}
             className={cx(
               'rounded-md px-3 py-1 font-display text-sm font-semibold',
               tab === name
@@ -159,12 +166,12 @@ export function BuildPanel({ arranged, defaults }: BuildPanelProps) {
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {holding !== null ? (
           <p className="text-sm text-slate-300">
-            Click the floor to place it. R turns it, Escape puts it back.
+            Click the floor or press Enter to place it. R turns it, Escape puts it back.
           </p>
         ) : selected !== undefined ? (
           <BuildSelection placement={selected} />
         ) : tab === 'catalog' ? (
-          <BuildCatalog />
+          <BuildCatalog manifest={arranged.manifest} />
         ) : (
           <BuildTheme />
         )}

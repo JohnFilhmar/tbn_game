@@ -1,5 +1,4 @@
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import type { WorldPlacement } from '@tbn/contracts';
 import type { RefObject } from 'react';
 import { rugArea } from '@/game/props/arrangement';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
@@ -8,7 +7,8 @@ import { Props } from '@/game/props/Props';
 import type { MoveAction } from '@/game/world/keyboard';
 import type { Footprint } from '@/game/props/builder';
 import { useBuildStore } from './buildStore';
-import { snap, withPlacement } from './draft';
+import { snap } from './draft';
+import { dropHeld } from './placing';
 
 /** Props of `BuildLayer`. */
 export interface BuildLayerProps {
@@ -65,7 +65,6 @@ export function BuildLayer({ arranged, keysRef }: BuildLayerProps) {
   const selectedId = useBuildStore((state) => state.selectedId);
   const draft = useBuildStore((state) => state.history?.present ?? null);
   const hold = useBuildStore((state) => state.hold);
-  const change = useBuildStore((state) => state.change);
   const select = useBuildStore((state) => state.select);
   const { manifest } = arranged;
   const placements = draft?.placements ?? [];
@@ -94,17 +93,8 @@ export function BuildLayer({ arranged, keysRef }: BuildLayerProps) {
   };
   const onClick = (event: ThreeEvent<MouseEvent>): void => {
     if (event.delta > 6) return;
-    const current = useBuildStore.getState().holding;
-    if (current === null) {
-      select(null);
-      return;
-    }
-    const others = useBuildStore.getState().history?.present.placements ?? [];
-    if (placementProblem(manifest.bounds, manifest, current, others) !== null) return;
-    const placed: WorldPlacement = current;
-    change((present) => withPlacement(present, placed));
-    hold(null);
-    select(placed.id);
+    if (useBuildStore.getState().holding === null) select(null);
+    else dropHeld(manifest.bounds, manifest);
   };
 
   return (

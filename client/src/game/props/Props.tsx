@@ -56,7 +56,8 @@ function Instances({ geometry, material, placements, onPick }: InstancesProps) {
     });
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [placements]);
+    // A new material or geometry makes a new mesh, which needs its instances placed again.
+  }, [placements, material, geometry]);
   return (
     <instancedMesh
       ref={ref}
