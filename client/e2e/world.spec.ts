@@ -228,7 +228,10 @@ test('the owner talks to an agent in the world', async ({ page }) => {
   await panel.getByRole('button', { name: 'Send' }).click();
   const log = panel.getByRole('log', { name: `Chat with ${MANAGER}` });
   await expect(log).toContainText('How is the office?');
-  await expect(log).toContainText('You wrote: How is the office?', { timeout: 30_000 });
+  // The fake model's words depend on what came before; any reply from the agent will do.
+  await expect(log).toContainText(new RegExp(`How is the office[?]${MANAGER} · `), {
+    timeout: 30_000,
+  });
   await expect(page.getByRole('list', { name: 'Agents in the world' })).toBeHidden();
 
   await page.keyboard.press('Escape');
