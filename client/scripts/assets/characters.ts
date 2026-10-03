@@ -80,6 +80,22 @@ function node(parent: Object3D, name: string, position: [number, number, number]
 }
 
 /** The height of the hips node when standing; the clips move it down to sit. */
+/** Every clip a character carries, in the order the manifest lists them. */
+export const CLIP_NAMES = [
+  'idle',
+  'walk',
+  'work',
+  'sit',
+  'wave',
+  'drink',
+  'look',
+  'write',
+  'touch',
+  'stretch',
+  'talk',
+  'press',
+];
+
 export const HIP_HEIGHT = 0.78;
 const SEATED_HIP_HEIGHT = 0.47;
 
@@ -136,20 +152,21 @@ function sampled(
   return [times, values];
 }
 
-/** A rotation track about X (and optionally Z) for one node, sampled from a function of phase. */
+/** A rotation track about X (and optionally Z and Y) for one node, sampled from a function of phase. */
 function rotation(
   nodeName: string,
   duration: number,
   steps: number,
   x: (phase: number) => number,
   z: (phase: number) => number = () => 0,
+  y: (phase: number) => number = () => 0,
 ): QuaternionKeyframeTrack {
   const [times] = sampled(duration, steps, x);
   const values: number[] = [];
   const quaternion = new Quaternion();
   for (let index = 0; index <= steps; index += 1) {
     const phase = (index / steps) % 1;
-    quaternion.setFromEuler(new Euler(x(phase), 0, z(phase), 'XYZ'));
+    quaternion.setFromEuler(new Euler(x(phase), y(phase), z(phase), 'XYZ'));
     values.push(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
   }
   return new QuaternionKeyframeTrack(`${nodeName}.quaternion`, times, values);
@@ -169,8 +186,112 @@ function hipHeight(
 
 const TAU = Math.PI * 2;
 const sin = (phase: number): number => Math.sin(phase * TAU);
+/** Rises from 0 to 1 and back over one phase, smoothly at both ends. */
+const bump = (phase: number): number => Math.sin(phase * Math.PI) ** 2;
 
-/** The five clips every character carries, scaled to the variant's height. */
+/** The nodes every clip moves, so a crossfade never leaves one posed by the last clip. */
+const POSED_NODES = [
+  'spine',
+  'head',
+  'arm_l',
+  'arm_r',
+  'leg_l',
+  'leg_r',
+  'shin_l',
+  'shin_r',
+] as const;
+
+type PosedNode = (typeof POSED_NODES)[number];
+
+/** A node's rotation in a clip: about X, and optionally Z and Y, each a function of phase. */
+interface Pose {
+  x?: (phase: number) => number;
+  z?: (phase: number) => number;
+  y?: (phase: number) => number;
+}
+
+/**
+ * A clip that moves the given nodes and holds every other node of `POSED_NODES` at rest, with the
+ * hips at `hip` (a function of phase, in unscaled metres).
+ */
+function clipOf(
+  name: string,
+  duration: number,
+  heightFactor: number,
+  hip: (phase: number) => number,
+  poses: Partial<Record<PosedNode, Pose>>,
+): AnimationClip {
+  const steps = Math.max(8, Math.round(duration * 10));
+  const rest: Record<PosedNode, Pose> = {
+    spine: {},
+    head: {},
+    arm_l: { z: () => 0.08 },
+    arm_r: { z: () => -0.08 },
+    leg_l: {},
+    leg_r: {},
+    shin_l: {},
+    shin_r: {},
+  };
+  return new AnimationClip(name, duration, [
+    hipHeight(duration, steps, hip, heightFactor),
+    ...POSED_NODES.map((nodeName) => {
+      const pose = poses[nodeName] ?? rest[nodeName];
+      return rotation(
+        nodeName,
+        duration,
+        steps,
+        pose.x ?? (() => 0),
+        pose.z ?? (() => 0),
+        pose.y ?? (() => 0),
+      );
+    }),
+  ]);
+}
+
+/** The idle clips of phase 4c: what an agent does at a spot, and the owner at an object. */
+function spotClips(h: number): AnimationClip[] {
+  const standing = (): number => HIP_HEIGHT;
+  return [
+    clipOf('drink', 2.4, h, standing, {
+      arm_r: { x: (p) => -0.3 - 1.9 * bump(p), z: (p) => -0.08 + 0.45 * bump(p) },
+      head: { x: (p) => -0.25 * bump(p) },
+    }),
+    clipOf('look', 3, h, standing, {
+      head: { x: () => -0.05, y: (p) => 0.6 * sin(p) },
+      spine: { y: (p) => 0.15 * sin(p) },
+    }),
+    clipOf('write', 1.6, h, standing, {
+      arm_r: { x: (p) => -1.6 + 0.15 * sin(p * 2), z: (p) => 0.1 * sin(p) },
+      head: { x: () => 0.05 },
+    }),
+    clipOf('touch', 2.5, h, () => 0.4, {
+      leg_l: { x: () => -1.3 },
+      leg_r: { x: () => -1.3 },
+      shin_l: { x: () => 2.2 },
+      shin_r: { x: () => 2.2 },
+      spine: { x: () => 0.5 },
+      arm_r: { x: (p) => -0.8 - 0.15 * sin(p * 3) },
+      head: { x: () => 0.3 },
+    }),
+    clipOf('stretch', 2.4, h, (p) => HIP_HEIGHT + 0.02 * bump(p), {
+      arm_l: { x: (p) => -2.9 * bump(p), z: (p) => 0.08 + 0.15 * bump(p) },
+      arm_r: { x: (p) => -2.9 * bump(p), z: (p) => -0.08 - 0.15 * bump(p) },
+      spine: { x: (p) => -0.15 * bump(p) },
+      head: { x: (p) => -0.2 * bump(p) },
+    }),
+    clipOf('talk', 1.6, h, standing, {
+      arm_l: { x: (p) => -0.5 - 0.25 * sin(p), z: () => 0.1 },
+      arm_r: { x: (p) => -0.5 + 0.25 * sin(p), z: () => -0.1 },
+      head: { x: (p) => 0.06 * sin(p * 2) },
+    }),
+    clipOf('press', 1, h, standing, {
+      arm_r: { x: (p) => -1.4 - 0.15 * bump(p) },
+      head: { x: () => 0.05 },
+    }),
+  ];
+}
+
+/** The clips every character carries, scaled to the variant's height. */
 export function buildClips(variant: BodyVariant): AnimationClip[] {
   const h = variant.height;
   const idle = new AnimationClip('idle', 2, [
@@ -194,6 +315,7 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
     rotation('shin_l', 2, 16, () => 0),
     rotation('shin_r', 2, 16, () => 0),
     rotation('head', 2, 16, (p) => 0.03 * sin(p)),
+    rotation('spine', 2, 16, () => 0),
   ]);
   const walk = new AnimationClip('walk', 0.8, [
     hipHeight(0.8, 16, (p) => HIP_HEIGHT + 0.025 * Math.abs(sin(p)), h),
@@ -216,6 +338,7 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
       () => -0.05,
     ),
     rotation('head', 0.8, 16, () => 0),
+    rotation('spine', 0.8, 16, () => 0),
   ]);
   const seated = (
     name: string,
@@ -243,6 +366,7 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
         () => -0.1,
       ),
       rotation('head', duration, 8, () => 0.12),
+      rotation('spine', duration, 8, () => 0),
     ]);
   const sit = seated('sit', 2, () => -0.45);
   const work = seated('work', 0.6, (p, side) => -1.25 + 0.12 * sin(p + (side === 1 ? 0 : 0.5)));
@@ -267,8 +391,9 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
     rotation('shin_l', 1.2, 12, () => 0),
     rotation('shin_r', 1.2, 12, () => 0),
     rotation('head', 1.2, 12, () => -0.08),
+    rotation('spine', 1.2, 12, () => 0),
   ]);
-  return [idle, walk, work, sit, wave];
+  return [idle, walk, work, sit, wave, ...spotClips(h)];
 }
 
 /** A part: a group named after the node it attaches to, with its meshes placed relative to it. */

@@ -9,7 +9,7 @@ import {
   shelfUnit,
 } from '../furniture.ts';
 import { PackBuilder } from '../kit.ts';
-import { anchorsOf, type PackResult } from '../manifest.ts';
+import { anchorsOf, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -12, max_x: 12, min_z: -8, max_z: 8 };
 const CEILING = 6;
@@ -83,6 +83,13 @@ export function buildWarehouse(): PackResult {
       { position: [7, 0, 0.25], yaw_deg: 270 },
       { position: [0, 0, -0.25], yaw_deg: 0 },
       { position: [0, 0, 0.25], yaw_deg: 180 },
+    ],
+    spots: [
+      spot('look', [6.8, -0.5], [8.5, -0.5]),
+      spot('look', [-8.5, 2.3], [-8.5, 3.5]),
+      spot('look', [0, -3.2], [0, -2]),
+      spot('stretch', [5, 4.5], [5, 8]),
+      spot('stretch', [-6, -4.5], [-6, -8]),
     ],
     lighting: {
       ambient: '#8a95a3',

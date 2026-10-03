@@ -1,5 +1,6 @@
 import { EnvironmentNameSchema } from '@tbn/contracts';
 import { z } from 'zod';
+import { ClipNameSchema } from './clipNames';
 
 /** A hex colour such as `#ffcc00`. */
 export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -27,6 +28,27 @@ export const ComputerAnchorSchema = AnchorSchema.extend({ use_radius: z.number()
 
 /** The in-world computer. */
 export type ComputerAnchor = z.infer<typeof ComputerAnchorSchema>;
+
+/** What an idle agent goes to a spot for. */
+export const SpotKindSchema = z.enum([
+  'water',
+  'window',
+  'plant',
+  'board',
+  'grass',
+  'stretch',
+  'look',
+]);
+
+/** A place an idle agent wanders to: where it stands, its facing, the clip it plays and how long. */
+export const SpotSchema = AnchorSchema.extend({
+  kind: SpotKindSchema,
+  clip: ClipNameSchema,
+  seconds: z.number().positive(),
+});
+
+/** A spot. */
+export type Spot = z.infer<typeof SpotSchema>;
 
 /** A department's zone: its desks, the manager's first. */
 export const ZoneSchema = z.strictObject({
@@ -79,6 +101,7 @@ export const PackManifestSchema = z.strictObject({
   computer: ComputerAnchorSchema,
   zones: ZoneSchema.array().min(1),
   waiting: AnchorSchema.array().min(1),
+  spots: SpotSchema.array(),
   lighting: LightingSchema,
 });
 

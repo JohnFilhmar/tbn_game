@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ClipNameSchema } from './clipNames';
 import { HexColorSchema } from './packManifest';
 
 /** The kinds of part a character wears. */
@@ -16,11 +17,7 @@ export const PaletteSlotSchema = z.enum(['skin', 'hair', 'top', 'bottom', 'shoes
 /** A palette slot. */
 export type PaletteSlot = z.infer<typeof PaletteSlotSchema>;
 
-/** The names of the clips every body carries. */
-export const ClipNameSchema = z.enum(['idle', 'walk', 'work', 'sit', 'wave']);
-
-/** A clip name. */
-export type ClipName = z.infer<typeof ClipNameSchema>;
+export { ClipNameSchema, type ClipName } from './clipNames';
 
 const PartFilesSchema = z.record(z.string().min(1), z.string().min(1));
 

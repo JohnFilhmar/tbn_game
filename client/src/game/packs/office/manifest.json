@@ -56,6 +56,16 @@
     { "position": [0, 0, -1.75], "yaw_deg": 0 },
     { "position": [0, 0, 1.25], "yaw_deg": 180 }
   ],
+  "spots": [
+    { "kind": "water", "position": [9, 0, 6.7], "yaw_deg": 45, "clip": "drink", "seconds": 4 },
+    { "kind": "window", "position": [-7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
+    { "kind": "window", "position": [7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
+    { "kind": "window", "position": [10.1, 0, 0], "yaw_deg": 90, "clip": "look", "seconds": 5 },
+    { "kind": "plant", "position": [-9.7, 0, -6.8], "yaw_deg": -131, "clip": "look", "seconds": 3 },
+    { "kind": "board", "position": [1.5, 0, -7.3], "yaw_deg": -122, "clip": "write", "seconds": 5 },
+    { "kind": "stretch", "position": [0, 0, 4], "yaw_deg": 0, "clip": "stretch", "seconds": 3 },
+    { "kind": "stretch", "position": [8.5, 0, 6], "yaw_deg": 0, "clip": "stretch", "seconds": 3 }
+  ],
   "lighting": {
     "ambient": "#9fb4c8",
     "sun_azimuth_deg": 135,

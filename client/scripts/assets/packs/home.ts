@@ -16,7 +16,7 @@ import {
   windowPane,
 } from '../furniture.ts';
 import { PackBuilder } from '../kit.ts';
-import { anchorsOf, type PackResult } from '../manifest.ts';
+import { anchorsOf, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -9, max_x: 9, min_z: -7, max_z: 7 };
 const CEILING = 2.8;
@@ -110,6 +110,14 @@ export function buildHome(): PackResult {
       { position: [-2.5, 0, 1.25], yaw_deg: 180 },
       { position: [2.5, 0, -1.25], yaw_deg: 0 },
       { position: [2.5, 0, 1.25], yaw_deg: 180 },
+    ],
+    spots: [
+      spot('water', [8.2, -5.1], [8.5, -6.55]),
+      spot('grass', [7.5, 2], [7.5, 1]),
+      spot('grass', [2, 5], [2, 6]),
+      spot('plant', [7.2, 5.4], [8, 6]),
+      spot('plant', [1.8, 1.6], [1, 1]),
+      spot('stretch', [-4.5, -3], [-4.5, -7]),
     ],
     lighting: {
       ambient: '#b8c4cc',

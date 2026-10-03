@@ -56,6 +56,20 @@
     { "position": [2.5, 0, -1.25], "yaw_deg": 0 },
     { "position": [2.5, 0, 1.25], "yaw_deg": 180 }
   ],
+  "spots": [
+    { "kind": "water", "position": [8.2, 0, -5.1], "yaw_deg": 168, "clip": "drink", "seconds": 4 },
+    { "kind": "grass", "position": [7.5, 0, 2], "yaw_deg": 180, "clip": "touch", "seconds": 4 },
+    { "kind": "grass", "position": [2, 0, 5], "yaw_deg": 0, "clip": "touch", "seconds": 4 },
+    { "kind": "plant", "position": [7.2, 0, 5.4], "yaw_deg": 53, "clip": "look", "seconds": 3 },
+    { "kind": "plant", "position": [1.8, 0, 1.6], "yaw_deg": -127, "clip": "look", "seconds": 3 },
+    {
+      "kind": "stretch",
+      "position": [-4.5, 0, -3],
+      "yaw_deg": 180,
+      "clip": "stretch",
+      "seconds": 3
+    }
+  ],
   "lighting": {
     "ambient": "#b8c4cc",
     "sun_azimuth_deg": 210,

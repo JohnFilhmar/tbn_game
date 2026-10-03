@@ -17,6 +17,35 @@ export interface Lighting {
   interior: InteriorLight[];
 }
 
+/** What an idle agent goes to do at a spot. */
+export type SpotKind = 'water' | 'window' | 'plant' | 'board' | 'grass' | 'stretch' | 'look';
+
+/** A place an idle agent goes: where it stands, the way it faces, the clip it plays and how long. */
+export interface Spot {
+  kind: SpotKind;
+  position: Vec3;
+  yaw_deg: number;
+  clip: string;
+  seconds: number;
+}
+
+const SPOT_CLIPS: Record<SpotKind, [string, number]> = {
+  water: ['drink', 4],
+  window: ['look', 5],
+  plant: ['look', 3],
+  board: ['write', 5],
+  grass: ['touch', 4],
+  stretch: ['stretch', 3],
+  look: ['look', 4],
+};
+
+/** A spot standing at `at` and facing `facing`, both on the floor, with its kind's clip. */
+export function spot(kind: SpotKind, at: [number, number], facing: [number, number]): Spot {
+  const yaw = (Math.atan2(facing[0] - at[0], facing[1] - at[1]) * 180) / Math.PI;
+  const [clip, seconds] = SPOT_CLIPS[kind];
+  return { kind, position: [at[0], 0, at[1]], yaw_deg: Math.round(yaw), clip, seconds };
+}
+
 /** A department's zone: its desks, the manager's first. */
 export interface Zone {
   name: string;
@@ -39,6 +68,7 @@ export interface PackManifest {
   computer: ComputerAnchor;
   zones: Zone[];
   waiting: Anchor[];
+  spots: Spot[];
   lighting: Lighting;
 }
 
@@ -60,6 +90,7 @@ export function anchorsOf(
     manifest.spawn.position,
     ...manifest.zones.flatMap((zone) => zone.desks.map((desk) => desk.seat)),
     ...manifest.waiting.map((anchor) => anchor.position),
+    ...manifest.spots.map((place) => place.position),
     ...extra,
   ];
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CharacterManifestSchema } from './characterManifest';
+import { ClipNameSchema } from './clipNames';
 import { CHARACTER_SET, bodyNames, partNames } from './characters';
 import { PackManifestSchema } from './packManifest';
 import { PACKS } from './packs';
@@ -15,6 +16,10 @@ describe('the shipped manifests', () => {
       for (const zone of pack.manifest.zones) expect(zone.desks).toHaveLength(4);
       expect(pack.manifest.waiting.length).toBeGreaterThan(0);
       expect(pack.manifest.computer.use_radius).toBeGreaterThan(0);
+      expect(pack.manifest.spots.length).toBeGreaterThanOrEqual(5);
+      for (const place of pack.manifest.spots) {
+        expect(CHARACTER_SET.manifest.clips).toContain(place.clip);
+      }
     }
   });
 
@@ -33,7 +38,7 @@ describe('the shipped manifests', () => {
     const { manifest } = CHARACTER_SET;
     expect(bodyNames(CHARACTER_SET)[0]).toBe('regular');
     expect(bodyNames(CHARACTER_SET)).toEqual(expect.arrayContaining(['slim', 'broad']));
-    expect(manifest.clips).toEqual(['idle', 'walk', 'work', 'sit', 'wave']);
+    expect(manifest.clips).toEqual(ClipNameSchema.options);
     expect(partNames(CHARACTER_SET, 'hair')).toContain('short');
     expect(partNames(CHARACTER_SET, 'outfit')).toContain('vest');
     expect(partNames(CHARACTER_SET, 'accessory')).toContain('glasses');
