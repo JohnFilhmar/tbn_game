@@ -1,5 +1,5 @@
 import { PackBuilder } from '#game/props/builder.ts';
-import { BASE_MATERIALS, doorFrame, lamp } from '#game/props/furniture.ts';
+import { BASE_MATERIALS, doorFrame } from '#game/props/furniture.ts';
 import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -12, max_x: 12, min_z: -8, max_z: 8 };
@@ -16,14 +16,6 @@ export function buildWarehouse(): PackResult {
   b.outerWall('wall', [-6.5, 8], [12, 8], CEILING, 0.3);
   doorFrame(b, [-8, 8], 0, 3);
   b.box('metal', [3.3, 0.45, 0.35], [-8, 3.2, 8], 0, false);
-  const lights: [number, number][] = [
-    [-6, -4.5],
-    [6, -4.5],
-    [-6, 4.5],
-    [6, 4.5],
-    [0, 0],
-  ];
-  for (const at of lights) lamp(b, at, CEILING);
 
   const layout = new LayoutBuilder(3);
   layout.add('shelf', 0, -2, 90, { width: 10, depth: 1 });
@@ -43,6 +35,18 @@ export function buildWarehouse(): PackResult {
   layout.add('pallet', -7.1, 3.5, 15);
   layout.add('pallet', -10.3, 5.8, 0);
   layout.add('forklift', 8.5, -0.5, 90);
+  // The things to use: high bay lamps, a switch by the door and coffee by the owner's desk.
+  for (const [x, z] of [
+    [-6, -4.5],
+    [6, -4.5],
+    [-6, 4.5],
+    [6, 4.5],
+    [0, 0],
+  ] as const) {
+    layout.add('lamp', x, z, 0, { variant: 'high_bay' });
+  }
+  layout.add('light_switch', -6, 7.85, 180);
+  layout.add('coffee_set', -4.5, 7.55, 180);
 
   return {
     manifest: {
@@ -65,12 +69,6 @@ export function buildWarehouse(): PackResult {
       lighting: {
         ambient: '#8a95a3',
         sun_azimuth_deg: 90,
-        interior: lights.map(([x, z]) => ({
-          position: [x, CEILING - 0.4, z],
-          color: '#f3f7ff',
-          intensity: 16,
-          distance: 16,
-        })),
       },
       default_layout: layout.placements,
     },

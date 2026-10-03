@@ -18,6 +18,7 @@ import { RunSchema, RunSourceSchema, TranscriptEntrySchema } from './runs';
 import { SandboxJobSchema } from './sandbox';
 import { SearchProviderSchema } from './search';
 import { WorldLayoutSchema } from './world';
+import { WorldPropStateSchema } from './world_props';
 
 /** What happened to an entity: it was created, it changed, or it was removed. */
 export const EventOpSchema = z.enum(['insert', 'update', 'delete']);
@@ -51,6 +52,7 @@ export const EventEntitySchema = z.enum([
   'skill',
   'preferences',
   'world_layout',
+  'world_prop_state',
 ]);
 
 /** An entity kind in the event log. */
@@ -107,6 +109,7 @@ export const ChangeEventSchema = z.discriminatedUnion('entity', [
   change_event('skill', SkillSchema),
   change_event('preferences', PreferencesSchema),
   change_event('world_layout', WorldLayoutSchema),
+  change_event('world_prop_state', WorldPropStateSchema),
 ]);
 
 /** One change from the event log. */

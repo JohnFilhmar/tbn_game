@@ -8,6 +8,7 @@ import { nearestFit } from './placing';
 const CATEGORIES: { category: PropCategory; title: string }[] = [
   { category: 'desks', title: 'Desks' },
   { category: 'furniture', title: 'Furniture' },
+  { category: 'lights', title: 'Lights' },
   { category: 'plants', title: 'Plants' },
   { category: 'storage', title: 'Storage' },
   { category: 'zones', title: 'Departments' },

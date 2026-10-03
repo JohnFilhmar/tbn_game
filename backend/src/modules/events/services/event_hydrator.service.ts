@@ -26,6 +26,7 @@ import { SearchProviderService } from '@/modules/runtime/services/search/search_
 import { RunSourceService } from '@/modules/runtime/services/taint/run_source.service';
 import { TranscriptService } from '@/modules/runtime/services/transcript.service';
 import { WorldLayoutService } from '@/modules/world/services/world_layout.service';
+import { WorldPropStateService } from '@/modules/world/services/world_prop_state.service';
 
 /** Loads the current views of some entities of one kind, keyed by id. Missing ones are left out. */
 type Loader = (owner_id: string, ids: string[]) => Promise<Map<string, unknown>>;
@@ -82,6 +83,7 @@ export class EventHydratorService {
     skills: SkillService,
     preferences: PreferenceService,
     world_layouts: WorldLayoutService,
+    prop_states: WorldPropStateService,
   ) {
     this.loaders = {
       agent: each((owner_id, id) => agents.get(owner_id, id)),
@@ -114,6 +116,7 @@ export class EventHydratorService {
       skill: each((owner_id, id) => skills.get(owner_id, id)),
       preferences: each((owner_id) => preferences.get(owner_id)),
       world_layout: each((owner_id, id) => world_layouts.get_by_id(owner_id, id)),
+      world_prop_state: each((owner_id, id) => prop_states.get_by_id(owner_id, id)),
     };
   }
 

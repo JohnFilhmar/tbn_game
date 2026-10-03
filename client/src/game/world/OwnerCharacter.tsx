@@ -11,7 +11,7 @@ import { Character } from './Character';
 import type { MoveAction } from './keyboard';
 import { livePositions, OWNER_KEY } from './livePositions';
 import type { Navigation, NavNode } from './navmesh';
-import { promptAt, type Prompt } from './prompt';
+import { promptAt, propsInReach, type Prompt, type UsableProp } from './prompt';
 import type { SeatPose } from './seat';
 import { useWorldStore } from './worldStore';
 
@@ -27,6 +27,8 @@ export interface OwnerCharacterProps {
   groupRef: RefObject<Group | null>;
   /** The chair while the owner is seated at the computer, or null in the world. */
   seatPose: SeatPose | null;
+  /** The props the owner can use, with their reach. */
+  usableProps: readonly UsableProp[];
 }
 
 /** What the character keeps between frames. */
@@ -35,7 +37,8 @@ interface OwnerState {
   yawDeg: number;
   /** The navigation polygon of the last step, for the next clamp. */
   node: NavNode | null;
-  /** The last prompt told to the store, as a key: '', 'computer' or an agent id. */
+  /** The last prompt told to the store, as a key: '', 'computer', an agent id or a prop id,
+   * with the props in reach after it. */
   promptKey: string;
   wasSeated: boolean;
   /** The last teleport request taken. */
@@ -66,9 +69,11 @@ export function OwnerCharacter({
   viewYawRef,
   groupRef,
   seatPose,
+  usableProps,
 }: OwnerCharacterProps) {
   const setCanUseComputer = useWorldStore((state) => state.setCanUseComputer);
   const setNearAgentId = useWorldStore((state) => state.setNearAgentId);
+  const setNearProps = useWorldStore((state) => state.setNearProps);
   const state = useRef<OwnerState>({
     position: vec3(spawn.position),
     yawDeg: spawn.yaw_deg,
@@ -123,10 +128,17 @@ export function OwnerCharacter({
     }
     const keys = keysRef.current;
     const dt = Math.min(delta, 0.05);
-    const talkingTo = useWorldStore.getState().talkingTo;
+    const { talkingTo, drawingOn, acting, stopActing } = useWorldStore.getState();
     const partner = talkingTo === null ? undefined : livePositions.get(talkingTo);
     if (useBuildStore.getState().environment !== null) {
       // Building: the movement keys pan the view instead.
+      group.position.copy(own.position);
+      clipRef.current = 'idle';
+      return;
+    }
+    if (drawingOn !== null) {
+      // Drawing: the camera stands where the owner would block the board, so the owner hides.
+      group.visible = false;
       group.position.copy(own.position);
       clipRef.current = 'idle';
       return;
@@ -153,6 +165,16 @@ export function OwnerCharacter({
       moveZ /= length;
     }
     const isMoving = moveX !== 0 || moveZ !== 0;
+    const isActing = acting !== null && !isMoving && performance.now() / 1000 < acting.until;
+    if (acting !== null && !isActing) stopActing();
+    if (isActing) {
+      // Using a prop: the owner turns to it and plays its clip where they stand.
+      own.yawDeg = turnTowards(own.yawDeg, acting.yawDeg, TURN_SPEED * dt);
+      group.position.copy(own.position);
+      group.rotation.y = radiansOf(own.yawDeg);
+      clipRef.current = acting.clip;
+      return;
+    }
     if (isMoving) {
       const speed = keys.has('run') ? OWNER_RUN : OWNER_WALK;
       proposed.set(own.position.x + moveX * speed * dt, 0, own.position.z + moveZ * speed * dt);
@@ -172,12 +194,23 @@ export function OwnerCharacter({
       computer: computerPosition,
       computerReach: computer.use_radius,
       agents,
+      props: usableProps,
     });
-    const key = prompt === null ? '' : prompt.kind === 'computer' ? 'computer' : prompt.agentId;
+    const reachable = propsInReach(own.position, usableProps);
+    const promptId =
+      prompt === null
+        ? ''
+        : prompt.kind === 'computer'
+          ? 'computer'
+          : prompt.kind === 'agent'
+            ? prompt.agentId
+            : prompt.placementId;
+    const key = [promptId, ...reachable].join(' ');
     if (key !== own.promptKey) {
       own.promptKey = key;
       setCanUseComputer(prompt?.kind === 'computer');
       setNearAgentId(prompt?.kind === 'agent' ? prompt.agentId : null);
+      setNearProps(prompt?.kind === 'prop' ? prompt.placementId : null, reachable);
     }
   });
 

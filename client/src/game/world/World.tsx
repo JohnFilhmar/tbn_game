@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import type { Agent, Department } from '@tbn/contracts';
+import type { Agent, Department, PropKind, WorldPlacement } from '@tbn/contracts';
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -8,9 +8,17 @@ import { CHARACTER_SET } from '@/game/assets/characters';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
 import { BuildLayer } from '@/game/build/BuildLayer';
 import { useBuildStore } from '@/game/build/buildStore';
+import { Blinds } from '@/game/objects/Blinds';
+import { BoardFaces } from '@/game/objects/BoardFaces';
+import { Effects } from '@/game/objects/Effects';
+import { Lamps } from '@/game/objects/Lamps';
+import { daylightScale } from '@/game/objects/lighting';
+import { stateOf, type PropStates } from '@/game/objects/propStates';
+import { boardFrame, boardPoseOf } from '@/game/objects/whiteboard/frame';
+import { INTERACTIONS } from '@/game/props/interactions';
 import { Props } from '@/game/props/Props';
 import { Agents } from '@/game/npcs/Agents';
-import { CameraRig } from './CameraRig';
+import { CameraRig, FOV } from './CameraRig';
 import { Lighting } from './Lighting';
 import { liveView } from './livePositions';
 import { useMovementKeys, type MoveAction } from './keyboard';
@@ -41,6 +49,8 @@ export interface WorldProps {
   pendingAgentIds: ReadonlySet<string>;
   /** True while the owner builds: the camera looks down at an angle and props can be picked. */
   isBuilding: boolean;
+  /** The saved state of each prop that keeps one: blinds, lamps and whiteboards. */
+  propStates: PropStates;
 }
 
 function FrameCounter() {
@@ -99,6 +109,7 @@ function PackWorld({
   isSeated,
   pendingAgentIds,
   isBuilding,
+  propStates,
 }: PackWorldProps) {
   const { pack, manifest } = arranged;
   // ponytail: rebuilt whole on every layout change; a grid of a few thousand cells takes
@@ -114,21 +125,63 @@ function PackWorld({
   const pose = useMemo(() => seatPoseOf(arranged.computer), [arranged.computer]);
   const heldId = useBuildStore((state) => state.holding?.id);
   const seatPose = isSeated ? pose : null;
+  const placements = useMemo(
+    () =>
+      heldId === undefined
+        ? arranged.placements
+        : arranged.placements.filter((placement) => placement.id !== heldId),
+    [arranged.placements, heldId],
+  );
+  const byKind = useMemo(() => {
+    const of = (kind: PropKind): WorldPlacement[] =>
+      placements.filter((placement) => placement.kind === kind);
+    return { lamps: of('lamp'), blinds: of('blinds'), boards: of('whiteboard') };
+  }, [placements]);
+  const usableProps = useMemo(
+    () =>
+      placements.flatMap((placement) => {
+        const interaction = INTERACTIONS[placement.kind];
+        return interaction === undefined
+          ? []
+          : [
+              {
+                placementId: placement.id,
+                x: placement.x,
+                z: placement.z,
+                reach: interaction.reach,
+              },
+            ];
+      }),
+    [placements],
+  );
+  const daylight = daylightScale(
+    byKind.blinds.map((placement) => stateOf.isOpen(propStates, placement.id)),
+  );
+  const drawingOn = useWorldStore((state) => state.drawingOn);
+  const viewport = useThree((state) => state.size);
+  const boardPose = useMemo(() => {
+    const board = byKind.boards.find((placement) => placement.id === drawingOn);
+    if (board === undefined || isSeated) return null;
+    return boardPoseOf(board, boardFrame(viewport.width, viewport.height).share, FOV);
+  }, [byKind.boards, drawingOn, isSeated, viewport.width, viewport.height]);
+  const isLit = lightingAt(hour).interiorOn;
+  const onPick = isBuilding ? (id: string) => useBuildStore.getState().select(id) : undefined;
   return (
     <>
       <Ground />
-      <PackScene pack={pack} isLit={lightingAt(hour).interiorOn} theme={arranged.theme} />
-      <Props
-        placements={
-          heldId === undefined
-            ? arranged.placements
-            : arranged.placements.filter((placement) => placement.id !== heldId)
-        }
-        theme={arranged.theme}
-        onPick={isBuilding ? (id) => useBuildStore.getState().select(id) : undefined}
-      />
+      <PackScene pack={pack} isLit={isLit} theme={arranged.theme} />
+      <Props placements={placements} theme={arranged.theme} onPick={onPick} />
+      <Lamps lamps={byKind.lamps} states={propStates} isInteriorOn={isLit} onPick={onPick} />
+      <Blinds blinds={byKind.blinds} states={propStates} onPick={onPick} />
+      <BoardFaces boards={byKind.boards} states={propStates} theme={arranged.theme} />
+      <Effects />
       {isBuilding && <BuildLayer arranged={arranged} keysRef={keysRef} />}
-      <Lighting hour={hour} profile={manifest.lighting} bounds={manifest.bounds} />
+      <Lighting
+        hour={hour}
+        profile={manifest.lighting}
+        bounds={manifest.bounds}
+        daylight={daylight}
+      />
       <>
         <Suspense fallback={null}>
           <OwnerCharacter
@@ -140,6 +193,7 @@ function PackWorld({
             viewYawRef={viewYawRef}
             groupRef={ownerRef}
             seatPose={seatPose}
+            usableProps={isBuilding ? [] : usableProps}
           />
         </Suspense>
         {agents !== undefined && departments !== undefined && (
@@ -160,6 +214,7 @@ function PackWorld({
           seatPose={seatPose}
           talkingTo={talkingTo}
           isBuilding={isBuilding}
+          boardPose={boardPose}
         />
       </>
     </>
@@ -190,9 +245,14 @@ export function World({
   isGliding,
   pendingAgentIds,
   isBuilding,
+  propStates,
 }: WorldProps) {
   const talkingTo = useWorldStore((state) => state.talkingTo);
-  const keysRef = useMovementKeys(isActive && talkingTo === null);
+  const drawingOn = useWorldStore((state) => state.drawingOn);
+  const isLightsOpen = useWorldStore((state) => state.isLightsOpen);
+  const keysRef = useMovementKeys(
+    isActive && talkingTo === null && drawingOn === null && !isLightsOpen,
+  );
   useEffect(() => {
     useLoader.preload(GLTFLoader, characterFiles());
   }, []);
@@ -218,6 +278,7 @@ export function World({
           isSeated={isSeated}
           pendingAgentIds={pendingAgentIds}
           isBuilding={isBuilding}
+          propStates={propStates}
         />
       </Suspense>
       <FrameCounter />

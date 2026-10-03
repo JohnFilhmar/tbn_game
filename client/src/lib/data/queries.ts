@@ -3,9 +3,11 @@ import {
   OwnerSchema,
   PreferencesSchema,
   WorldLayoutResponseSchema,
+  WorldPropStatesResponseSchema,
   type EnvironmentName,
   type Preferences,
   type WorldLayout,
+  type WorldPropState,
 } from '@tbn/contracts';
 import { useApi, useSession } from '@/providers/SessionProvider';
 import { queryKeys, type CollectionSpec } from './collections';
@@ -44,6 +46,21 @@ export function useWorldLayout(environment: EnvironmentName): UseQueryResult<Wor
   return useQuery({
     queryKey: queryKeys.world(environment),
     queryFn: async () => (await api.get(`/world/${environment}`, WorldLayoutResponseSchema)).layout,
+    enabled: token !== null,
+  });
+}
+
+/**
+ * The saved state of every prop of an environment that keeps one (blinds, lamps, whiteboards),
+ * kept live by events. A prop with no state is in its kind's first one.
+ */
+export function useWorldPropStates(environment: EnvironmentName): UseQueryResult<WorldPropState[]> {
+  const api = useApi();
+  const { token } = useSession();
+  return useQuery({
+    queryKey: queryKeys.worldProps(environment),
+    queryFn: async () =>
+      (await api.get(`/world/${environment}/props`, WorldPropStatesResponseSchema)).states,
     enabled: token !== null,
   });
 }

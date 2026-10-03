@@ -1,6 +1,6 @@
 import type { PropKind } from '@tbn/contracts';
-import type { ClipName } from '../assets/clipNames.ts';
 import type { DeskAnchor, PackBuilder, Vec3 } from './builder.ts';
+import { blindsRail, coffeeSet, grassPatch, lampFixture, lightSwitch } from './fixtures.ts';
 import {
   computerDesk,
   counter,
@@ -20,35 +20,10 @@ import {
   whiteboard,
   type ComputerAnchor,
 } from './furniture.ts';
+import { interactionSpots } from './interactions.ts';
+import { spot, type SpotAnchor } from './spots.ts';
 
-/** What an idle agent goes to a spot for. */
-export type SpotKind = 'water' | 'window' | 'plant' | 'board' | 'grass' | 'stretch' | 'look';
-
-/** A place an idle agent wanders to: where it stands, its facing, the clip it plays and how long. */
-export interface SpotAnchor {
-  kind: SpotKind;
-  position: Vec3;
-  yaw_deg: number;
-  clip: ClipName;
-  seconds: number;
-}
-
-const SPOT_CLIPS: Record<SpotKind, [ClipName, number]> = {
-  water: ['drink', 4],
-  window: ['look', 5],
-  plant: ['look', 3],
-  board: ['write', 5],
-  grass: ['touch', 4],
-  stretch: ['stretch', 3],
-  look: ['look', 4],
-};
-
-/** A spot standing at `at` and facing `facing`, both on the floor, with its kind's clip. */
-export function spot(kind: SpotKind, at: [number, number], facing: [number, number]): SpotAnchor {
-  const yaw = (Math.atan2(facing[0] - at[0], facing[1] - at[1]) * 180) / Math.PI;
-  const [clip, seconds] = SPOT_CLIPS[kind];
-  return { kind, position: [at[0], 0, at[1]], yaw_deg: Math.round(yaw), clip, seconds };
-}
+export { spot, type SpotAnchor, type SpotKind } from './spots.ts';
 
 /** The size of a kind that comes in any size: across (x) and along (z), before it turns. */
 export interface PropSize {
@@ -66,7 +41,7 @@ export interface PropAnchors {
 }
 
 /** How the build panel groups the catalog. */
-export type PropCategory = 'desks' | 'furniture' | 'plants' | 'storage' | 'zones';
+export type PropCategory = 'desks' | 'furniture' | 'lights' | 'plants' | 'storage' | 'zones';
 
 /** One kind of prop: how it is offered in build mode and how it is built. */
 export interface PropSpec {
@@ -163,7 +138,7 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     colorSlot: null,
     build: (b) => {
       whiteboard(b, [0, 0], 0);
-      return withSpots([spot('board', [1.5, 0.55], [0.6, 0])]);
+      return withSpots(interactionSpots('whiteboard'));
     },
   },
   water_cooler: {
@@ -174,7 +149,51 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     colorSlot: null,
     build: (b) => {
       waterCooler(b, [0, 0]);
-      return withSpots([spot('water', [0, 0.75], [0, 0])]);
+      return withSpots(interactionSpots('water_cooler'));
+    },
+  },
+  coffee_set: {
+    label: 'Coffee set',
+    category: 'furniture',
+    size: null,
+    variants: [],
+    colorSlot: 'wood',
+    build: (b) => {
+      coffeeSet(b);
+      return withSpots(interactionSpots('coffee_set'));
+    },
+  },
+  blinds: {
+    label: 'Window blinds',
+    category: 'furniture',
+    size: { width: 2, depth: 0.08 },
+    variants: [],
+    colorSlot: null,
+    build: (b, size) => {
+      blindsRail(b, size.width);
+      return withSpots(interactionSpots('blinds'));
+    },
+  },
+  lamp: {
+    label: 'Ceiling lamp',
+    category: 'lights',
+    size: null,
+    variants: ['panel', 'high_bay'],
+    colorSlot: null,
+    build: (b, _size, variant) => {
+      lampFixture(b, variant);
+      return none();
+    },
+  },
+  light_switch: {
+    label: 'Light switch',
+    category: 'lights',
+    size: null,
+    variants: [],
+    colorSlot: null,
+    build: (b) => {
+      lightSwitch(b);
+      return none();
     },
   },
   rug: {
@@ -208,6 +227,17 @@ export const PROP_CATALOG: Record<PropKind, PropSpec> = {
     build: (b, _size, variant) => {
       tree(b, [0, 0], variant === 'small' ? 2.2 : 2.6);
       return withSpots([spot('plant', [0, 1], [0, 0])]);
+    },
+  },
+  grass_patch: {
+    label: 'Patch of grass',
+    category: 'plants',
+    size: { width: 1.6, depth: 1.6 },
+    variants: [],
+    colorSlot: null,
+    build: (b, size) => {
+      grassPatch(b, size.width, size.depth);
+      return withSpots(interactionSpots('grass_patch'));
     },
   },
   shelf: {

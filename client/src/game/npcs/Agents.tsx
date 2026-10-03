@@ -5,6 +5,7 @@ import { Vector3, type Group, type Mesh } from 'three';
 import { appearanceOf, resolveAppearance, type ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { forwardOf, radiansOf, vec3, yawTowards } from '@/game/assets/geometry';
+import { emitEffect } from '@/game/objects/liveEffects';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
 import { Character } from '@/game/world/Character';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
@@ -261,6 +262,10 @@ export function Agents({
           listener: {
             onActivity: (activity) => setActivity(agent.id, activity),
             onNarrate: narrate,
+            onEffect: (kind, at, yawDeg) => {
+              const [dx, dz] = forwardOf(yawDeg);
+              emitEffect(kind, at.x + dx * 0.6, at.z + dz * 0.6);
+            },
           },
           from: hasRoster.current ? entry : 'home',
         });

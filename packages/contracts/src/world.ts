@@ -21,6 +21,11 @@ export const PropKindSchema = z.enum([
   'whiteboard',
   'rug',
   'zone_rug',
+  'coffee_set',
+  'blinds',
+  'lamp',
+  'light_switch',
+  'grass_patch',
 ]);
 
 /** A prop kind. */

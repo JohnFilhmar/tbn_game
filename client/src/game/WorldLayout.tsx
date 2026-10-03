@@ -9,7 +9,13 @@ import { useWorldHour } from '@/game/world/useWorldHour';
 import { canRenderWorld } from '@/game/world/webgl';
 import { useWorldStore } from '@/game/world/worldStore';
 import { COLLECTIONS } from '@/lib/data/collections';
-import { useCollection, usePreferences, useWorldLayout } from '@/lib/data/queries';
+import {
+  useCollection,
+  usePreferences,
+  useWorldLayout,
+  useWorldPropStates,
+} from '@/lib/data/queries';
+import { propStatesOf } from '@/game/objects/propStates';
 import { BuildPanel } from '@/game/build/BuildPanel';
 import { useBuildStore } from '@/game/build/buildStore';
 import { arrangePack } from '@/game/props/arrangedPack';
@@ -83,6 +89,8 @@ export function WorldLayout() {
   const pack = PACKS[shownEnvironment];
   const { data: savedLayout } = useWorldLayout(shownEnvironment);
   const saved = useMemo(() => arrangePack(pack, savedLayout ?? null), [pack, savedLayout]);
+  const { data: propStateRows } = useWorldPropStates(shownEnvironment);
+  const propStates = useMemo(() => propStatesOf(propStateRows), [propStateRows]);
   const buildEnvironment = useBuildStore((state) => state.environment);
   const draft = useBuildStore((state) => state.history?.present ?? null);
   const isBuilding =
@@ -153,13 +161,20 @@ export function WorldLayout() {
             isGliding={isGliding}
             pendingAgentIds={pendingAgentIds}
             isBuilding={isBuilding}
+            propStates={propStates}
           />
         </Suspense>
       ) : (
         <WorldNotice text="This device cannot draw the world. The desk still works." />
       )}
       {isSignedIn && !isBuilding && (
-        <Hud isOverlayOpen={isSeated} packTitle={pack.manifest.title} onBuild={openBuild} />
+        <Hud
+          isOverlayOpen={isSeated}
+          packTitle={pack.manifest.title}
+          onBuild={openBuild}
+          arranged={saved}
+          propStates={propStates}
+        />
       )}
       {isBuilding && <BuildPanel arranged={saved} defaults={pack.manifest.default_layout} />}
       <Outlet />

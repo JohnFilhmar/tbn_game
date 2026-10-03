@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ChangeEvent, RunSource, TranscriptEntry } from '@tbn/contracts';
+import type { ChangeEvent, RunSource, TranscriptEntry, WorldPropState } from '@tbn/contracts';
 import { collectionKeyOf, queryKeys } from '@/lib/data/collections';
 
 /** Replaces the row with the same id, or adds it at the end. */
@@ -104,6 +104,15 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
       if (event.data === null) void client.invalidateQueries({ queryKey: ['world'] });
       else client.setQueryData(queryKeys.world(event.data.environment), event.data);
       return;
+    case 'world_prop_state': {
+      const state = event.data;
+      if (state !== null) {
+        writeLoaded<WorldPropState[]>(client, queryKeys.worldProps(state.environment), (rows) =>
+          upsertRow(rows, state),
+        );
+      }
+      return;
+    }
     default: {
       const key = collectionKeyOf(event.entity);
       if (key === undefined) return;

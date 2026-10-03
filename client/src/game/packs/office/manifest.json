@@ -14,11 +14,7 @@
     { "position": [0, 0, 1.25], "yaw_deg": 180 }
   ],
   "spots": [
-    { "kind": "window", "position": [-7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
-    { "kind": "window", "position": [7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
-    { "kind": "window", "position": [10.1, 0, 0], "yaw_deg": 90, "clip": "look", "seconds": 5 },
-    { "kind": "stretch", "position": [0, 0, 4], "yaw_deg": 0, "clip": "stretch", "seconds": 3 },
-    { "kind": "stretch", "position": [8.5, 0, 6], "yaw_deg": 0, "clip": "stretch", "seconds": 3 }
+    { "kind": "stretch", "position": [0, 0, 4], "yaw_deg": 0, "clip": "stretch", "seconds": 3 }
   ],
   "blocks": [
     { "minX": -11, "maxX": 11, "minZ": -8.1, "maxZ": -7.9 },
@@ -27,18 +23,7 @@
     { "minX": -11.1, "maxX": -10.9, "minZ": -8, "maxZ": 8 },
     { "minX": 10.9, "maxX": 11.1, "minZ": -8, "maxZ": 8 }
   ],
-  "lighting": {
-    "ambient": "#9fb4c8",
-    "sun_azimuth_deg": 135,
-    "interior": [
-      { "position": [-5.5, 2.8, -3.25], "color": "#fff1d6", "intensity": 7, "distance": 10 },
-      { "position": [5.5, 2.8, -3.25], "color": "#fff1d6", "intensity": 7, "distance": 10 },
-      { "position": [-5.5, 2.8, 2.75], "color": "#fff1d6", "intensity": 7, "distance": 10 },
-      { "position": [5.5, 2.8, 2.75], "color": "#fff1d6", "intensity": 7, "distance": 10 },
-      { "position": [0, 2.8, -6], "color": "#fff1d6", "intensity": 7, "distance": 10 },
-      { "position": [0, 2.8, 6], "color": "#fff1d6", "intensity": 7, "distance": 10 }
-    ]
-  },
+  "lighting": { "ambient": "#9fb4c8", "sun_azimuth_deg": 135 },
   "default_layout": [
     {
       "id": "00000000-0000-4000-8000-0000000003e9",
@@ -504,6 +489,210 @@
       "yaw_deg": 180,
       "width": null,
       "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000410",
+      "kind": "lamp",
+      "x": -5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000411",
+      "kind": "lamp",
+      "x": 5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000412",
+      "kind": "lamp",
+      "x": -5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000413",
+      "kind": "lamp",
+      "x": 5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000414",
+      "kind": "lamp",
+      "x": 0,
+      "z": -6,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000415",
+      "kind": "lamp",
+      "x": 0,
+      "z": 6,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000416",
+      "kind": "blinds",
+      "x": -7.5,
+      "z": -7.78,
+      "yaw_deg": 0,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000417",
+      "kind": "blinds",
+      "x": -2.5,
+      "z": -7.78,
+      "yaw_deg": 0,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000418",
+      "kind": "blinds",
+      "x": 2.5,
+      "z": -7.78,
+      "yaw_deg": 0,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000419",
+      "kind": "blinds",
+      "x": 7.5,
+      "z": -7.78,
+      "yaw_deg": 0,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041a",
+      "kind": "blinds",
+      "x": 10.78,
+      "z": -4,
+      "yaw_deg": 270,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041b",
+      "kind": "blinds",
+      "x": 10.78,
+      "z": 0,
+      "yaw_deg": 270,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041c",
+      "kind": "blinds",
+      "x": 10.78,
+      "z": 4,
+      "yaw_deg": 270,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041d",
+      "kind": "light_switch",
+      "x": 1.3,
+      "z": 7.9,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041e",
+      "kind": "whiteboard",
+      "x": 3.6,
+      "z": 7.86,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041f",
+      "kind": "coffee_set",
+      "x": 5.8,
+      "z": 7.45,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000420",
+      "kind": "grass_patch",
+      "x": 7.6,
+      "z": 6.9,
+      "yaw_deg": 180,
+      "width": 1.6,
+      "depth": 1.6,
       "zone": null,
       "variant": null,
       "color": null

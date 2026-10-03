@@ -5,6 +5,7 @@ import { radiansOf } from '@/game/assets/geometry';
 import { useBuildStore } from '@/game/build/buildStore';
 import { livePositions } from './livePositions';
 import { prefersReducedMotion } from './motion';
+import type { BoardPose } from '@/game/objects/whiteboard/frame';
 import type { SeatPose } from './seat';
 import type { CameraMode } from './worldStore';
 
@@ -24,6 +25,8 @@ export interface CameraRigProps {
   talkingTo: string | null;
   /** True while the owner builds: the camera looks down at 55 degrees on build mode's focus. */
   isBuilding: boolean;
+  /** Square onto the whiteboard the owner draws on, or null. */
+  boardPose: BoardPose | null;
 }
 
 const DEG = Math.PI / 180;
@@ -44,7 +47,8 @@ const TALK_SIDE = 0.75;
 const TALK_LIFT = 0.05;
 const LOOK_SHIFT = 0.45;
 const AGENT_HEAD = 1.5;
-const FOV = 50;
+/** The lens, which the whiteboard's framing also reckons with. */
+export const FOV = 50;
 const TALK_FOV = 42;
 /** Build mode's view: how steeply it looks down at its focus. */
 const BUILD_PITCH = (55 * Math.PI) / 180;
@@ -71,6 +75,7 @@ export function CameraRig({
   seatPose,
   talkingTo,
   isBuilding,
+  boardPose,
 }: CameraRigProps) {
   const camera = useThree((state) => state.camera);
   const element = useThree((state) => state.gl.domElement);
@@ -135,7 +140,7 @@ export function CameraRig({
 
   useEffect(() => {
     glide.current.until = performance.now() / 1000 + GLIDE_SECONDS;
-  }, [isSeated, talkingTo, isBuilding]);
+  }, [isSeated, talkingTo, isBuilding, boardPose]);
 
   useFrame((frame, delta) => {
     const target = targetRef.current;
@@ -146,6 +151,9 @@ export function CameraRig({
     if (seatPose !== null) {
       desired.copy(seatPose.eye);
       focus.copy(seatPose.look);
+    } else if (boardPose !== null) {
+      desired.copy(boardPose.eye);
+      focus.copy(boardPose.look);
     } else if (isBuilding) {
       const { focus: center } = useBuildStore.getState();
       focus.copy(center);

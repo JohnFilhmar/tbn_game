@@ -1,5 +1,5 @@
 import { PackBuilder } from '#game/props/builder.ts';
-import { BASE_MATERIALS, doorFrame, fence, lamp, windowPane } from '#game/props/furniture.ts';
+import { BASE_MATERIALS, doorFrame, fence, windowPane } from '#game/props/furniture.ts';
 import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -9, max_x: 9, min_z: -7, max_z: 7 };
@@ -35,13 +35,6 @@ export function buildHome(): PackResult {
   windowPane(b, [-5, -6.88], 0, 1.8);
   windowPane(b, [4.5, -6.88], 0, 1.8);
   windowPane(b, [-8.88, 3.5], 90, 1.8);
-  for (const at of [
-    [-4.5, -3.5],
-    [4.5, -3.5],
-    [-4.5, 3.5],
-  ] as const) {
-    lamp(b, [at[0], at[1]], CEILING);
-  }
 
   const layout = new LayoutBuilder(2);
   // The study.
@@ -69,6 +62,22 @@ export function buildHome(): PackResult {
   layout.add('tree', 1.5, 6.2, 180, { variant: 'small' });
   layout.add('plant', 1, 1, 90);
   layout.add('zone_rug', 4.5, 3.5, 0, { width: 9, depth: 7, zone: 4 });
+  // The things to use: a lamp in each room, blinds, a switch by the door, coffee in the kitchen
+  // and grass in the garden.
+  for (const [x, z] of [
+    [-4.5, -3.5],
+    [4.5, -3.5],
+    [-4.5, 3.5],
+  ] as const) {
+    layout.add('lamp', x, z, 0, { variant: 'panel' });
+  }
+  layout.add('blinds', -5, -6.78, 0, { width: 1.8, depth: 0.08 });
+  layout.add('blinds', 4.5, -6.78, 0, { width: 1.8, depth: 0.08 });
+  layout.add('blinds', -8.78, 3.5, 90, { width: 1.8, depth: 0.08 });
+  layout.add('light_switch', -3.3, 6.9, 180);
+  layout.add('coffee_set', 8.6, -2, 270);
+  layout.add('grass_patch', 7.2, 2.4, 180, { width: 1.6, depth: 1.6 });
+  layout.add('grass_patch', 2.6, 5.2, 180, { width: 1.6, depth: 1.6 });
 
   return {
     manifest: {
@@ -86,21 +95,11 @@ export function buildHome(): PackResult {
         { position: [2.5, 0, -1.25], yaw_deg: 0 },
         { position: [2.5, 0, 1.25], yaw_deg: 180 },
       ],
-      spots: [
-        spot('grass', [7.5, 2], [7.5, 1]),
-        spot('grass', [2, 5], [2, 6]),
-        spot('stretch', [-4.5, -3], [-4.5, -7]),
-      ],
+      spots: [spot('stretch', [-4.5, -3], [-4.5, -7])],
       blocks: b.footprints,
       lighting: {
         ambient: '#b8c4cc',
         sun_azimuth_deg: 210,
-        interior: [
-          { position: [-4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-          { position: [4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-          { position: [-4.5, CEILING - 0.2, 3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-          { position: [4.5, 2.4, 3.5], color: '#ffd9a0', intensity: 4, distance: 7 },
-        ],
       },
       default_layout: layout.placements,
     },

@@ -1,5 +1,5 @@
 import { PackBuilder } from '#game/props/builder.ts';
-import { BASE_MATERIALS, doorFrame, lamp, windowPane } from '#game/props/furniture.ts';
+import { BASE_MATERIALS, doorFrame, windowPane } from '#game/props/furniture.ts';
 import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -11, max_x: 11, min_z: -8, max_z: 8 };
@@ -27,17 +27,10 @@ export function buildOffice(): PackResult {
   b.outerWall('wall', [-11, -8], [-11, 8], CEILING);
   b.outerWall('wall', [11, -8], [11, 8], CEILING);
   doorFrame(b, [0, 8], 0, 1.8);
-  for (const x of [-7.5, -2.5, 2.5, 7.5]) windowPane(b, [x, -7.88], 0, 2);
-  for (const z of [-4, 0, 4]) windowPane(b, [10.88, z], 270, 2);
-  const lights: [number, number][] = [
-    [-5.5, -3.25],
-    [5.5, -3.25],
-    [-5.5, 2.75],
-    [5.5, 2.75],
-    [0, -6],
-    [0, 6],
-  ];
-  for (const at of lights) lamp(b, at, CEILING);
+  const northWindows = [-7.5, -2.5, 2.5, 7.5];
+  const eastWindows = [-4, 0, 4];
+  for (const x of northWindows) windowPane(b, [x, -7.88], 0, 2);
+  for (const z of eastWindows) windowPane(b, [10.88, z], 270, 2);
 
   const layout = new LayoutBuilder(1);
   island(layout, -5.5, -3.25, 1);
@@ -51,6 +44,24 @@ export function buildOffice(): PackResult {
   layout.add('plant', -10.4, 7.4, 180);
   layout.add('water_cooler', 9.6, 7.3, 180);
   layout.add('computer_desk', -4.5, 6.4, 180);
+  // The things to use: lamps over the islands, blinds at every window, and by the door a light
+  // switch, a board, a coffee set and a patch of grass.
+  for (const [x, z] of [
+    [-5.5, -3.25],
+    [5.5, -3.25],
+    [-5.5, 2.75],
+    [5.5, 2.75],
+    [0, -6],
+    [0, 6],
+  ] as const) {
+    layout.add('lamp', x, z, 0, { variant: 'panel' });
+  }
+  for (const x of northWindows) layout.add('blinds', x, -7.78, 0, { width: 2, depth: 0.08 });
+  for (const z of eastWindows) layout.add('blinds', 10.78, z, 270, { width: 2, depth: 0.08 });
+  layout.add('light_switch', 1.3, 7.9, 180);
+  layout.add('whiteboard', 3.6, 7.86, 180);
+  layout.add('coffee_set', 5.8, 7.45, 180);
+  layout.add('grass_patch', 7.6, 6.9, 180, { width: 1.6, depth: 1.6 });
 
   return {
     manifest: {
@@ -68,23 +79,11 @@ export function buildOffice(): PackResult {
         { position: [0, 0, -1.75], yaw_deg: 0 },
         { position: [0, 0, 1.25], yaw_deg: 180 },
       ],
-      spots: [
-        spot('window', [-7.5, -7.2], [-7.5, -8]),
-        spot('window', [7.5, -7.2], [7.5, -8]),
-        spot('window', [10.1, 0], [11, 0]),
-        spot('stretch', [0, 4], [0, 8]),
-        spot('stretch', [8.5, 6], [8.5, 8]),
-      ],
+      spots: [spot('stretch', [0, 4], [0, 8])],
       blocks: b.footprints,
       lighting: {
         ambient: '#9fb4c8',
         sun_azimuth_deg: 135,
-        interior: lights.map(([x, z]) => ({
-          position: [x, CEILING - 0.2, z],
-          color: '#fff1d6',
-          intensity: 7,
-          distance: 10,
-        })),
       },
       default_layout: layout.placements,
     },
