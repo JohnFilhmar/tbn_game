@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { drawBoard, eraseAt, PEN_COLORS, PEN_WIDTHS } from '@/game/objects/whiteboard/draw';
 import { boardFrame } from '@/game/objects/whiteboard/frame';
 import { errorMessage } from '@/lib/api/apiError';
+import { WhiteboardPens, type BoardTool } from './WhiteboardPens';
 
 /** Props of `WhiteboardDialog`. */
 export interface WhiteboardDialogProps {
@@ -20,9 +21,6 @@ export interface WhiteboardDialogProps {
   onClose: () => void;
 }
 
-type Tool = 'pen' | 'eraser' | 'text';
-
-const COLOR_NAMES = ['black', 'blue', 'red', 'green'] as const;
 const SAVE_AFTER_MS = 1_000;
 const ERASER = 0.03;
 const TEXT_SIZE = 0.08;
@@ -50,7 +48,7 @@ function plural(count: number, one: string, many: string): string {
 export function WhiteboardDialog({ initial, background, onSave, onClose }: WhiteboardDialogProps) {
   const [content, setContent] = useState(initial);
   const [history, setHistory] = useState<WhiteboardContent[]>([]);
-  const [tool, setTool] = useState<Tool>('pen');
+  const [tool, setTool] = useState<BoardTool>('pen');
   const [color, setColor] = useState<string>(PEN_COLORS[0]);
   const [width, setWidth] = useState<number>(PEN_WIDTHS[0]);
   const [text, setText] = useState('');
@@ -203,46 +201,15 @@ export function WhiteboardDialog({ initial, background, onSave, onClose }: White
         className="absolute inset-x-0 flex justify-center px-3"
       >
         <div className="flex max-w-full flex-wrap items-center gap-2 rounded-lg border-2 border-slate-700 bg-slate-900/90 p-2 text-sm text-slate-100 shadow-chunk">
-          <div role="group" aria-label="Tool" className="flex gap-1">
-            {(['pen', 'eraser', 'text'] as const).map((each, index) => (
-              <Button
-                key={each}
-                ref={index === 0 ? firstButtonRef : undefined}
-                size="sm"
-                variant={tool === each ? 'primary' : 'secondary'}
-                aria-pressed={tool === each}
-                onClick={() => setTool(each)}
-              >
-                {each === 'pen' ? 'Pen' : each === 'eraser' ? 'Eraser' : 'Text'}
-              </Button>
-            ))}
-          </div>
-          <div role="group" aria-label="Colour" className="flex gap-1">
-            {PEN_COLORS.map((each, index) => (
-              <button
-                key={each}
-                type="button"
-                aria-label={`Colour: ${COLOR_NAMES[index] ?? each}`}
-                aria-pressed={color === each}
-                onClick={() => setColor(each)}
-                style={{ backgroundColor: each }}
-                className="size-7 rounded-full border-2 border-slate-600 aria-pressed:border-teal-300 aria-pressed:ring-2 aria-pressed:ring-teal-300"
-              />
-            ))}
-          </div>
-          <div role="group" aria-label="Width" className="flex gap-1">
-            {PEN_WIDTHS.map((each, index) => (
-              <Button
-                key={each}
-                size="sm"
-                variant={width === each ? 'primary' : 'secondary'}
-                aria-pressed={width === each}
-                onClick={() => setWidth(each)}
-              >
-                {index === 0 ? 'Thin' : 'Thick'}
-              </Button>
-            ))}
-          </div>
+          <WhiteboardPens
+            tool={tool}
+            onTool={setTool}
+            color={color}
+            onColor={setColor}
+            width={width}
+            onWidth={setWidth}
+            firstButtonRef={firstButtonRef}
+          />
           <form
             className="flex gap-1"
             onSubmit={(event) => {

@@ -164,7 +164,7 @@ test('an idle agent takes a break and comes back to the desk', async ({ page }) 
   await expect(worldReady(page)).toBeAttached();
   const agents = page.getByRole('list', { name: 'Agents in the world' });
   await expect(narration(page)).toContainText(
-    /goes for a drink|looks out of the window|checks on a plant|doodles on the whiteboard|touches some grass|stretches their legs|has a look around|chats with/,
+    /goes for a drink|pours a coffee|looks out of the window|checks on a plant|doodles on the whiteboard|touches some grass|stretches their legs|has a look around|chats with/,
     { timeout: 45_000 },
   );
   await expect(agents).toContainText('taking a break');

@@ -651,8 +651,20 @@
     },
     {
       "id": "00000000-0000-4000-8000-00000000041d",
+      "kind": "blinds",
+      "x": -7.6,
+      "z": 7.78,
+      "yaw_deg": 180,
+      "width": 2,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000041e",
       "kind": "light_switch",
-      "x": 1.3,
+      "x": -6.3,
       "z": 7.9,
       "yaw_deg": 180,
       "width": null,
@@ -662,22 +674,10 @@
       "color": null
     },
     {
-      "id": "00000000-0000-4000-8000-00000000041e",
-      "kind": "whiteboard",
-      "x": 3.6,
-      "z": 7.86,
-      "yaw_deg": 180,
-      "width": null,
-      "depth": null,
-      "zone": null,
-      "variant": null,
-      "color": null
-    },
-    {
       "id": "00000000-0000-4000-8000-00000000041f",
-      "kind": "coffee_set",
-      "x": 5.8,
-      "z": 7.45,
+      "kind": "whiteboard",
+      "x": -2.6,
+      "z": 7.86,
       "yaw_deg": 180,
       "width": null,
       "depth": null,
@@ -688,11 +688,23 @@
     {
       "id": "00000000-0000-4000-8000-000000000420",
       "kind": "grass_patch",
-      "x": 7.6,
-      "z": 6.9,
+      "x": -6,
+      "z": 6.7,
       "yaw_deg": 180,
       "width": 1.6,
       "depth": 1.6,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000421",
+      "kind": "coffee_set",
+      "x": -10.6,
+      "z": 6,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
       "zone": null,
       "variant": null,
       "color": null
