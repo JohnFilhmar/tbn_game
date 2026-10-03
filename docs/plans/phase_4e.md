@@ -55,9 +55,11 @@ Eight things changed while building; the design below is the plan as it was writ
   stay in the shell, as phase 4d's objection kept the room shapes.
 - **The owner never walks to a prop.** E is offered only within reach, so the owner turns to face
   the prop itself and plays the clip where they stand. The spot's own facing is placed for agents.
-- **The office's things to use sit beside the computer**, with a new south window for blinds.
+- **The office's things to use sit near the computer.** The light switch and the grass are in
+  reach of the chair, and the board and a new west window with blinds are a short walk left.
   Standing up from the desk leaves the owner there, which is also where every Playwright flow
-  starts, so the flows reach each object without a long walk.
+  starts. Nothing tall goes on the south wall: the camera stands south of the owner, and a board
+  or a window frame there blocked half the view in the browser.
 - **An idle agent pouring a coffee is a Vitest check.** Wandering is seeded by the agent's id, so
   which spot a fresh e2e agent picks is not fixed. Vitest runs the scheduler with a coffee spot
   alone; the e2e break flow accepts "pours a coffee" among the break lines.

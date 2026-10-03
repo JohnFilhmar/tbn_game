@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { z } from 'zod';
 import { signIn } from './session';
 import { RUN_ID } from './stack';
@@ -37,12 +37,14 @@ async function standInOffice(page: Page): Promise<void> {
   await dialog.getByLabel('Time of day').selectOption('Noon');
   await expect(dialog.getByLabel('Time of day')).toBeEnabled();
   await dialog.getByRole('button', { name: 'Close' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'The world is ready.' })).toBeAttached();
+  await besideComputer(page);
 }
 
-/** Reloads the world, then sits at the computer and stands up, back in the owner's corner. */
-async function reloadBesideComputer(page: Page): Promise<void> {
-  await page.reload();
+/**
+ * Sits at the computer and stands up once the world is drawn, which leaves the owner beside the
+ * chair. Standing up before the world has loaded leaves them at the pack's spawn instead.
+ */
+async function besideComputer(page: Page): Promise<void> {
   await expect(page.getByRole('status').filter({ hasText: 'The world is ready.' })).toBeAttached();
   await page.getByRole('button', { name: 'Desk' }).click();
   await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
@@ -50,15 +52,43 @@ async function reloadBesideComputer(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: 'Desk' })).toBeVisible();
 }
 
+/** Reloads the world and stands beside the computer again. */
+async function reloadBesideComputer(page: Page): Promise<void> {
+  await page.reload();
+  await besideComputer(page);
+}
+
 function withinReach(page: Page) {
   return page.getByRole('list', { name: 'Within reach' });
+}
+
+/**
+ * Walks the owner with a movement key until `button` is within reach. The camera faces north
+ * behind the owner, so `a` walks west and `w` walks north.
+ */
+async function walkTo(page: Page, key: 'a' | 'w', button: Locator): Promise<void> {
+  await page.keyboard.down(key);
+  await expect(button).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.up(key);
+}
+
+/** Walks from the computer to the blinds of the west window: left to the board, then up. */
+async function walkToBlinds(page: Page, button: Locator): Promise<void> {
+  await walkTo(page, 'a', drawButton(page));
+  await walkTo(page, 'w', button);
+}
+
+/** The board on the west wall, a few steps left of the computer. */
+function drawButton(page: Page): Locator {
+  return withinReach(page).getByRole('button', { name: 'Draw on the whiteboard' });
 }
 
 test('the owner draws and writes on the whiteboard, and both are there after a reload', async ({
   page,
 }) => {
   await standInOffice(page);
-  await withinReach(page).getByRole('button', { name: 'Draw on the whiteboard' }).click();
+  await walkTo(page, 'a', drawButton(page));
+  await drawButton(page).click();
   let board = page.getByRole('dialog', { name: 'Whiteboard' });
   await expect(board).toBeVisible();
 
@@ -88,7 +118,8 @@ test('the owner draws and writes on the whiteboard, and both are there after a r
   expect(saved?.strokes.length).toBeGreaterThan(0);
 
   // The board opens with both on it; Clear leaves it empty for the next run.
-  await withinReach(page).getByRole('button', { name: 'Draw on the whiteboard' }).click();
+  await walkTo(page, 'a', drawButton(page));
+  await drawButton(page).click();
   board = page.getByRole('dialog', { name: 'Whiteboard' });
   await expect(board.getByRole('status')).toContainText(/[1-9]\d* strokes? and [1-9]\d* notes?/);
   await board.getByRole('button', { name: 'Clear' }).click();
@@ -109,11 +140,9 @@ test('the owner switches a light off and closes the blinds, and both hold after 
   ).toBeChecked();
   await lights.getByRole('button', { name: 'Close' }).click();
 
-  // The window beside the computer is a few steps to the left.
+  // The west window is left past the board, then a few steps up.
   const closeBlinds = withinReach(page).getByRole('button', { name: 'Close the blinds' });
-  await page.keyboard.down('a');
-  await expect(closeBlinds).toBeVisible({ timeout: 15_000 });
-  await page.keyboard.up('a');
+  await walkToBlinds(page, closeBlinds);
   await closeBlinds.click();
   const openBlinds = withinReach(page).getByRole('button', { name: 'Open the blinds' });
   await expect(openBlinds).toBeVisible();
@@ -134,9 +163,7 @@ test('the owner switches a light off and closes the blinds, and both hold after 
     lights.getByRole('group', { name: 'Zone 1, lamp 1' }).getByLabel('Auto'),
   ).toBeChecked();
   await lights.getByRole('button', { name: 'Close' }).click();
-  await page.keyboard.down('a');
-  await expect(openBlinds).toBeVisible({ timeout: 15_000 });
-  await page.keyboard.up('a');
+  await walkToBlinds(page, openBlinds);
   await openBlinds.click();
   await expect(closeBlinds).toBeVisible();
 });

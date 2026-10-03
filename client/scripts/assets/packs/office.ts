@@ -31,8 +31,9 @@ export function buildOffice(): PackResult {
   const eastWindows = [-4, 0, 4];
   for (const x of northWindows) windowPane(b, [x, -7.88], 0, 2);
   for (const z of eastWindows) windowPane(b, [10.88, z], 270, 2);
-  // A window in the owner's corner, beside the computer.
-  windowPane(b, [-7.6, 7.88], 180, 2);
+  // A window on the west wall, near the owner's corner. None goes in the south wall: the camera
+  // stands south of the owner, and a window's frame would block it.
+  windowPane(b, [-10.88, 3], 90, 2);
 
   const layout = new LayoutBuilder(1);
   island(layout, -5.5, -3.25, 1);
@@ -47,7 +48,9 @@ export function buildOffice(): PackResult {
   layout.add('water_cooler', 9.6, 7.3, 180);
   layout.add('computer_desk', -4.5, 6.4, 180);
   // The things to use: lamps over the islands, blinds at every window, and in the owner's corner
-  // by the computer a light switch, a board, a patch of grass and a coffee set.
+  // by the computer a light switch and a patch of grass, a board and blinds on the west wall, and a
+  // coffee set by the door. Nothing tall goes on the south wall: it would stand between the camera
+  // and the owner, who stands up from the desk facing north.
   for (const [x, z] of [
     [-5.5, -3.25],
     [5.5, -3.25],
@@ -60,11 +63,11 @@ export function buildOffice(): PackResult {
   }
   for (const x of northWindows) layout.add('blinds', x, -7.78, 0, { width: 2, depth: 0.08 });
   for (const z of eastWindows) layout.add('blinds', 10.78, z, 270, { width: 2, depth: 0.08 });
-  layout.add('blinds', -7.6, 7.78, 180, { width: 2, depth: 0.08 });
+  layout.add('blinds', -10.78, 3, 90, { width: 2, depth: 0.08 });
   layout.add('light_switch', -6.3, 7.9, 180);
-  layout.add('whiteboard', -2.6, 7.86, 180);
+  layout.add('whiteboard', -10.86, 6, 90);
   layout.add('grass_patch', -6, 6.7, 180, { width: 1.6, depth: 1.6 });
-  layout.add('coffee_set', -10.6, 6, 90);
+  layout.add('coffee_set', 2.4, 7.45, 180);
 
   return {
     manifest: {

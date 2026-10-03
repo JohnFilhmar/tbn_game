@@ -53,8 +53,22 @@ the eight lit lamps nearest the camera cast real light while the rest glow.
   blinds, reloads and finds both held, then puts them back; and touches grass twice and reads
   the count two higher.
 
-Not checked here: the look of the slats, the bursts and the board's alignment in a real browser,
-which only the Playwright flows touch.
+- **The browser.** Walked through against this branch's web process on a second throwaway
+  database, at 1280 by 800:
+  - the Within reach list on standing up, then a walk left to the board and up to the blinds,
+    the same path the Playwright flows take;
+  - the blinds closing over the west window;
+  - drawing a stroke and writing a word, with the canvas lined up inside the board's frame, the
+    save, and the drawing on the 3D board after Done;
+  - night: the lamps lighting the room, the panel's zones, and All off darkening it;
+  - grass touched twice, the toast counting to 2, the owner crouching and blades flying.
+
+  Two problems were found and fixed this way:
+  - a board and a window first put on the south wall blocked half the view: the third person
+    camera stands south of the owner, and a wall prop is solid from behind, unlike the outer
+    walls, so they moved to the west wall;
+  - standing up before the world has loaded leaves the owner at the pack's spawn, not by the
+    computer, so the new flows sit down and stand up once the world is ready.
 
 ## What changed from the plan
 
@@ -63,8 +77,8 @@ The plan records eight changes under "As built". The two that matter most:
 - **Prop state has its own table.** Phase 4d keeps placements inside the layout, so blinds, lamps
   and boards keep their state in `world_prop_states`, one row per placement. Using a prop never
   moves the layout's revision, so it never refuses an open build draft.
-- **The office's things to use sit beside the computer**, with a window added there, so the owner
-  finds them on standing up and the flows reach them without a long walk.
+- **The office's things to use sit near the computer**, with a window added on the west wall,
+  so the owner finds them on standing up and the flows reach them with a short walk.
 
 ## Waiting for you
 
@@ -86,10 +100,10 @@ docker compose -f docker-compose.development.yml run --rm --no-deps web \
 
 Then, at `/app/` in the browser, in the office:
 
-1. Stand up from the desk. The Within reach list offers the light switch, the whiteboard and the
-   grass.
-2. Draw on the whiteboard, write a word, press Done, and reload: the drawing is on the wall.
+1. Stand up from the desk. The Within reach list offers the light switch and the grass.
+2. Walk left to the board on the west wall, draw on it, write a word, press Done, and reload:
+   the drawing is on the wall.
 3. Use the light switch, set a lamp to Off or press All off, and pick Night in the World menu.
-4. Walk a few steps left to the window and close the blinds; the room dims.
+4. From the board, walk up to the window and close the blinds; the room dims.
 5. Touch grass twice and read the count.
 6. Watch the narration for an agent pouring a coffee at the coffee set by the west wall.
