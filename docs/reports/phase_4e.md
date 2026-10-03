@@ -48,10 +48,17 @@ the eight lit lamps nearest the camera cast real light while the rest glow.
   The full client run had one screen test time out on its first render, the reports screen's
   empty state; it passes alone, the same load flake as in earlier phases.
 - **Static checks.** Typecheck, ESLint and Prettier are clean.
-- **Playwright** runs in CI, as before. A new file, `e2e/objects.spec.ts`, draws a stroke and
-  writes a word, reloads and finds both, then clears the board; switches a lamp off and closes the
-  blinds, reloads and finds both held, then puts them back; and touches grass twice and reads
-  the count two higher.
+- **Playwright on CI passes**, with every earlier flow. A new file, `e2e/objects.spec.ts`, draws a
+  stroke and writes a word, reloads and finds both, then clears the board; switches a lamp off and
+  closes the blinds, reloads and finds both held, then puts them back; and touches grass twice and
+  reads the count two higher. Three CI fixes came out of it:
+  - the pool of eight point lights was there even at noon, and every material pays for every
+    light; CI renders in software, where a step of the owner lasts one frame, so the owner walked
+    too slowly for the world flows. The pool now exists only while a lamp shines;
+  - a lamp's radio followed only the server's answer, so a click looked ignored. Prop states now
+    show at once and go back when a save fails;
+  - the objects flows run instead of walk and get three minutes each, and "the three environments
+    and the night", which also timed out on `main` after phase 4d merged, is marked slow.
 
 - **The browser.** Walked through against this branch's web process on a second throwaway
   database, at 1280 by 800:
