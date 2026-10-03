@@ -37,6 +37,28 @@ Two leftovers from phase 4e:
 4. Idle agents sit back on the sofa and the beanbag.
 5. Standing up from a desk screen always lands beside the computer.
 
+## As built
+
+Seven things changed while building; the design below is the plan as it was written.
+
+- **An exit sign, not a door.** The shells already have their doorways, so the prop is a lit
+  sign hung over one, which the owner can move in build mode like any wall prop.
+- **Watering has no can in hand.** The owner plays `touch` and a burst of drops falls on the
+  plant. A held can would need a second hand item beside the cup.
+- **Agents nap like they take any break.** The sofa and the beanbag are `rest` spots the wander
+  scheduler picks among the rest, for twelve seconds, rather than a nap reserved for an agent
+  idle a long while.
+- **The cork board opens a panel.** E lists the pinned reports and each opens at the computer,
+  rather than E on one card in the canvas, which would need a pointer aimed at a card.
+- **Not every object in every pack.** The office has all nine; the home has all but the rack;
+  the warehouse has the inbox, the clock, the radio and the exit sign. Every kind is in the
+  build catalog for every pack.
+- **The computer keeps E.** The inbox on the computer's own desk is nearer the chair than the
+  screen, so within the computer's reach no prop takes the prompt; the props stay in the Within
+  reach list.
+- **The clock hangs at 2.35 metres**, under the home's 2.8 metre walls, so in the office it sits
+  between two windows instead of above the board.
+
 ## Design
 
 - **Props.** Eight new kinds: `inbox_tray`, `cork_board`, `server_rack`, `wall_clock`, `beanbag`,

@@ -732,6 +732,24 @@ How phase 4e changed it:
   DOM canvas the owner draws on. The camera stands square onto the board at the distance where it
   fills the canvas, so the drawing lines up with the wall.
 
+How phase 4f changed it:
+
+- **The company's objects.** An inbox tray, a cork board, a server rack and a trophy shelf show
+  the live collections the client already keeps: approvals waiting, the latest reports, running
+  sandbox jobs and milestones. `objects/LiveProps.tsx` draws their changing parts on top of the
+  props; the data comes from `WorldLayout` as one snapshot. The inbox and the rack sit the owner
+  at their desk screen through a fade; the cork board, the trophies and the exit sign open
+  panels, and the clock opens the time of day.
+- **Seats.** A spot may carry a seat inside its furniture. The sitter plays `sit` there and steps
+  back to the spot after, so walking never starts inside a footprint.
+- **Plants and the radio keep state** in `world_prop_states`, with no migration. A thirsty plant
+  is drawn in a yellow colour, which the batching keeps as one draw per colour. The radio's loop
+  is made with the Web Audio API in `objects/radioTune.ts`, so no sound file ships.
+- **The computer keeps E.** Within its reach, no prop takes the prompt from it; the props stay in
+  the Within reach list.
+- **Standing up early.** The world store's `hasSat` lets an owner whose world drew after they
+  stood up start beside the chair.
+
 ### Online later
 
 No multi-user features, no public exposure, no refresh token rotation. Two seams stay in place:
