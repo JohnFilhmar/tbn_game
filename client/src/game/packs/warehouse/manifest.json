@@ -30,17 +30,7 @@
     { "minX": -12, "maxX": -9.5, "minZ": 7.85, "maxZ": 8.15 },
     { "minX": -6.5, "maxX": 12, "minZ": 7.85, "maxZ": 8.15 }
   ],
-  "lighting": {
-    "ambient": "#8a95a3",
-    "sun_azimuth_deg": 90,
-    "interior": [
-      { "position": [-6, 5.6, -4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
-      { "position": [6, 5.6, -4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
-      { "position": [-6, 5.6, 4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
-      { "position": [6, 5.6, 4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
-      { "position": [0, 5.6, 0], "color": "#f3f7ff", "intensity": 16, "distance": 16 }
-    ]
-  },
+  "lighting": { "ambient": "#8a95a3", "sun_azimuth_deg": 90 },
   "default_layout": [
     {
       "id": "00000000-0000-4000-8000-000000000bb9",
@@ -384,6 +374,90 @@
       "x": 8.5,
       "z": -0.5,
       "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd6",
+      "kind": "lamp",
+      "x": -6,
+      "z": -4.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "high_bay",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd7",
+      "kind": "lamp",
+      "x": 6,
+      "z": -4.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "high_bay",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd8",
+      "kind": "lamp",
+      "x": -6,
+      "z": 4.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "high_bay",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd9",
+      "kind": "lamp",
+      "x": 6,
+      "z": 4.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "high_bay",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bda",
+      "kind": "lamp",
+      "x": 0,
+      "z": 0,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "high_bay",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bdb",
+      "kind": "light_switch",
+      "x": -6,
+      "z": 7.85,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bdc",
+      "kind": "coffee_set",
+      "x": -4.5,
+      "z": 7.55,
+      "yaw_deg": 180,
       "width": null,
       "depth": null,
       "zone": null,

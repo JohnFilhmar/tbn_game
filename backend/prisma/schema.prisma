@@ -285,6 +285,7 @@ model Owner {
   skill_attachments       SkillAttachment[]
   preferences             Preference[]
   world_layouts           WorldLayout[]
+  world_prop_states       WorldPropState[]
   tasks                   Task[]
   runs                    Run[]
   transcript_entries      TranscriptEntry[]
@@ -1046,4 +1047,23 @@ model WorldLayout {
 
   @@unique([owner_id, environment])
   @@map("world_layouts")
+}
+
+/// A placed prop's own state, apart from its layout so using a prop never moves the layout's
+/// revision: blinds open or closed, a lamp's switch, a whiteboard's drawing. One row per placement.
+model WorldPropState {
+  id           String   @id @default(uuid(7))
+  owner_id     String
+  environment  String
+  placement_id String
+  kind         String
+  state        Json
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([owner_id, placement_id])
+  @@index([owner_id, environment])
+  @@map("world_prop_states")
 }

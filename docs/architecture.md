@@ -712,6 +712,26 @@ How phase 4d changed it:
   prop on a 0.25 m grid that a click or Enter drops where it fits. It keeps a draft with undo and
   redo, and offers save, reset and leave. The world shows the draft while the owner builds.
 
+How phase 4e changed it:
+
+- **Things to use are props.** `props/interactions.ts` gives each usable kind its verb, reach,
+  clip, burst and agent spots: the whiteboard, the coffee set, the water cooler, blinds, the light
+  switch and a patch of grass. The HUD's prompt and the wander scheduler both read it, so a prop
+  the owner places is usable by both at once. `world/prompt.ts` gives E to the nearest of the
+  computer, the agents and the props in front of the owner, and the HUD lists every prop within
+  reach as a button. The owner turns to the prop and plays its clip where they stand.
+- **Prop state apart from the layout.** `world_prop_states` keeps one row per owner and
+  placement: blinds open or closed, a lamp's mode, a whiteboard's strokes and texts. Using a prop
+  never moves the layout's revision, so it never refuses an open build draft, and a prop of a pack
+  default has a state with no saved layout. Its trigger sends a `world_prop_state` event.
+- **Lamps are props.** The shell has no lights. Each lamp is a placement; the eight lit lamps
+  nearest the camera hold a pool of point lights and the rest glow. The pool exists only while a
+  lamp shines, since every material pays for every light, so only the first lamp on and the last
+  one off recompile shaders. Blinds dim the sun and the sky with the share closed.
+- **The whiteboard** is vectors, drawn by one function onto the 3D board's texture and onto the
+  DOM canvas the owner draws on. The camera stands square onto the board at the distance where it
+  fills the canvas, so the drawing lines up with the wall.
+
 ### Online later
 
 No multi-user features, no public exposure, no refresh token rotation. Two seams stay in place:

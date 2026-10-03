@@ -32,6 +32,7 @@ export type ComputerAnchor = z.infer<typeof ComputerAnchorSchema>;
 /** What an idle agent goes to a spot for. */
 export const SpotKindSchema = z.enum([
   'water',
+  'coffee',
   'window',
   'plant',
   'board',
@@ -57,19 +58,13 @@ export interface Zone {
   desks: DeskAnchor[];
 }
 
-/** A light inside the pack, on from dusk. */
-export const InteriorLightSchema = z.strictObject({
-  position: Vec3Schema,
-  color: HexColorSchema,
-  intensity: z.number().min(0),
-  distance: z.number().positive(),
-});
-
-/** The pack's lighting profile; the time of day supplies the sun and the sky. */
+/**
+ * The pack's lighting profile; the time of day supplies the sun and the sky, and the lamps among
+ * the props light the inside.
+ */
 export const LightingSchema = z.strictObject({
   ambient: HexColorSchema,
   sun_azimuth_deg: z.number(),
-  interior: InteriorLightSchema.array(),
 });
 
 /** The floor rectangle of a pack. */

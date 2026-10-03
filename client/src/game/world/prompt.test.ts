@@ -1,15 +1,24 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { promptAt, type PromptScene } from './prompt';
+import { promptAt, propsInReach, type PromptScene, type UsableProp } from './prompt';
 
-function scene(agents: Record<string, [number, number]>, owner: [number, number] = [0, 0]) {
+function scene(
+  agents: Record<string, [number, number]>,
+  owner: [number, number] = [0, 0],
+  props: UsableProp[] = [],
+) {
   return {
     owner: new Vector3(owner[0], 0, owner[1]),
     facingDeg: 0,
     computer: new Vector3(0, 1.2, 1.5),
     computerReach: 1.9,
     agents: new Map(Object.entries(agents).map(([id, [x, z]]) => [id, new Vector3(x, 0, z)])),
+    props,
   } satisfies PromptScene;
+}
+
+function prop(placementId: string, x: number, z: number, reach = 1.8): UsableProp {
+  return { placementId, x, z, reach };
 }
 
 describe('the E prompt', () => {
@@ -30,5 +39,27 @@ describe('the E prompt', () => {
       kind: 'agent',
       agentId: 'bo',
     });
+  });
+
+  it('picks the nearest interaction in front of the owner, props among them', () => {
+    const coffee = prop('coffee', 0.3, -4);
+    const grass = prop('grass', 0, -3.6);
+    expect(promptAt(scene({}, [0, -5], [grass, coffee]))).toEqual({
+      kind: 'prop',
+      placementId: 'coffee',
+    });
+    expect(promptAt(scene({ ada: [0, -4.5] }, [0, -5], [coffee, grass]))).toEqual({
+      kind: 'agent',
+      agentId: 'ada',
+    });
+    // Behind the owner, or past its own reach, a prop is not offered.
+    expect(promptAt(scene({}, [0, -5], [prop('board', 0, -6)]))).toBeNull();
+    expect(promptAt(scene({}, [0, -5], [prop('switch', 0, -3, 1.5)]))).toBeNull();
+  });
+
+  it('lists every prop within reach, nearest first, whichever way the owner faces', () => {
+    const owner = new Vector3(0, 0, -5);
+    const props = [prop('far', 0, -2), prop('behind', 0, -6), prop('front', 0, -4.2)];
+    expect(propsInReach(owner, props)).toEqual(['front', 'behind']);
   });
 });

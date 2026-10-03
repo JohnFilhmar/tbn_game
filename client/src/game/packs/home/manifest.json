@@ -14,8 +14,6 @@
     { "position": [2.5, 0, 1.25], "yaw_deg": 180 }
   ],
   "spots": [
-    { "kind": "grass", "position": [7.5, 0, 2], "yaw_deg": 180, "clip": "touch", "seconds": 4 },
-    { "kind": "grass", "position": [2, 0, 5], "yaw_deg": 0, "clip": "touch", "seconds": 4 },
     {
       "kind": "stretch",
       "position": [-4.5, 0, -3],
@@ -41,16 +39,7 @@
     { "minX": 8.96, "maxX": 9.04, "minZ": 0, "maxZ": 7 },
     { "minX": 0, "maxX": 9, "minZ": 6.96, "maxZ": 7.04 }
   ],
-  "lighting": {
-    "ambient": "#b8c4cc",
-    "sun_azimuth_deg": 210,
-    "interior": [
-      { "position": [-4.5, 2.6, -3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
-      { "position": [4.5, 2.6, -3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
-      { "position": [-4.5, 2.6, 3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
-      { "position": [4.5, 2.4, 3.5], "color": "#ffd9a0", "intensity": 4, "distance": 7 }
-    ]
-  },
+  "lighting": { "ambient": "#b8c4cc", "sun_azimuth_deg": 210 },
   "default_layout": [
     {
       "id": "00000000-0000-4000-8000-0000000007d1",
@@ -301,6 +290,126 @@
       "width": 9,
       "depth": 7,
       "zone": 4,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007e6",
+      "kind": "lamp",
+      "x": -4.5,
+      "z": -3.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007e7",
+      "kind": "lamp",
+      "x": 4.5,
+      "z": -3.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007e8",
+      "kind": "lamp",
+      "x": -4.5,
+      "z": 3.5,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": "panel",
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007e9",
+      "kind": "blinds",
+      "x": -5,
+      "z": -6.78,
+      "yaw_deg": 0,
+      "width": 1.8,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007ea",
+      "kind": "blinds",
+      "x": 4.5,
+      "z": -6.78,
+      "yaw_deg": 0,
+      "width": 1.8,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007eb",
+      "kind": "blinds",
+      "x": -8.78,
+      "z": 3.5,
+      "yaw_deg": 90,
+      "width": 1.8,
+      "depth": 0.08,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007ec",
+      "kind": "light_switch",
+      "x": -3.3,
+      "z": 6.9,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007ed",
+      "kind": "coffee_set",
+      "x": 8.6,
+      "z": -2,
+      "yaw_deg": 270,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007ee",
+      "kind": "grass_patch",
+      "x": 7.2,
+      "z": 2.4,
+      "yaw_deg": 180,
+      "width": 1.6,
+      "depth": 1.6,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000007ef",
+      "kind": "grass_patch",
+      "x": 2.6,
+      "z": 5.2,
+      "yaw_deg": 180,
+      "width": 1.6,
+      "depth": 1.6,
+      "zone": null,
       "variant": null,
       "color": null
     }

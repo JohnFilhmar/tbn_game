@@ -1,23 +1,17 @@
 import type { PropKind, WorldPlacement } from '@tbn/contracts';
 import type { Group } from 'three';
-import type { Anchor, Bounds, Footprint, Vec3 } from '#game/props/builder.ts';
+import type { Anchor, Bounds, Footprint } from '#game/props/builder.ts';
 import type { SpotAnchor } from '#game/props/catalog.ts';
 
 export { spot } from '#game/props/catalog.ts';
 
-/** A light inside the pack, on from dusk. */
-export interface InteriorLight {
-  position: Vec3;
-  color: string;
-  intensity: number;
-  distance: number;
-}
-
-/** The pack's lighting profile; the time of day supplies the sun and the sky. */
+/**
+ * The pack's lighting profile; the time of day supplies the sun and the sky, and the lamps among
+ * the props light the inside.
+ */
 export interface Lighting {
   ambient: string;
   sun_azimuth_deg: number;
-  interior: InteriorLight[];
 }
 
 /** What `manifest.json` holds, as `docs/assets.md` describes it. */

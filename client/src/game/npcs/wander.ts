@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { distanceXz, forwardOf, yawTowards } from '@/game/assets/geometry';
 import type { Spot } from '@/game/assets/packManifest';
+import { SPOT_EFFECTS } from '@/game/props/interactions';
 import type { AgentActor, WanderTarget } from './agentActor';
 
 /** The quietest and the busiest an idle agent is between two wanders, in seconds. */
@@ -14,6 +15,7 @@ const CHAT_REACH = 6;
 
 const GOING: Record<Spot['kind'], string> = {
   water: 'goes for a drink',
+  coffee: 'pours a coffee',
   window: 'looks out of the window',
   plant: 'checks on a plant',
   board: 'doodles on the whiteboard',
@@ -63,6 +65,7 @@ export class WanderScheduler {
       yawDeg: spot.yaw_deg,
       clip: spot.clip,
       seconds: spot.seconds,
+      effect: SPOT_EFFECTS[spot.kind],
     }));
   }
 

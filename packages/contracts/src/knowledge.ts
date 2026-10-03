@@ -170,6 +170,8 @@ export const PreferencesSchema = z.strictObject({
   environment: EnvironmentNameSchema,
   time_of_day: TimeOfDaySchema,
   owner_appearance: AppearanceSchema,
+  /** How many times the owner has touched grass in the world. */
+  grass_touched: z.int().min(0),
   intern_idle_ttl_minutes: z.number().min(0.01).max(10_080),
   runaway_guard_turns: z.number().int().min(3).max(1_000),
   cap_threshold_longest_percent: z.number().int().min(1).max(100),
@@ -203,6 +205,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   environment: 'office',
   time_of_day: 'clock',
   owner_appearance: {},
+  grass_touched: 0,
   intern_idle_ttl_minutes: 30,
   runaway_guard_turns: 50,
   cap_threshold_longest_percent: 75,

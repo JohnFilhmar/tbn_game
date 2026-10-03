@@ -4,6 +4,8 @@ import {
   IDEMPOTENT_REPLAYED_HEADER,
   WorldLayoutResponseSchema,
   WorldLayoutSchema,
+  WorldPropStateSchema,
+  WorldPropStatesResponseSchema,
   type WorldPlacement,
 } from '@tbn/contracts';
 import { randomUUID } from 'node:crypto';
@@ -101,5 +103,98 @@ describe('world routes', () => {
     const unknown = { revision: 0, theme: {}, placements: [{ ...placement(), kind: 'piano' }] };
     await api().put('/world/warehouse').set(auth()).send(unknown).expect(400);
     await api().get('/world/moon').set(auth()).expect(400);
+  });
+
+  describe('prop states', () => {
+    const blinds = randomUUID();
+    const board = randomUUID();
+
+    it('needs a token', async () => {
+      await api().get('/world/office/props').expect(401);
+      await api()
+        .put(`/world/office/props/${blinds}`)
+        .send({ kind: 'blinds', state: { open: false } })
+        .expect(401);
+    });
+
+    it('saves a state, reads it back with the environment, and replays a repeated key', async () => {
+      const key = randomUUID();
+      const body = { kind: 'blinds', state: { open: false } };
+      const saved = await api()
+        .put(`/world/office/props/${blinds}`)
+        .set(auth(key))
+        .send(body)
+        .expect(200);
+      expect(WorldPropStateSchema.parse(saved.body)).toMatchObject({
+        environment: 'office',
+        placement_id: blinds,
+        kind: 'blinds',
+        state: { open: false },
+      });
+      const replay = await api()
+        .put(`/world/office/props/${blinds}`)
+        .set(auth(key))
+        .send(body)
+        .expect(200);
+      expect(replay.headers[IDEMPOTENT_REPLAYED_HEADER.toLowerCase()]).toBe('true');
+
+      const stroke = {
+        color: '#1f2937',
+        width: 0.01,
+        points: [
+          [0.1, 0.1],
+          [0.5, 0.4],
+        ],
+      };
+      await api()
+        .put(`/world/office/props/${board}`)
+        .set(auth())
+        .send({ kind: 'whiteboard', state: { strokes: [stroke], texts: [] } })
+        .expect(200);
+
+      const read = await api().get('/world/office/props').set(auth()).expect(200);
+      const { states } = WorldPropStatesResponseSchema.parse(read.body);
+      expect(states.map((state) => [state.placement_id, state.kind])).toEqual(
+        expect.arrayContaining([
+          [blinds, 'blinds'],
+          [board, 'whiteboard'],
+        ]),
+      );
+      const home = await api().get('/world/home/props').set(auth()).expect(200);
+      expect(WorldPropStatesResponseSchema.parse(home.body).states).toEqual([]);
+    });
+
+    it('refuses a state that does not fit its kind with 400', async () => {
+      await api()
+        .put(`/world/office/props/${blinds}`)
+        .set(auth())
+        .send({ kind: 'blinds', state: { mode: 'off' } })
+        .expect(400);
+      await api()
+        .put(`/world/office/props/${blinds}`)
+        .set(auth())
+        .send({ kind: 'lamp', state: { mode: 'dim' } })
+        .expect(400);
+      await api()
+        .put('/world/office/props/not-an-id')
+        .set(auth())
+        .send({ kind: 'lamp', state: { mode: 'on' } })
+        .expect(400);
+    });
+
+    it('refuses a whiteboard over its cap with 413', async () => {
+      // 1,500 strokes of 20 points each is about 650 KB: under the body limit, over the board's.
+      const points = Array.from({ length: 20 }, (_, index) => [index / 20, 0.123456789]);
+      const strokes = Array.from({ length: 1_500 }, () => ({
+        color: '#1f2937',
+        width: 0.01,
+        points,
+      }));
+      await api()
+        .put(`/world/office/props/${board}`)
+        .set(auth())
+        .send({ kind: 'whiteboard', state: { strokes, texts: [] } })
+        .expect(413);
+    });
   });
 });

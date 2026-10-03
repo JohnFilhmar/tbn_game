@@ -104,7 +104,8 @@ client/             Vite, React 19, TypeScript, Tailwind v4: the world and the d
   src/screens/      one directory per desk screen
   src/game/         the 3D world: assets (manifests, loaders, appearance), world (canvas, scene,
                     lighting, cameras, owner character, walking grid), props (catalog, layouts,
-                    themes), build (build mode), npcs (world events, seats, actors), hud, and the
+                    themes, interactions), objects (lamps, blinds, whiteboard, effects and prop
+                    state), build (build mode), npcs (world events, seats, actors), hud, and the
                     shipped packs and characters
   scripts/assets/   the generator of the packs and the character set
   e2e/              Playwright flows, the e2e stack and its fake model
@@ -188,7 +189,8 @@ docs/               architecture, roadmap, plans, reports, runbook
   with the screen rendered as real DOM in the monitor frame. The route alone decides, so a reload
   lands seated. The world reads models and clips through the asset manifests by slot name, never
   by path, and the agents move only on world events derived from the change events; nothing in
-  the world is server state but the three preferences and each environment's layout and theme.
+  the world is server state but its preferences, each environment's layout and theme, and the
+  state of the props that keep one (blinds, lamps and whiteboards), apart from the layout.
   A pack is a generated shell and a default layout of props, which the client builds from code;
   the packs and characters are generated files under `client/src/game/`, remade by
   `npm run build:assets`, to the contract in `docs/assets.md`.

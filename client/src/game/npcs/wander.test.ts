@@ -138,3 +138,38 @@ describe('wandering', () => {
     expect(ada.activity).toBe('at_desk');
   });
 });
+
+describe('the things to use', () => {
+  it('send an idle agent to pour a coffee, which steams while it drinks', () => {
+    const lines: string[] = [];
+    const effects: string[] = [];
+    const coffee: Spot = {
+      kind: 'coffee',
+      position: [3, 0, 0],
+      yaw_deg: 0,
+      clip: 'drink',
+      seconds: 2,
+    };
+    const ada = new AgentActor({
+      id: 'ada',
+      name: 'Ada',
+      home: {
+        seat: new Vector3(0, 0, 10),
+        standing: new Vector3(0, 0, 9),
+        yawDeg: 0,
+        hasDesk: true,
+      },
+      planner: straight,
+      listener: {
+        onActivity: () => undefined,
+        onNarrate: (text) => lines.push(text),
+        onEffect: (kind) => effects.push(kind),
+      },
+      from: 'home',
+    });
+    const scheduler = new WanderScheduler([coffee], (text) => lines.push(text));
+    run(scheduler, [ada], 0, 40);
+    expect(lines).toContain('Ada pours a coffee.');
+    expect(effects).toContain('steam');
+  });
+});

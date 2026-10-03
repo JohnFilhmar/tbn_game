@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import type { ClipName } from '@/game/assets/characterManifest';
 import { distanceXz, forwardOf, turnTowards, yawTowards } from '@/game/assets/geometry';
+import type { EffectKind } from '@/game/props/interactions';
 import type { PathPlanner } from '@/game/world/navmesh';
 
 /** What an agent is doing in the world. */
@@ -29,6 +30,8 @@ export interface ActorHome {
 export interface ActorListener {
   onActivity: (activity: Activity) => void;
   onNarrate: (text: string) => void;
+  /** The prop the agent uses gives off a burst, in front of where it stands. */
+  onEffect?: (kind: EffectKind, at: Vector3, yawDeg: number) => void;
 }
 
 /** Where an idle agent goes, which way it faces there, what it plays and for how long. */
@@ -37,12 +40,21 @@ export interface WanderTarget {
   yawDeg: number;
   clip: ClipName;
   seconds: number;
+  /** What the prop there gives off while the agent uses it. */
+  effect?: EffectKind;
 }
 
 /** A step of the queue; `isWander` marks the steps any real work drops. */
 type Step = (
   | { kind: 'walk'; to: Vector3; activity: Activity; narration?: string }
-  | { kind: 'play'; clip: ClipName; seconds: number; activity: Activity; faceDeg?: number }
+  | {
+      kind: 'play';
+      clip: ClipName;
+      seconds: number;
+      activity: Activity;
+      faceDeg?: number;
+      effect?: EffectKind;
+    }
   | { kind: 'sit' }
   | { kind: 'stand' }
   | { kind: 'settle' }
@@ -146,6 +158,7 @@ export class AgentActor {
         seconds: target.seconds,
         activity: 'wandering',
         faceDeg: target.yawDeg,
+        effect: target.effect,
         isWander: true,
       },
       { kind: 'walk', to: this.home.standing, activity: 'wandering', isWander: true },
@@ -307,6 +320,8 @@ export class AgentActor {
         this.timer = step.seconds;
         if (step.faceDeg !== undefined) this.yawDeg = step.faceDeg;
         this.setActivity(step.activity);
+        if (step.effect !== undefined)
+          this.listener.onEffect?.(step.effect, this.position, this.yawDeg);
         return;
       }
       case 'sit': {

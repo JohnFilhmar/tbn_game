@@ -1,5 +1,6 @@
 import { EnvironmentNameSchema, type EnvironmentName } from '@tbn/contracts';
 import type { Vector3 } from 'three';
+import type { ClipName } from '@/game/assets/clipNames';
 import { create } from 'zustand';
 import { prefersReducedMotion } from './motion';
 
@@ -54,6 +55,20 @@ export interface TeleportRequest {
   yawDeg: number;
 }
 
+/** The owner using a prop: the clip they play, the way they face, and when it ends. */
+export interface Acting {
+  clip: ClipName;
+  yawDeg: number;
+  /** Seconds on `performance.now()`'s clock. */
+  until: number;
+}
+
+/** A short message over the world that fades on its own. */
+export interface Toast {
+  id: number;
+  text: string;
+}
+
 /** One sentence of what happened in the world. */
 export interface NarrationLine {
   id: number;
@@ -106,6 +121,23 @@ export interface WorldState {
   /** The agent the owner is talking to, or null. A moment in the world, never a route. */
   talkingTo: string | null;
   setTalkingTo: (agentId: string | null) => void;
+  /** The prop E uses, when it is the nearest thing in front of the owner; null when none. */
+  nearPropId: string | null;
+  /** Every prop within reach of the owner, nearest first, which the HUD lists as buttons. */
+  reachablePropIds: readonly string[];
+  setNearProps: (nearPropId: string | null, reachablePropIds: readonly string[]) => void;
+  /** The owner using a prop, or null. */
+  acting: Acting | null;
+  act: (clip: ClipName, yawDeg: number, seconds: number) => void;
+  stopActing: () => void;
+  /** The whiteboard the owner draws on, or null. A moment in the world, never a route. */
+  drawingOn: string | null;
+  setDrawingOn: (placementId: string | null) => void;
+  /** True while the light switch's panel is open. */
+  isLightsOpen: boolean;
+  setLightsOpen: (isOpen: boolean) => void;
+  toast: Toast | null;
+  showToast: (text: string) => void;
 }
 
 let nextLineId = 1;
@@ -182,4 +214,17 @@ export const useWorldStore = create<WorldState>((set) => ({
   setNearAgentId: (nearAgentId) => set({ nearAgentId }),
   talkingTo: null,
   setTalkingTo: (talkingTo) => set({ talkingTo }),
+  nearPropId: null,
+  reachablePropIds: [],
+  setNearProps: (nearPropId, reachablePropIds) => set({ nearPropId, reachablePropIds }),
+  acting: null,
+  act: (clip, yawDeg, seconds) =>
+    set({ acting: { clip, yawDeg, until: performance.now() / 1000 + seconds } }),
+  stopActing: () => set({ acting: null }),
+  drawingOn: null,
+  setDrawingOn: (drawingOn) => set({ drawingOn }),
+  isLightsOpen: false,
+  setLightsOpen: (isLightsOpen) => set({ isLightsOpen }),
+  toast: null,
+  showToast: (text) => set((state) => ({ toast: { id: (state.toast?.id ?? 0) + 1, text } })),
 }));

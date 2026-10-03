@@ -78,6 +78,7 @@ export const queryKeys = {
   agentAttachments: (agentId: string) => ['agentAttachments', agentId] as const,
   preferences: () => ['preferences'] as const,
   world: (environment: EnvironmentName) => ['world', environment] as const,
+  worldProps: (environment: EnvironmentName) => ['world', environment, 'props'] as const,
   usage: (providerId: string) => ['usage', providerId] as const,
   cacheStats: () => ['cacheStats'] as const,
   notificationEvents: () => ['notificationEvents'] as const,

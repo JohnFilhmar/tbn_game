@@ -1,5 +1,5 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import type { Agent, TranscriptEntry } from '@tbn/contracts';
+import type { Agent, TranscriptEntry, WorldPropState } from '@tbn/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { COLLECTIONS, queryKeys } from '@/lib/data/collections';
 import {
@@ -36,6 +36,31 @@ describe('applying change events to the cache', () => {
 
     applyChange(client, agentChange(ada.id, 'delete', null, 3));
     expect(client.getQueryData<Agent[]>(AGENTS)?.map((agent) => agent.name)).toEqual(['bo']);
+  });
+
+  it("puts a prop's state in place of the one saved ahead for its placement", () => {
+    const client = new QueryClient();
+    const placementId = '00000000-0000-4000-8000-000000000101';
+    const ahead: WorldPropState = {
+      id: placementId,
+      environment: 'office',
+      placement_id: placementId,
+      kind: 'lamp',
+      state: { mode: 'off' },
+      updated_at: '2026-10-03T12:00:00.000Z',
+    };
+    client.setQueryData<WorldPropState[]>(queryKeys.worldProps('office'), [ahead]);
+    const saved = { ...ahead, id: '00000000-0000-4000-8000-000000000999' };
+    applyChange(client, {
+      seq: 1,
+      entity: 'world_prop_state',
+      id: saved.id,
+      op: 'insert',
+      changed: null,
+      data: saved,
+      at: saved.updated_at,
+    });
+    expect(client.getQueryData(queryKeys.worldProps('office'))).toEqual([saved]);
   });
 
   it('leaves a collection nobody loaded for its first fetch', () => {

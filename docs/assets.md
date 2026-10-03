@@ -31,10 +31,11 @@ A pack is `client/src/game/packs/<name>/` with `manifest.json` and `scene.glb`. 
 
 A pack has three parts:
 
-- **The shell** is what the owner cannot move: floors, outer and inner walls, door frames,
-  windows and the ceiling lamps. It is `scene.glb`.
+- **The shell** is what the owner cannot move: floors, outer and inner walls, door frames and
+  windows. It is `scene.glb`.
 - **The props** are everything the owner can place, move, turn, size, repaint and remove in build
-  mode: desks, tables, partitions, plants, shelves and the rest. They are not files. The catalog
+  mode: desks, tables, partitions, plants, shelves, lamps, blinds and the rest. They are not
+  files. The catalog
   in `client/src/game/props/catalog.ts` builds each kind from code at the origin, once per kind,
   size and variant. It gives each kind its footprint and its anchors: a desk's seat, the
   computer, a spot.
@@ -77,19 +78,42 @@ The layout makes what the world used to read from the manifest:
 - **Spots.** Each prop's spots join the shell's. A spot nobody can reach is left out.
 
 A spot is an anchor with `kind`, `clip` and `seconds`: the standing point and facing, what the spot
-is (`water`, `window`, `plant`, `board`, `grass`, `stretch` or `look`), the clip an agent plays
-there, and how long it stays.
+is (`water`, `coffee`, `window`, `plant`, `board`, `grass`, `stretch` or `look`), the clip an
+agent plays there, and how long it stays.
 
-Lighting is `{ambient, sun_azimuth_deg, interior}`. `ambient` is the hex colour of the ambient
-light at noon; the time of day scales and tints it. `sun_azimuth_deg` is the compass direction
-the sun shines from at noon, with the same convention as a yaw. `interior` lists the lights that
-come on from dusk, each `{position, color, intensity, distance}` in Three.js point light terms.
+Lighting is `{ambient, sun_azimuth_deg}`. `ambient` is the hex colour of the ambient light at
+noon; the time of day scales and tints it. `sun_azimuth_deg` is the compass direction the sun
+shines from at noon, with the same convention as a yaw. The lamps among the props light the
+inside.
+
+### Things to use
+
+Some prop kinds can be used, by the owner with E or a HUD button, and by idle agents as wander
+spots. `client/src/game/props/interactions.ts` gives each its verb, its reach, the clip the user
+plays, what it gives off, and its agent spots:
+
+| Kind           | Verb                                  | Does                                              |
+| -------------- | ------------------------------------- | ------------------------------------------------- |
+| `whiteboard`   | draw on the whiteboard                | Opens drawing on the board; the drawing stays.    |
+| `coffee_set`   | pour a coffee                         | `drink` with a cup in hand, and steam.            |
+| `water_cooler` | pour a cup of water                   | `drink` with a cup in hand, and bubbles.          |
+| `blinds`       | close the blinds, open the blinds     | Turns the slats; the daylight dims with the share closed, down to 40 percent. |
+| `light_switch` | use the light switch                  | Opens the panel of lamps by zone: Auto, On or Off. |
+| `grass_patch`  | touch grass                           | `touch`, flying blades, and a running count.      |
+
+A lamp is a prop too, in two variants: `panel` hangs at 2.7 metres and `high_bay` at 5.2. Each
+gives a point light; only the eight lit lamps nearest the camera cast real light, and the others
+glow.
+
+Blinds, lamps and whiteboards keep a state per placement, apart from the layout: blinds
+`{open}`, a lamp `{mode}` of `auto`, `on` or `off`, and a whiteboard's strokes and texts in board
+shares from 0 to 1. A prop with no saved state is open, on auto, or empty.
 
 ### The shell
 
 `scene.glb` holds one mesh per material, named after the material, with no textures. Material
 names are the theme's slots (`floor`, `wall`, `wood` and so on), so a theme can colour the shell
-and the props alike. Two other names are read: `light` is the lamps, which never cast shadows,
+and the props alike. Two other names are read: `light` glows from dusk and never casts shadows,
 and `glass` is rendered translucent. The shell is static; nothing in it moves.
 
 ### Walking

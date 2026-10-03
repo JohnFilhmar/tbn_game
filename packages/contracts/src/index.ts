@@ -15,3 +15,4 @@ export * from './runs';
 export * from './sandbox';
 export * from './search';
 export * from './world';
+export * from './world_props';

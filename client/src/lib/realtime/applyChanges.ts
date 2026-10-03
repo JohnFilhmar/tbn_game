@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ChangeEvent, RunSource, TranscriptEntry } from '@tbn/contracts';
+import type { ChangeEvent, RunSource, TranscriptEntry, WorldPropState } from '@tbn/contracts';
 import { collectionKeyOf, queryKeys } from '@/lib/data/collections';
 
 /** Replaces the row with the same id, or adds it at the end. */
@@ -9,6 +9,17 @@ export function upsertRow<Row extends { id: string }>(rows: Row[], row: Row): Ro
   const next = rows.slice();
   next[index] = row;
   return next;
+}
+
+/**
+ * The prop states with `state` in place of whatever its placement had, so a state saved ahead of
+ * the server's answer never doubles up with the answer.
+ */
+export function withPropState(
+  rows: readonly WorldPropState[] | undefined,
+  state: WorldPropState,
+): WorldPropState[] {
+  return [...(rows ?? []).filter((row) => row.placement_id !== state.placement_id), state];
 }
 
 /** Removes the row with `id`, keeping the same array when it is not there. */
@@ -104,6 +115,15 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
       if (event.data === null) void client.invalidateQueries({ queryKey: ['world'] });
       else client.setQueryData(queryKeys.world(event.data.environment), event.data);
       return;
+    case 'world_prop_state': {
+      const state = event.data;
+      if (state !== null) {
+        writeLoaded<WorldPropState[]>(client, queryKeys.worldProps(state.environment), (rows) =>
+          withPropState(rows, state),
+        );
+      }
+      return;
+    }
     default: {
       const key = collectionKeyOf(event.entity);
       if (key === undefined) return;

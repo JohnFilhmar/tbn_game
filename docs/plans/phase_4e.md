@@ -34,6 +34,36 @@ mode. Each one plays an animation from phase 4c and makes the world react.
 8. Every interaction can also be reached without the canvas: the HUD lists the props within reach
    as buttons. The whiteboard and light panels are accessible dialogs.
 
+## As built
+
+Eight things changed while building; the design below is the plan as it was written.
+
+- **One prop state table.** Phase 4d keeps placements as JSON in `world_layouts`, so there is no
+  placement row to give a `state` column. `world_prop_states` holds one row per owner and
+  placement for blinds, lamps and whiteboards alike, the board's drawing being its state. A
+  state stored inside the layout would move its revision on every blind and refuse an open build
+  draft with 409, and a pack default prop has no saved layout to write into.
+- **One route and one event.** `GET /world/:environment/props` and
+  `PUT /world/:environment/props/:placement_id` take the kind and its whole state, checked against
+  that kind's schema; a `world_prop_state` event carries every change. The server trusts the kind
+  the owner names, because the pack defaults it would check against live in the client.
+- **The caps.** More than 2,000 strokes fails the schema with 400; content over 256 KB answers
+  413 from the service, under the 1 MB body limit.
+- **Lamps hang at a fixed height per variant**, a panel at 2.7 metres and a high bay at 5.2,
+  because a prop is built once per kind and not per pack ceiling. The warehouse uses high bays.
+- **Blinds are their own prop**, hung at a shell window, not a variant of a window prop: windows
+  stay in the shell, as phase 4d's objection kept the room shapes.
+- **The owner never walks to a prop.** E is offered only within reach, so the owner turns to face
+  the prop itself and plays the clip where they stand. The spot's own facing is placed for agents.
+- **The office's things to use sit near the computer.** The light switch and the grass are in
+  reach of the chair, and the board and a new west window with blinds are a short walk left.
+  Standing up from the desk leaves the owner there, which is also where every Playwright flow
+  starts. Nothing tall goes on the south wall: the camera stands south of the owner, and a board
+  or a window frame there blocked half the view in the browser.
+- **An idle agent pouring a coffee is a Vitest check.** Wandering is seeded by the agent's id, so
+  which spot a fresh e2e agent picks is not fixed. Vitest runs the scheduler with a coffee spot
+  alone; the e2e break flow accepts "pours a coffee" among the break lines.
+
 ## Design
 
 ### Interactions
