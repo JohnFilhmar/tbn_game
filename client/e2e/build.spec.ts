@@ -1,15 +1,26 @@
 import { expect, test, type Page } from '@playwright/test';
-import { WorldLayoutResponseSchema, type WorldLayout } from '@tbn/contracts';
+import { z } from 'zod';
 import { signIn } from './session';
 
+// The flows load `@tbn/contracts` as CommonJS, which has no named exports here, so this reads
+// only the fields the flow checks.
+const SavedOfficeSchema = z.object({
+  layout: z
+    .object({
+      theme: z.record(z.string(), z.string()),
+      placements: z.array(z.object({ kind: z.string() })),
+    })
+    .nullable(),
+});
+
 /** The owner's saved office, read straight from the server. */
-async function savedOffice(page: Page): Promise<WorldLayout | null> {
+async function savedOffice(page: Page): Promise<z.infer<typeof SavedOfficeSchema>['layout']> {
   const token = await page.evaluate(() => window.sessionStorage.getItem('tbn.session'));
   const response = await page.request.get('/world/office', {
     headers: { Authorization: `Bearer ${token ?? ''}` },
   });
   expect(response.ok()).toBe(true);
-  return WorldLayoutResponseSchema.parse(await response.json()).layout;
+  return SavedOfficeSchema.parse(await response.json()).layout;
 }
 
 /** Opens build mode from the world. */
@@ -41,7 +52,7 @@ test('the owner places a plant, paints the floor, saves, and resets to the defau
   await expect(panel.getByRole('status')).toHaveText('Saved.');
 
   const saved = await savedOffice(page);
-  expect(saved?.theme.floor).toBe('#2b3242');
+  expect(saved?.theme['floor']).toBe('#2b3242');
   const plants = saved?.placements.filter((one) => one.kind === 'plant').length ?? 0;
   const plantsBefore = (before?.placements ?? []).filter((one) => one.kind === 'plant').length;
   expect(plants).toBe((before === null ? 3 : plantsBefore) + 1);
