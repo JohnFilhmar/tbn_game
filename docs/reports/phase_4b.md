@@ -29,10 +29,10 @@ only source of the view, one camera glide for every transition, and the restyle 
 
 ## What could not be done here
 
-- **The Playwright flows were not run in this session.** The e2e harness spawns `npx` without a
-  shell, which Node on Windows refuses, and the development stack's database password is in your
-  local env file, which this session does not read. The flows are updated and CI runs them on the
-  pull request. The updates:
+- **The Playwright flows ran on CI, not here.** The e2e harness spawns `npx` without a shell,
+  which Node on Windows refuses, and the development stack's database password is in your local
+  env file, which this session does not read. On the pull request all 12 flows pass, as do every
+  other check and both image builds. Changes to the flows:
   - the sign in helper stands up after landing at the desk;
   - the walk to the computer starts by walking away from it;
   - two new flows: a reloaded desk screen lands seated, an expired session signs in again in
@@ -78,6 +78,10 @@ Then, in the browser at `/app/`:
   - the HUD always wears the dark theme, which also fixes the Sign out button that could not be
     seen in the light theme.
 - **The frame counter moved behind F3.**
+- **Agents keep walking pace on slow frames.** CI renders in software at a few frames a second.
+  Each actor tick was capped at 0.1 s, so the agents walked in slow motion there, and the new
+  ground made it worse. Actors now tick in 0.1 s steps and catch up on up to half a second each
+  frame. The ground takes no shadow and a cheaper material.
 - **An existing bug, fixed in passing.** React's development double mount cleared the agents but
   kept the roster flag, so every agent walked in through the door on each page load in
   `npm run dev`. Production builds were not affected. The flag now resets with the agents.
