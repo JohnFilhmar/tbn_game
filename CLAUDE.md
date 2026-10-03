@@ -182,10 +182,12 @@ docs/               architecture, roadmap, plans, reports, runbook
 - The web process serves the built client under `/app` from `CLIENT_DIR`; the API keeps its paths.
   The client talks to the API only through `lib/api` and the gateway, and writes every change into
   the TanStack Query cache. The gateway accepts the CORS origins and the page's own origin.
-- The world is the client's root route; the desk screens render over it on their own routes. The
-  world reads models and clips through the asset manifests by slot name, never by path, and the
-  agents move only on world events derived from the change events; nothing in the world is
-  server state but the three preferences. The packs and characters are generated files under
+- The world is the client's root route for everyone, signed in or not. `/` is the owner walking
+  in it; every other route, sign in and the desk screens, is the owner seated at the computer,
+  with the screen rendered as real DOM in the monitor frame. The route alone decides, so a reload
+  lands seated. The world reads models and clips through the asset manifests by slot name, never
+  by path, and the agents move only on world events derived from the change events; nothing in
+  the world is server state but the three preferences. The packs and characters are generated files under
   `client/src/game/`, remade by `npm run build:assets`, to the contract in `docs/assets.md`.
 
 ## Code rules
@@ -217,7 +219,9 @@ docs/               architecture, roadmap, plans, reports, runbook
 - Prose in commits, pull requests, comments and docs is plain: no em dashes, no filler, sentence
   case headings.
 - Tailwind is the only styling mechanism in the client. Use the theme scale, never an arbitrary
-  bracket value that duplicates it. 2D screens are accessible by default and design their loading,
+  bracket value that duplicates it. The low poly look lives in `client/src/index.css`: the world's
+  palette as the `slate` and `teal` scales, bevelled corners, `shadow-chunk`, and the self-hosted
+  display and text fonts. 2D screens are accessible by default and design their loading,
   empty and error states.
 
 ESLint (`eslint.config.mjs`) enforces the naming, `any`, cast, `ts-ignore`, type import, path alias

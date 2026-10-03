@@ -183,6 +183,10 @@ output as it is generated.
   entity events the client already receives, derived into world events on the client; the server
   never knows a position. The packs and the character set are written by a script in the client
   workspace to the contract in `docs/assets.md`.
+- **Phase 4b made it one game.** The world is the root of every route, sign in included: the
+  owner signs in at their desk's monitor in first person, and the monitor then shows the desk.
+  Standing up and sitting down are camera glides, the Desk button and the number keys teleport,
+  and the desk, sign in and HUD share the world's low poly look.
 - **Not yet.** The mobile and desktop shells come in phases 5 and 6. The production deploy is
   ready for the owner to dispatch.
 
@@ -345,7 +349,7 @@ packages/
   half the product and belongs in React, one build serves all three platforms, and a browser client
   can be verified with Playwright screenshots.
 - Game code lives in `client/src/game/`. The virtual desktop screens are ordinary React routes
-  rendered in an overlay above the canvas.
+  rendered in a monitor frame above the canvas while the owner is seated.
 - Server state in TanStack Query. Hot game state such as camera mode, selection and NPC animation
   state in small Zustand stores under `lib/stores/`. Rarely changing values in Context providers
   under `providers/`, composed in one root provider file.
@@ -639,6 +643,27 @@ How phase 4 built it, in `client/src/game/`:
 - The assets come from `client/scripts/assets/`, under CC0, because the free pack hosts were not
   reachable from the build session; the generator also asserts that every anchor is on walkable
   floor. A downloaded pack that meets `docs/assets.md` can replace a generated one.
+
+How phase 4b changed it:
+
+- **The route is the view.** `WorldLayout` is the root of every route and `RequireSession` sits
+  inside it, so the canvas draws before sign in, with no agents and the pack last used on the
+  device (`tbn_environment` in local storage). `/` is the world; every other route is the owner
+  seated (`world/seat.ts`), and sign in lands on the last desk screen.
+- **The camera glides.** `CameraRig` has a seated pose in front of the computer's screen and
+  eases position, look point and up vector together, slower for a moment after the view changes;
+  it snaps on the first frame and under reduced motion. While seated the canvas renders on demand
+  once the glide is over. The owner's character works in the chair while seated, hidden when the
+  camera is inside it, and stands beside the chair after.
+- **The monitor frame.** `app/MonitorFrame.tsx` draws the bezel over the world's monitor; sign in
+  and the desk render in it as real DOM, so autofill, focus and screen readers work.
+- **Teleports.** `world/livePositions.ts` holds the drawn position of the owner and each agent.
+  The HUD's Go buttons and keys 1 to 9 land the owner beside an agent through a short fade; the
+  Desk button sits the owner down from anywhere the same way.
+- **Approval markers.** An agent with a pending approval wears a floating gem.
+- **The look.** One stylesheet: the world's palette as the `slate` and `teal` scales,
+  `corner-shape: bevel` on every element, a hard offset shadow, Chakra Petch and Rubik
+  self-hosted. The HUD always wears the dark theme; F3 shows the frame counter.
 
 ### Online later
 
