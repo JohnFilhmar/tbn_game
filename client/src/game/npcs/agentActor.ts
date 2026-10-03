@@ -5,7 +5,16 @@ import type { PathPlanner } from '@/game/world/navmesh';
 
 /** What an agent is doing in the world. */
 export type Activity =
-  'at_desk' | 'walking' | 'working' | 'handing_off' | 'returning' | 'arriving' | 'leaving' | 'gone';
+  | 'at_desk'
+  | 'walking'
+  | 'working'
+  | 'handing_off'
+  | 'returning'
+  | 'arriving'
+  | 'leaving'
+  | 'gone'
+  | 'wandering'
+  | 'talking';
 
 /** Where an agent lives in the pack: where it sits, where it stands when idle, and how it faces. */
 export interface ActorHome {
@@ -22,13 +31,23 @@ export interface ActorListener {
   onNarrate: (text: string) => void;
 }
 
-type Step =
+/** Where an idle agent goes, which way it faces there, what it plays and for how long. */
+export interface WanderTarget {
+  position: Vector3;
+  yawDeg: number;
+  clip: ClipName;
+  seconds: number;
+}
+
+/** A step of the queue; `isWander` marks the steps any real work drops. */
+type Step = (
   | { kind: 'walk'; to: Vector3; activity: Activity; narration?: string }
   | { kind: 'play'; clip: ClipName; seconds: number; activity: Activity; faceDeg?: number }
   | { kind: 'sit' }
   | { kind: 'stand' }
   | { kind: 'settle' }
-  | { kind: 'vanish'; narration?: string };
+  | { kind: 'vanish'; narration?: string }
+) & { isWander?: boolean };
 
 /** Metres per second, the speed the walk clip was made for. */
 export const WALK_SPEED = 1.4;
@@ -56,6 +75,9 @@ export class AgentActor {
   private isWorking = false;
   private isSeated = false;
   private hasLeaveQueued = false;
+  /** True while the step being played is part of a wander. */
+  private isInWander = false;
+  private isTalking = false;
 
   constructor(options: {
     id: string;
@@ -100,8 +122,74 @@ export class AgentActor {
     this.listener.onActivity(activity);
   }
 
+  /** True when the agent is free to wander: idle, standing at home, with nothing to do. */
+  get isIdle(): boolean {
+    return (
+      this.activity === 'at_desk' &&
+      !this.isWorking &&
+      !this.isTalking &&
+      !this.hasLeaveQueued &&
+      this.queue.length === 0 &&
+      this.path.length === 0 &&
+      this.timer <= 0
+    );
+  }
+
+  /** Walks to a spot, plays its clip there, and walks home; any real work cuts it short. */
+  wander(target: WanderTarget, narration?: string): void {
+    this.queue.push(
+      { kind: 'walk', to: target.position, activity: 'wandering', narration, isWander: true },
+      {
+        kind: 'play',
+        clip: target.clip,
+        seconds: target.seconds,
+        activity: 'wandering',
+        faceDeg: target.yawDeg,
+        isWander: true,
+      },
+      { kind: 'walk', to: this.home.standing, activity: 'wandering', isWander: true },
+      { kind: 'settle', isWander: true },
+    );
+  }
+
+  /** Plays a clip where the agent stands, facing `faceDeg` when given; real work cuts it short. */
+  fidget(clip: ClipName, seconds: number, faceDeg?: number): void {
+    this.queue.push(
+      { kind: 'play', clip, seconds, activity: 'wandering', faceDeg, isWander: true },
+      { kind: 'settle', isWander: true },
+    );
+  }
+
+  /**
+   * Stops for the owner: an idle agent drops its wander, turns to `faceDeg`, waves and keeps
+   * talking until `endTalk`. A working agent only turns its head to it, so it goes on working.
+   */
+  startTalk(faceDeg: number): void {
+    if (this.isWorking || this.hasLeaveQueued || this.isGone) return;
+    this.dropWander();
+    this.isTalking = true;
+    this.queue.push({ kind: 'play', clip: 'wave', seconds: 1.2, activity: 'talking', faceDeg });
+  }
+
+  /** Ends a conversation; the agent then goes back to whatever it rests at. */
+  endTalk(): void {
+    this.isTalking = false;
+  }
+
+  /** Drops every wander step, including the one being played. */
+  private dropWander(): void {
+    this.queue = this.queue.filter((step) => step.isWander !== true);
+    if (this.isInWander) {
+      this.isInWander = false;
+      this.path = [];
+      this.timer = 0;
+    }
+  }
+
   /** Starts work: walks to the desk and works there until told otherwise. */
   startWork(narration?: string): void {
+    this.dropWander();
+    this.isTalking = false;
     this.isWorking = true;
     if (narration !== undefined) this.listener.onNarrate(narration);
   }
@@ -115,6 +203,8 @@ export class AgentActor {
 
   /** Walks to another agent, waves, and comes back; `activity` names the errand. */
   visit(other: AgentActor, activity: 'handing_off' | 'returning', narration: string): void {
+    this.dropWander();
+    this.isTalking = false;
     const [dx, dz] = forwardOf(other.home.yawDeg + 90);
     const meeting = other.home.standing.clone().add(new Vector3(dx * 0.7, 0, dz * 0.7));
     this.queue.push(
@@ -147,6 +237,8 @@ export class AgentActor {
    */
   leave(exit: Vector3): void {
     if (this.hasLeaveQueued || this.isGone) return;
+    this.dropWander();
+    this.isTalking = false;
     this.hasLeaveQueued = true;
     this.isWorking = false;
     this.queue = this.queue.filter((step) => step.kind !== 'settle');
@@ -162,6 +254,7 @@ export class AgentActor {
     this.queue = [];
     this.path = [];
     this.timer = 0;
+    this.isInWander = false;
     this.isSeated = false;
     this.position.copy(home.standing);
     this.yawDeg = home.yawDeg;
@@ -187,6 +280,7 @@ export class AgentActor {
   }
 
   private begin(step: Step): void {
+    this.isInWander = step.isWander === true;
     switch (step.kind) {
       case 'walk': {
         this.isSeated = false;
@@ -246,8 +340,17 @@ export class AgentActor {
       this.begin(next);
       return;
     }
+    this.isInWander = false;
+    if (this.isTalking) {
+      this.clip = 'talk';
+      this.setActivity('talking');
+      return;
+    }
     // Nothing queued: the resting state follows the work flag, whenever it changed.
-    if (!this.hasLeaveQueued && this.isWorking !== (this.activity === 'working')) this.settle();
+    if (this.hasLeaveQueued) return;
+    if (this.isWorking !== (this.activity === 'working') || this.activity === 'talking') {
+      this.settle();
+    }
   }
 
   private follow(dt: number): void {

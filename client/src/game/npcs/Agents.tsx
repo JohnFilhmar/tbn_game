@@ -13,6 +13,7 @@ import { useWorldStore } from '@/game/world/worldStore';
 import { subscribeToChanges } from '@/lib/realtime/changeFeed';
 import { AgentActor, type ActorHome } from './agentActor';
 import { assignSeats, type Seat } from './deskAssignment';
+import { WanderScheduler } from './wander';
 import { worldEventsOfAll, type WorldEvent } from './worldEvents';
 
 /** Props of `Agents`. */
@@ -27,6 +28,8 @@ export interface AgentsProps {
 
 /** How long a world event waits for the actor it names, when the roster has not caught up yet. */
 const EVENT_PATIENCE_MS = 3_000;
+/** How often idle agents are looked at for a wander. */
+const WANDER_CHECK_SECONDS = 0.5;
 
 function homeOf(seat: Seat, navigation: Navigation): ActorHome {
   if (seat.kind === 'waiting') {
@@ -282,7 +285,15 @@ export function Agents({ pack, navigation, agents, departments, pendingAgentIds 
     [],
   );
 
-  useFrame(() => {
+  const wander = useMemo(() => new WanderScheduler(manifest.spots, narrate), [manifest, narrate]);
+  const lastWanderCheck = useRef(0);
+
+  useFrame(({ clock }) => {
+    const worldTime = clock.elapsedTime;
+    if (worldTime - lastWanderCheck.current >= WANDER_CHECK_SECONDS) {
+      lastWanderCheck.current = worldTime;
+      wander.update(worldTime, [...actors.current.values()]);
+    }
     if (pending.current.length === 0) return;
     const now = Date.now();
     pending.current = pending.current.filter(
