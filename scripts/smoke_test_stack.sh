@@ -41,12 +41,12 @@ for endpoint in web:3000 worker:3001 sandbox:3002 egress_proxy:3003; do
   jq -e --arg process_type "$process_type" \
     '.status == "ok" and .process_type == $process_type and all(.checks[]; . == "ok")' \
     <<<"$body" >/dev/null || fail "unexpected /health body from $process_type: $body"
-  curl -fsS --max-time 5 "http://127.0.0.1:$port/metrics" | grep -q "process_type=\"$process_type\"" ||
+  curl -fsS --max-time 5 "http://127.0.0.1:$port/metrics" | grep "process_type=\"$process_type\"" >/dev/null ||
     fail "/metrics on $process_type has no process_type label"
 done
 
 echo "The web process serves the client under /app"
-curl -fsS --max-time 5 http://127.0.0.1:3000/app/agents | grep -q '<div id="root">' ||
+curl -fsS --max-time 5 http://127.0.0.1:3000/app/agents | grep '<div id="root">' >/dev/null ||
   fail "/app/agents is not the client page"
 [[ $(curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/) == */app/ ]] ||
   fail "/ does not redirect to /app/"
