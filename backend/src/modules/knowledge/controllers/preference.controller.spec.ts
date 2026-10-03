@@ -34,6 +34,9 @@ describe('preference routes', () => {
       report_style: 'concise',
       time_zone: 'UTC',
       theme: 'system',
+      environment: 'office',
+      time_of_day: 'clock',
+      owner_appearance: {},
       intern_idle_ttl_minutes: 30,
       runaway_guard_turns: 50,
       cap_threshold_longest_percent: 75,
@@ -100,6 +103,41 @@ describe('preference routes', () => {
       .put('/preferences/runaway_guard_turns')
       .set('Authorization', `Bearer ${owner.token}`)
       .send({ value: 2.5 })
+      .expect(400);
+  });
+
+  it('sets the world: the environment, the time of day and the owner appearance', async () => {
+    const environment = await api()
+      .put('/preferences/environment')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 'warehouse' })
+      .expect(200);
+    expect(PreferencesSchema.parse(environment.body).environment).toBe('warehouse');
+
+    const time_of_day = await api()
+      .put('/preferences/time_of_day')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 'night' })
+      .expect(200);
+    expect(PreferencesSchema.parse(time_of_day.body).time_of_day).toBe('night');
+
+    const appearance = { body: 'slim', hair: 'long', colors: { hair: '#aa3344' } };
+    const owner_appearance = await api()
+      .put('/preferences/owner_appearance')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: appearance })
+      .expect(200);
+    expect(PreferencesSchema.parse(owner_appearance.body).owner_appearance).toEqual(appearance);
+
+    await api()
+      .put('/preferences/environment')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: 'moon' })
+      .expect(400);
+    await api()
+      .put('/preferences/owner_appearance')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ value: { hair: 'long', colors: { hair: 'red' } } })
       .expect(400);
   });
 

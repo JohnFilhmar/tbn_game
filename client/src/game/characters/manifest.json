@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "scale": 1,
+  "bodies": {
+    "regular": { "file": "body_regular.glb", "width": 1, "height": 1 },
+    "slim": { "file": "body_slim.glb", "width": 0.85, "height": 1.02 },
+    "broad": { "file": "body_broad.glb", "width": 1.2, "height": 0.96 }
+  },
+  "clips": ["idle", "walk", "work", "sit", "wave"],
+  "attach": { "hair": "head", "outfit": "spine", "accessory": "head" },
+  "parts": {
+    "hair": {
+      "short": "hair_short.glb",
+      "long": "hair_long.glb",
+      "curly": "hair_curly.glb",
+      "bun": "hair_bun.glb"
+    },
+    "outfit": {
+      "vest": "outfit_vest.glb",
+      "apron": "outfit_apron.glb",
+      "tie": "outfit_tie.glb",
+      "scarf": "outfit_scarf.glb"
+    },
+    "accessory": {
+      "glasses": "accessory_glasses.glb",
+      "cap": "accessory_cap.glb",
+      "headset": "accessory_headset.glb",
+      "beanie": "accessory_beanie.glb"
+    }
+  },
+  "palette": {
+    "skin": "#e8b89a",
+    "hair": "#4a2e1a",
+    "top": "#3b6fb6",
+    "bottom": "#374151",
+    "shoes": "#1f2937",
+    "accent": "#f59e0b"
+  }
+}

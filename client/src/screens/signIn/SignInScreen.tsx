@@ -9,7 +9,7 @@ import { useSession } from '@/providers/SessionProvider';
 
 const ReturnStateSchema = z.object({ from: z.string().startsWith('/') });
 
-const HOME = '/agents';
+const HOME = '/';
 
 /** Where to go after signing in: the screen the owner was sent away from, or the agents. */
 function returnPath(state: unknown): string {

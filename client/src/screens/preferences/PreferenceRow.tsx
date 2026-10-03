@@ -13,7 +13,8 @@ import { useApi } from '@/providers/SessionProvider';
 import type { PreferenceField } from './preferenceFields';
 
 function textOf(value: Preferences[keyof Preferences]): string {
-  return value === null ? '' : String(value);
+  if (value === null) return '';
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 
 /** One preference with its own Save, checked against its schema before it is sent. */

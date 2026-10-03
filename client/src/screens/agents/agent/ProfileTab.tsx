@@ -22,7 +22,7 @@ export function ProfileTab() {
   const form = useForm({
     initial: agentDraftOf(agent),
     schema: UpdateAgentSchema,
-    toInput: (draft) => agentInput(draft, agent.appearance.colors),
+    toInput: (draft) => agentInput(draft),
     onSubmit: async (body, commandId) => {
       const updated = await api.send('PATCH', `/agents/${agent.id}`, AgentSchema, {
         body,

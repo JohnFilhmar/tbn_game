@@ -2,9 +2,19 @@ import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { z } from 'zod';
+import { RUN_ID } from './stack';
 
 /** The marker a task's instructions carry to play the approval story. */
 export const APPROVAL_MARKER = '[e2e:approval]';
+
+/** The marker a manager's task carries to play the delegation story: one intern, one part. */
+export const DELEGATE_MARKER = '[e2e:delegate]';
+
+/** The marker the delegated part carries; the intern finishes it at once. */
+export const PART_MARKER = '[e2e:part]';
+
+/** The title of the part the manager delegates, as the world narrates it. */
+export const PART_TITLE = `Guide part ${RUN_ID}`;
 
 const BlockSchema = z.looseObject({ type: z.string(), text: z.string().optional() });
 const RequestSchema = z.looseObject({
@@ -41,17 +51,67 @@ const GREETING =
   'Hello from the fake model. I read your message, thought about it for a moment, and here is my answer in a few short words.';
 
 /**
+ * The delegation story, from a manager's task carrying the marker: hand one part to a new intern,
+ * wait for its report, then finish the task. Null when the conversation is not in it.
+ */
+function delegation(users: Message[], results: number): Reply | null {
+  const marker = users.findLastIndex((message) => textOf(message).includes(DELEGATE_MARKER));
+  if (marker === -1) return null;
+  if (users.length === marker + 1) {
+    return {
+      kind: 'tool',
+      text: 'I will have an intern write the part.',
+      name: 'delegate_task',
+      input: {
+        title: PART_TITLE,
+        instructions: `Write the part in about fifty words. ${PART_MARKER}`,
+        new_intern_role: 'Writer',
+        new_intern_job_description: 'Writes short pages.',
+      },
+    };
+  }
+  if (results > 0) return { kind: 'text', text: 'The part is delegated; I will wait for it.' };
+  return {
+    kind: 'tool',
+    text: 'The part is back, so I am reporting.',
+    name: 'finish_task',
+    input: {
+      outcome: 'The guide is assembled from the part the intern wrote.',
+      what_was_done: 'Delegated one part and collected it.',
+      decisions: 'One intern was enough.',
+      open_questions: 'None.',
+    },
+  };
+}
+
+/**
  * Plays from the latest user message. A task carrying the approval marker lists the roster, which
- * the agent's policy makes wait for the owner, then finishes the task and goes quiet. Anything else
- * gets a short streamed answer that quotes the owner.
+ * the agent's policy makes wait for the owner, then finishes the task and goes quiet. A task
+ * carrying the delegation marker plays the delegation story, and a part carrying the part marker
+ * is finished at once. Anything else gets a short streamed answer that quotes the owner.
  */
 function plan(body: z.infer<typeof RequestSchema>): Reply {
   const users = body.messages.filter((message) => message.role === 'user');
   const last = users.at(-1);
   if (last === undefined) return { kind: 'text', text: GREETING };
   const results = blocksOf(last).filter((block) => block.type === 'tool_result').length;
+  const delegated = delegation(users, results);
+  if (delegated !== null) return delegated;
   if (results === 0) {
     const text = textOf(last);
+    if (text.includes(PART_MARKER)) {
+      return {
+        kind: 'tool',
+        text: 'Here is the part.',
+        name: 'finish_task',
+        input: {
+          outcome: 'The part is written.',
+          what_was_done: 'Wrote about fifty words.',
+          decisions: 'Kept it short.',
+          open_questions: 'None.',
+        },
+      };
+    }
     if (text.includes(APPROVAL_MARKER)) {
       return {
         kind: 'tool',

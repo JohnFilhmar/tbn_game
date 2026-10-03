@@ -1,10 +1,25 @@
 import type { Provider } from '@tbn/contracts';
+import { ColorField } from '@/components/fields/ColorField';
 import { SelectField } from '@/components/fields/SelectField';
 import { TextAreaField, TextField } from '@/components/fields/TextField';
+import { PaletteSlotSchema, type PaletteSlot } from '@/game/assets/characterManifest';
+import { bodyNames, CHARACTER_SET, partNames } from '@/game/assets/characters';
 import type { Form } from '@/lib/forms/useForm';
 import { humanize } from '@/lib/format/labels';
 import type { AgentDraft } from './agentDraft';
 import { ToolPolicyEditor } from './ToolPolicyEditor';
+
+const SLOT_LABELS: Record<PaletteSlot, string> = {
+  skin: 'Skin',
+  hair: 'Hair colour',
+  top: 'Top',
+  bottom: 'Bottom',
+  shoes: 'Shoes',
+  accent: 'Accent',
+};
+
+const partOptions = (names: string[]) =>
+  names.map((name) => ({ value: name, label: humanize(name) }));
 
 /** Props of `AgentFields`. */
 export interface AgentFieldsProps {
@@ -84,33 +99,51 @@ export function AgentFields({ form, providers, disabled = false }: AgentFieldsPr
           Appearance
         </legend>
         <p className="text-xs text-slate-600 dark:text-slate-400">
-          Parts of the character the world will draw from phase 4 on. All optional.
+          How the agent looks in the world. Left alone, it gets a look of its own from its id.
         </p>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <TextField
+          <SelectField
             label="Body"
+            placeholder="Its own"
             value={draft.body}
+            options={partOptions(bodyNames(CHARACTER_SET))}
             onChange={(value) => setField('body', value)}
             error={errors['appearance.body']}
           />
-          <TextField
+          <SelectField
             label="Hair"
+            placeholder="Its own"
             value={draft.hair}
+            options={partOptions(partNames(CHARACTER_SET, 'hair'))}
             onChange={(value) => setField('hair', value)}
             error={errors['appearance.hair']}
           />
-          <TextField
+          <SelectField
             label="Outfit"
+            placeholder="Its own"
             value={draft.outfit}
+            options={partOptions(partNames(CHARACTER_SET, 'outfit'))}
             onChange={(value) => setField('outfit', value)}
             error={errors['appearance.outfit']}
           />
-          <TextField
+          <SelectField
             label="Accessory"
+            placeholder="Its own"
             value={draft.accessory}
+            options={partOptions(partNames(CHARACTER_SET, 'accessory'))}
             onChange={(value) => setField('accessory', value)}
             error={errors['appearance.accessory']}
           />
+        </div>
+        <div className="grid grid-cols-3 gap-4 md:grid-cols-6">
+          {PaletteSlotSchema.options.map((slot) => (
+            <ColorField
+              key={slot}
+              label={SLOT_LABELS[slot]}
+              value={draft.colors[slot]}
+              onChange={(value) => setField('colors', { ...draft.colors, [slot]: value })}
+            />
+          ))}
         </div>
       </fieldset>
       <ToolPolicyEditor

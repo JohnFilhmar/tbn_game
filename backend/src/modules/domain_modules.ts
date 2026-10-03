@@ -4,7 +4,6 @@ import { IdentityModule } from './identity/identity.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { RuntimeModule } from './runtime/runtime.module';
-import { WorldModule } from './world/world.module';
 
 /**
  * The domain modules of the monolith. Both process types load all of them. A module talks to
@@ -16,6 +15,5 @@ export const DOMAIN_MODULES = [
   RuntimeModule,
   KnowledgeModule,
   IntegrationsModule,
-  WorldModule,
   EventsModule,
 ];
