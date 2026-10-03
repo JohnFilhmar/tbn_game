@@ -58,7 +58,7 @@ echo "The owner signs in"
 token=$(curl -fsS -X POST "$url/auth/login" -H 'Content-Type: application/json' \
   --data "$(jq -cn --arg u "$username" --arg p "$password" '{username: $u, password: $p}')" |
   jq -r .token)
-[ -n "$token" ] && [ "$token" != null ] || fail "the owner's account did not sign in"
+if [ -z "$token" ] || [ "$token" = null ]; then fail "the owner's account did not sign in"; fi
 api() {
   local method=$1 path=$2 body=${3:-}
   if [ -n "$body" ]; then
