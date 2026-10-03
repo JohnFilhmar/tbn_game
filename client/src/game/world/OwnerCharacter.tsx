@@ -6,6 +6,7 @@ import type { ClipName } from '@/game/assets/characterManifest';
 import { forwardOf, radiansOf, turnTowards, vec3, yawTowards } from '@/game/assets/geometry';
 import type { Anchor, ComputerAnchor } from '@/game/assets/packManifest';
 import { WALK_SPEED } from '@/game/npcs/agentActor';
+import { useBuildStore } from '@/game/build/buildStore';
 import { Character } from './Character';
 import type { MoveAction } from './keyboard';
 import { livePositions, OWNER_KEY } from './livePositions';
@@ -124,6 +125,12 @@ export function OwnerCharacter({
     const dt = Math.min(delta, 0.05);
     const talkingTo = useWorldStore.getState().talkingTo;
     const partner = talkingTo === null ? undefined : livePositions.get(talkingTo);
+    if (useBuildStore.getState().environment !== null) {
+      // Building: the movement keys pan the view instead.
+      group.position.copy(own.position);
+      clipRef.current = 'idle';
+      return;
+    }
     if (partner !== undefined) {
       // Talking: the owner turns to the agent and never moves.
       own.yawDeg = turnTowards(own.yawDeg, yawTowards(own.position, partner), TURN_SPEED * dt);

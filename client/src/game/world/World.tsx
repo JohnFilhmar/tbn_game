@@ -1,11 +1,13 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
-import { Suspense, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
+import { BuildLayer } from '@/game/build/BuildLayer';
+import { useBuildStore } from '@/game/build/buildStore';
 import { Props } from '@/game/props/Props';
 import { Agents } from '@/game/npcs/Agents';
 import { CameraRig } from './CameraRig';
@@ -37,10 +39,8 @@ export interface WorldProps {
   isGliding: boolean;
   /** The agents with an approval waiting for the owner, who wear a marker. */
   pendingAgentIds: ReadonlySet<string>;
-  /** What build mode adds inside the scene: the ghost, the zone rugs, the picking floor. */
-  buildLayer?: ReactNode;
-  /** Called with a prop's id when the owner clicks it; build mode selects it. */
-  onPickProp?: (placementId: string) => void;
+  /** True while the owner builds: the camera looks down at an angle and props can be picked. */
+  isBuilding: boolean;
 }
 
 function FrameCounter() {
@@ -98,8 +98,7 @@ function PackWorld({
   keysRef,
   isSeated,
   pendingAgentIds,
-  buildLayer,
-  onPickProp,
+  isBuilding,
 }: PackWorldProps) {
   const { pack, manifest } = arranged;
   // ponytail: rebuilt whole on every layout change; a grid of a few thousand cells takes
@@ -113,17 +112,22 @@ function PackWorld({
   const ownerRef = useRef<Group | null>(null);
   const viewYawRef = useRef(manifest.spawn.yaw_deg);
   const pose = useMemo(() => seatPoseOf(arranged.computer), [arranged.computer]);
+  const heldId = useBuildStore((state) => state.holding?.id);
   const seatPose = isSeated ? pose : null;
   return (
     <>
       <Ground />
       <PackScene pack={pack} isLit={lightingAt(hour).interiorOn} theme={arranged.theme} />
       <Props
-        placements={arranged.placements}
+        placements={
+          heldId === undefined
+            ? arranged.placements
+            : arranged.placements.filter((placement) => placement.id !== heldId)
+        }
         theme={arranged.theme}
-        onPick={onPickProp === undefined ? undefined : (id) => onPickProp(id)}
+        onPick={isBuilding ? (id) => useBuildStore.getState().select(id) : undefined}
       />
-      {buildLayer}
+      {isBuilding && <BuildLayer arranged={arranged} keysRef={keysRef} />}
       <Lighting hour={hour} profile={manifest.lighting} bounds={manifest.bounds} />
       <>
         <Suspense fallback={null}>
@@ -155,6 +159,7 @@ function PackWorld({
           viewYawRef={viewYawRef}
           seatPose={seatPose}
           talkingTo={talkingTo}
+          isBuilding={isBuilding}
         />
       </>
     </>
@@ -184,8 +189,7 @@ export function World({
   isSeated,
   isGliding,
   pendingAgentIds,
-  buildLayer,
-  onPickProp,
+  isBuilding,
 }: WorldProps) {
   const talkingTo = useWorldStore((state) => state.talkingTo);
   const keysRef = useMovementKeys(isActive && talkingTo === null);
@@ -213,8 +217,7 @@ export function World({
           keysRef={keysRef}
           isSeated={isSeated}
           pendingAgentIds={pendingAgentIds}
-          buildLayer={buildLayer}
-          onPickProp={onPickProp}
+          isBuilding={isBuilding}
         />
       </Suspense>
       <FrameCounter />

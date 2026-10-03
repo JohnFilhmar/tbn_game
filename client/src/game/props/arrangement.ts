@@ -29,7 +29,8 @@ export interface Arrangement {
   spots: SpotAnchor[];
   /** Every footprint that blocks the floor: the shell's walls and each prop's. */
   footprints: Footprint[];
-  /** The points someone must stand on and reach, the entry first. */
+  /** The points someone must stand on and reach, the entry first. Spots are not among them:
+   * a spot nobody can reach is simply left out. */
   reach: NamedPoint[];
 }
 
@@ -133,9 +134,6 @@ export function arrange(shell: ShellAnchors, placements: readonly WorldPlacement
     }
     if (model.anchors.computer !== null)
       computer = anchorToWorld(placement, model.anchors.computer);
-  }
-  for (const place of spots.slice(shell.spots.length)) {
-    reach.push({ name: `the ${place.kind} spot`, x: place.position[0], z: place.position[2] });
   }
   const zones = placements
     .filter((placement) => placement.kind === 'zone_rug')

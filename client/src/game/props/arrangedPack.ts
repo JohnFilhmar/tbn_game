@@ -1,6 +1,7 @@
 import type { WorldLayout, WorldPlacement, WorldTheme } from '@tbn/contracts';
 import type { LoadedPack } from '@/game/assets/packs';
 import type { ComputerAnchor, PackManifest, Spot, Zone } from '@/game/assets/packManifest';
+import { unreachable, walkGrid } from '@/game/world/navGrid';
 import { arrange } from './arrangement';
 import type { Footprint } from './builder';
 
@@ -16,6 +17,17 @@ export interface ArrangedPack {
   zones: Zone[];
   spots: Spot[];
   footprints: Footprint[];
+}
+
+/** The spots an agent can walk to from the entry; a plant against a wall offers none. */
+function reachableSpots(manifest: PackManifest, arrangement: ReturnType<typeof arrange>): Spot[] {
+  const grid = walkGrid(manifest.bounds, arrangement.footprints);
+  const entry = { name: 'the entry', x: manifest.entry.position[0], z: manifest.entry.position[2] };
+  return arrangement.spots.filter(
+    (spot) =>
+      unreachable(grid, [entry, { name: 'spot', x: spot.position[0], z: spot.position[2] }])
+        .length === 0,
+  );
 }
 
 /**
@@ -38,7 +50,7 @@ export function arrangePack(pack: LoadedPack, saved: WorldLayout | null): Arrang
     revision: saved?.revision ?? 0,
     computer,
     zones: arrangement.zones,
-    spots: arrangement.spots,
+    spots: reachableSpots(manifest, arrangement),
     footprints: arrangement.footprints,
   };
 }

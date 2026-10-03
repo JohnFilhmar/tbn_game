@@ -10,7 +10,11 @@ import { canRenderWorld } from '@/game/world/webgl';
 import { useWorldStore } from '@/game/world/worldStore';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection, usePreferences, useWorldLayout } from '@/lib/data/queries';
+import { BuildPanel } from '@/game/build/BuildPanel';
+import { useBuildStore } from '@/game/build/buildStore';
 import { arrangePack } from '@/game/props/arrangedPack';
+import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
+import { Vector3 } from 'three';
 import { cx } from '@/lib/ui/cx';
 import { useSession } from '@/providers/SessionProvider';
 
@@ -78,7 +82,42 @@ export function WorldLayout() {
   const shownEnvironment = preferredEnvironment ?? environment;
   const pack = PACKS[shownEnvironment];
   const { data: savedLayout } = useWorldLayout(shownEnvironment);
-  const arranged = useMemo(() => arrangePack(pack, savedLayout ?? null), [pack, savedLayout]);
+  const saved = useMemo(() => arrangePack(pack, savedLayout ?? null), [pack, savedLayout]);
+  const buildEnvironment = useBuildStore((state) => state.environment);
+  const draft = useBuildStore((state) => state.history?.present ?? null);
+  const isBuilding =
+    isSignedIn && !isSeated && buildEnvironment === shownEnvironment && draft !== null;
+  // While building, the world shows the draft; the saved layout stays what the agents sit by.
+  const arranged = useMemo(
+    () =>
+      isBuilding && draft !== null
+        ? arrangePack(pack, {
+            id: '00000000-0000-4000-8000-000000000000',
+            environment: shownEnvironment,
+            theme: draft.theme,
+            placements: draft.placements,
+            revision: Math.max(1, saved.revision),
+            updated_at: new Date(0).toISOString(),
+          })
+        : saved,
+    [isBuilding, draft, pack, saved, shownEnvironment],
+  );
+  const closeBuild = useBuildStore((state) => state.close);
+  // Build mode ends when the owner sits down, signs out or the environment changes.
+  useEffect(() => {
+    if (buildEnvironment !== null && !isBuilding) closeBuild();
+  }, [buildEnvironment, isBuilding, closeBuild]);
+  const openBuild = (): void => {
+    const owner = livePositions.get(OWNER_KEY);
+    useBuildStore
+      .getState()
+      .open(
+        shownEnvironment,
+        { placements: saved.placements, theme: saved.theme },
+        saved.revision,
+        owner === undefined ? new Vector3() : new Vector3(owner.x, 0, owner.z),
+      );
+  };
   const hour = useWorldHour(
     preferences?.time_of_day ?? 'clock',
     preferences?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -113,12 +152,16 @@ export function WorldLayout() {
             isSeated={isSeated}
             isGliding={isGliding}
             pendingAgentIds={pendingAgentIds}
+            isBuilding={isBuilding}
           />
         </Suspense>
       ) : (
         <WorldNotice text="This device cannot draw the world. The desk still works." />
       )}
-      {isSignedIn && <Hud isOverlayOpen={isSeated} packTitle={pack.manifest.title} />}
+      {isSignedIn && !isBuilding && (
+        <Hud isOverlayOpen={isSeated} packTitle={pack.manifest.title} onBuild={openBuild} />
+      )}
+      {isBuilding && <BuildPanel arranged={saved} defaults={pack.manifest.default_layout} />}
       <Outlet />
       <div
         aria-hidden="true"

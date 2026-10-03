@@ -20,6 +20,8 @@ export interface PropsProps {
   theme: WorldTheme;
   /** Called when a prop is clicked, with its id; build mode selects it. */
   onPick?: (placementId: string, event: ThreeEvent<MouseEvent>) => void;
+  /** Draws the props as see-through stand-ins: green where they fit, red where they do not. */
+  ghost?: 'fits' | 'blocked';
 }
 
 interface Batch {
@@ -63,13 +65,23 @@ function Instances({ geometry, material, placements, onPick }: InstancesProps) {
       receiveShadow
       onClick={(event) => {
         const placement = event.instanceId === undefined ? undefined : placements[event.instanceId];
-        if (placement !== undefined && onPick !== undefined) onPick(placement.id, event);
+        if (placement === undefined || onPick === undefined) return;
+        event.stopPropagation();
+        onPick(placement.id, event);
       }}
     />
   );
 }
 
-function materialOf(name: string, color: string): MeshStandardMaterial {
+function materialOf(
+  name: string,
+  color: string,
+  ghost?: PropsProps['ghost'],
+): MeshStandardMaterial {
+  if (ghost !== undefined) {
+    const tint = ghost === 'fits' ? '#4cb36d' : '#ef4444';
+    return new MeshStandardMaterial({ name, color: tint, transparent: true, opacity: 0.55 });
+  }
   const material = new MeshStandardMaterial({ name, color, roughness: 0.9 });
   if (name === 'glass') {
     material.transparent = true;
@@ -83,10 +95,12 @@ function BatchMeshes({
   batch,
   theme,
   onPick,
+  ghost,
 }: {
   batch: Batch;
   theme: WorldTheme;
   onPick?: PropsProps['onPick'];
+  ghost?: PropsProps['ghost'];
 }) {
   const [first] = batch.placements;
   const model = first === undefined ? null : propModel(first);
@@ -97,9 +111,13 @@ function BatchMeshes({
         const name = materialsOf(mesh)[0]?.name ?? '';
         const color =
           batch.color !== null && name === colorSlot ? batch.color : themeColor(theme, name);
-        return { key: mesh.name, geometry: mesh.geometry, material: materialOf(name, color) };
+        return {
+          key: mesh.name,
+          geometry: mesh.geometry,
+          material: materialOf(name, color, ghost),
+        };
       }),
-    [model, colorSlot, batch.color, theme],
+    [model, colorSlot, batch.color, theme, ghost],
   );
   useEffect(() => () => parts.forEach((part) => part.material.dispose()), [parts]);
   return (
@@ -122,7 +140,7 @@ function BatchMeshes({
  * drawn as instances, so sixteen desks cost one draw call per material, and the theme colours
  * them by material.
  */
-export function Props({ placements, theme, onPick }: PropsProps) {
+export function Props({ placements, theme, onPick, ghost }: PropsProps) {
   const batches = useMemo(() => {
     const byKey = new Map<string, Batch>();
     for (const placement of placements) {
@@ -136,7 +154,7 @@ export function Props({ placements, theme, onPick }: PropsProps) {
   return (
     <>
       {batches.map((batch) => (
-        <BatchMeshes key={batch.key} batch={batch} theme={theme} onPick={onPick} />
+        <BatchMeshes key={batch.key} batch={batch} theme={theme} onPick={onPick} ghost={ghost} />
       ))}
     </>
   );
