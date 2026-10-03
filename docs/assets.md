@@ -1,8 +1,9 @@
 # Assets
 
 The world loads two kinds of asset: an environment pack and the character set. Both are
-directories of glTF binaries with a `manifest.json`, under `client/src/game/`. Code reaches a model
-or a clip only through a manifest slot name, never by file path; the loaders in
+directories of glTF binaries with a `manifest.json`, under `client/src/game/`; a pack's props
+are built from code. Code reaches a model or a clip only through a manifest slot name, never by
+file path; the loaders in
 `client/src/game/assets/` import the files through Vite, so they ship under content-hashed names
 with immutable caching. Replacing a pack is replacing its files and manifest and rebuilding the
 client.
@@ -25,34 +26,55 @@ contract below.
 
 ## Environment packs
 
-A pack is `client/src/game/packs/<name>/` with `manifest.json`, `scene.glb` and `navmesh.glb`.
-Three ship: `office`, `home` and `warehouse`. The `environment` preference names the one in use.
+A pack is `client/src/game/packs/<name>/` with `manifest.json` and `scene.glb`. Three ship:
+`office`, `home` and `warehouse`. The `environment` preference names the one in use.
+
+A pack has three parts:
+
+- **The shell** is what the owner cannot move: floors, outer and inner walls, door frames,
+  windows and the ceiling lamps. It is `scene.glb`.
+- **The props** are everything the owner can place, move, turn, size, repaint and remove in build
+  mode: desks, tables, partitions, plants, shelves and the rest. They are not files. The catalog
+  in `client/src/game/props/catalog.ts` builds each kind from code at the origin, once per kind,
+  size and variant. It gives each kind its footprint and its anchors: a desk's seat, the
+  computer, a spot.
+- **The layout** says where each prop stands. The manifest's `default_layout` is the one a pack
+  starts with. An owner's saved layout replaces it, per environment, in the database.
 
 ### The manifest
 
-| Key         | Type                        | Meaning                                                          |
-| ----------- | --------------------------- | ---------------------------------------------------------------- |
-| `name`      | string                      | The pack's id; its directory and the `environment` preference.   |
-| `title`     | string                      | What the world menu shows.                                       |
-| `scale`     | number                      | Applied to the scene and the navmesh on load.                    |
-| `scene`     | string                      | The scene file, relative to the manifest.                        |
-| `navmesh`   | string                      | The navigation mesh file, relative to the manifest.              |
-| `bounds`    | `{min_x, max_x, min_z, max_z}` | The floor rectangle; the top-down camera and the fog use it.  |
-| `ceiling`   | number                      | The ceiling height; the top-down camera sits above it.           |
-| `spawn`     | anchor                      | Where the owner's character stands at first and after a switch.  |
-| `entry`     | anchor                      | Where a new intern appears and starts walking in.                |
-| `exit`      | anchor                      | Where a leaving agent walks to before it disappears.             |
-| `computer`  | anchor with `use_radius`    | The in-world computer: `position` is its screen; the owner within `use_radius` metres on the floor can use it. |
-| `zones`     | zone[]                      | One per department, in the order departments take them.          |
-| `waiting`   | anchor[]                    | Overflow anchors: an agent past its zone's last desk stands here. |
-| `spots`     | spot[]                      | Places an idle agent wanders to and what it does there. |
-| `lighting`  | lighting                    | The pack's lighting profile.                                     |
+| Key              | Type                        | Meaning                                                     |
+| ---------------- | --------------------------- | ----------------------------------------------------------- |
+| `name`           | string                      | The pack's id; its directory and the `environment` preference. |
+| `title`          | string                      | What the world menu shows.                                  |
+| `scale`          | number                      | Applied to the shell on load.                               |
+| `scene`          | string                      | The shell file, relative to the manifest.                   |
+| `bounds`         | `{min_x, max_x, min_z, max_z}` | The floor rectangle: the walking grid, the top-down camera and the fog use it. |
+| `ceiling`        | number                      | The ceiling height; the top-down camera sits above it.      |
+| `spawn`          | anchor                      | Where the owner's character stands at first and after a switch. |
+| `entry`          | anchor                      | Where a new intern appears and starts walking in.           |
+| `exit`           | anchor                      | Where a leaving agent walks to before it disappears.        |
+| `waiting`        | anchor[]                    | Overflow anchors: an agent past its zone's last desk stands here. |
+| `spots`          | spot[]                      | The shell's own spots, such as a window; every prop brings its own. |
+| `blocks`         | footprint[]                 | The floor the shell's walls block, `{minX, maxX, minZ, maxZ}`. |
+| `lighting`       | lighting                    | The pack's lighting profile.                                |
+| `default_layout` | placement[]                 | The props the pack starts with, as `WorldPlacementSchema` in `packages/contracts` describes them. |
 
-An anchor is `{position, yaw_deg}`. A zone is `{name, label, desks}`, with the manager's desk
-first; a desk is `{position, yaw_deg, seat}`, where `position` is the centre of the desk top,
-`yaw_deg` the way a seated character faces, and `seat` the floor point it sits at. Every seat,
-`spawn`, `entry`, `exit`, every `waiting` anchor and every spot lies on the navigation mesh and can
-be reached from the entry; the generator refuses to write a pack where one does not.
+An anchor is `{position, yaw_deg}`. A placement is a prop `kind`, a floor point `x`, `z` and a
+`yaw_deg`. Optional fields:
+- `width` and `depth` for the kinds that come in any size;
+- `zone` for a zone rug;
+- `variant` for a finish;
+- `color` to repaint one prop.
+
+The layout makes what the world used to read from the manifest:
+- **Zones.** A zone rug, a placement of kind `zone_rug` with a `zone` number, makes a department's
+  zone. Every desk whose seat stands on the rug belongs to that zone, in the layout's order, so the
+  manager keeps the first.
+- **The computer.** The computer desk, of which a layout has exactly one, gives the in-world
+  computer: `position` is its screen, `yaw_deg` the way its user faces, and `use_radius` how near
+  the owner must stand.
+- **Spots.** Each prop's spots join the shell's. A spot nobody can reach is left out.
 
 A spot is an anchor with `kind`, `clip` and `seconds`: the standing point and facing, what the spot
 is (`water`, `window`, `plant`, `board`, `grass`, `stretch` or `look`), the clip an agent plays
@@ -63,24 +85,25 @@ light at noon; the time of day scales and tints it. `sun_azimuth_deg` is the com
 the sun shines from at noon, with the same convention as a yaw. `interior` lists the lights that
 come on from dusk, each `{position, color, intensity, distance}` in Three.js point light terms.
 
-### The scene
+### The shell
 
 `scene.glb` holds one mesh per material, named after the material, with no textures. Material
-names are free, with two that the world reads: `light` is the lamps, which never cast shadows,
-and `glass` is rendered translucent. The scene is static; nothing in it moves.
+names are the theme's slots (`floor`, `wall`, `wood` and so on), so a theme can colour the shell
+and the props alike. Two other names are read: `light` is the lamps, which never cast shadows,
+and `glass` is rendered translucent. The shell is static; nothing in it moves.
 
-### The navigation mesh
+### Walking
 
-`navmesh.glb` holds one mesh named `navmesh`: triangles over the walkable floor, with the
-furniture cut out and a margin of the character radius, 0.3 metres, from every obstacle and wall.
-It sits 0.02 metres above the floor so it never fights the floor when drawn for debugging. NPCs
-path across it with `three-pathfinding`, and the owner's character is clamped to it every frame,
-so the mesh is the one collision model in the world. A pack with several floors needs a connected
-mesh; the generated packs are single storey.
+There is no navigation mesh file. The world builds the walkable floor in memory from the bounds,
+the shell's `blocks` and every prop's footprint. The floor is a grid of 0.5 metre cells, each one
+walkable when its centre is at least the character radius, 0.3 metres, from every footprint, and
+it is rebuilt whenever the layout changes. NPCs path across it with `three-pathfinding`, and the
+owner's character is clamped to it every frame. The pack generator and build mode run the same
+check, `layoutProblems`: one computer, no prop off the floor, in a wall or on another prop, and
+every seat, chair, doorway and waiting place reachable from the entry.
 
-Doors are gaps in the walls with a frame; the mesh runs through them. `entry` and `exit` sit
-just inside the door, so an arriving agent appears in the doorway and a leaving one disappears
-there.
+Doors are gaps in the walls with a frame; the floor runs through them. `entry` and `exit` sit just
+inside the door, so an arriving agent appears in the doorway and a leaving one disappears there.
 
 ## Characters
 
@@ -153,7 +176,8 @@ appearance is empty gets a look derived from its id, so the roster never looks l
 npm run build:assets --workspace @tbn/client
 ```
 
-The script writes every file above and prints each file's triangle count and size. It throws
-when an anchor is off the walkable floor or cannot be reached from the entry, naming the anchor.
-Change a layout in `client/scripts/assets/packs/<name>.ts`, the furniture in `furniture.ts`, the
-characters in `characters.ts`, then rebuild and commit the files with the change.
+The script writes every file above and prints each shell's triangle count and size and the
+number of props. It throws when a default layout fails `layoutProblems`, naming what is wrong.
+Change a shell or a default layout in `client/scripts/assets/packs/<name>.ts`, the props in
+`client/src/game/props/furniture.ts` and `catalog.ts`, the characters in
+`client/scripts/assets/characters.ts`, then rebuild and commit the files with the change.

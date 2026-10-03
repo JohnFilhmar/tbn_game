@@ -92,7 +92,7 @@ backend/            NestJS monolith, four process types: web, worker, sandbox an
                     workspace paths, health, metrics, logging, http, process, docker_engine,
                     sandbox_launcher, egress_proxy, html_text, disk, realtime, realtime_client,
                     idempotency
-    modules/        identity, company, runtime, knowledge, integrations, events
+    modules/        identity, company, runtime, knowledge, integrations, world, events
     utils/          generic helpers
     testing/        test helpers and fakes, excluded from the build
   prisma/           schema and migrations, including the pg-boss schema
@@ -103,8 +103,9 @@ client/             Vite, React 19, TypeScript, Tailwind v4: the world and the d
   src/components/   shared fields, dialogs, tables, badges, states, Markdown
   src/screens/      one directory per desk screen
   src/game/         the 3D world: assets (manifests, loaders, appearance), world (canvas, scene,
-                    lighting, cameras, owner character, navigation), npcs (world events, seats,
-                    actors), hud, and the shipped packs and characters
+                    lighting, cameras, owner character, walking grid), props (catalog, layouts,
+                    themes), build (build mode), npcs (world events, seats, actors), hud, and the
+                    shipped packs and characters
   scripts/assets/   the generator of the packs and the character set
   e2e/              Playwright flows, the e2e stack and its fake model
 desktop/            phase 6: Tauri v2 shell
@@ -127,7 +128,7 @@ docs/               architecture, roadmap, plans, reports, runbook
 - Inside a module: `services/`, `repositories/`, `repositories/interface/`, `dto/`, `types/`,
   `interfaces/`. Controllers validate, delegate and map. Services depend on repository interfaces.
 - A module calls another module only through its exported service. No module queries another
-  module's tables. The dependency direction is `identity` alone, `integrations` on the queue and
+  module's tables. The dependency direction is `identity` and `world` alone, `integrations` on the queue and
   crypto, `company` on `integrations` and `runtime`'s providers and the queue, `knowledge` on
   `company`, and `runtime`'s run loop on all of them. The company module starts work by sending an
   `agent_wake` job, never by calling the run loop.
@@ -187,8 +188,10 @@ docs/               architecture, roadmap, plans, reports, runbook
   with the screen rendered as real DOM in the monitor frame. The route alone decides, so a reload
   lands seated. The world reads models and clips through the asset manifests by slot name, never
   by path, and the agents move only on world events derived from the change events; nothing in
-  the world is server state but the three preferences. The packs and characters are generated files under
-  `client/src/game/`, remade by `npm run build:assets`, to the contract in `docs/assets.md`.
+  the world is server state but the three preferences and each environment's layout and theme.
+  A pack is a generated shell and a default layout of props, which the client builds from code;
+  the packs and characters are generated files under `client/src/game/`, remade by
+  `npm run build:assets`, to the contract in `docs/assets.md`.
 
 ## Code rules
 

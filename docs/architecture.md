@@ -190,6 +190,9 @@ output as it is generated.
 - **Phase 4c brought the agents to life.** Idle agents wander to spots in the room and chat with
   each other, and the owner talks to any agent in the world: an over the shoulder camera, a panel
   with the agent's live session beside the scene, and a speech bubble over its head.
+- **Phase 4d let the owner build.** Each pack is a fixed shell and a layout of props. In build mode
+  the owner places, moves, turns, sizes, repaints and removes props and picks a theme, and the
+  `world` module keeps each environment's layout and theme in the database.
 - **Not yet.** The mobile and desktop shells come in phases 5 and 6. The production deploy is
   ready for the owner to dispatch.
 
@@ -687,6 +690,27 @@ How phase 4c changed it:
   and the world's `ConversationPanel` both render, with `useTranscript` in `lib/data/`. The
   `SpeechBubble` follows the agent on screen through the camera the world publishes in
   `livePositions.ts`.
+
+How phase 4d changed it:
+
+- **Shell, props and layout.** The generator writes only a pack's shell and lists its furniture
+  as a default layout. `client/src/game/props/` holds the catalog, which builds every prop kind
+  from code with the generator's own builders, once per kind, size and variant. `Props` draws
+  them as instances, one draw call per model and material. `arrangement.ts` makes the zones (from
+  zone rugs), the computer, the spots and the blocked floor out of a layout, and `arrangedPack.ts`
+  puts a pack and its saved or default layout together.
+- **Walking without a file.** `world/navGrid.ts` builds the walkable grid from the bounds, the
+  shell's blocks and the props' footprints, and checks reachability. The world rebuilds it when
+  the layout changes, an agent whose desk moved walks to the new one, and `layoutProblems` runs
+  the same check for build mode and for the generator.
+- **The world module.** `world_layouts` keeps one row per owner and environment: the theme and the
+  placements as JSON, saved whole over a revision, with a 409 for a stale one. Its trigger sends
+  a `world_layout` event, so another tab rearranges too. The server checks bounds, unique ids and
+  exactly one computer; overlaps and reachability need the shell and stay with the client.
+- **Build mode.** A world sub-mode in `game/build/`, like a conversation, never a route. It has
+  an angled camera over a focus the movement keys pan, a catalog and a theme panel, and a held
+  prop on a 0.25 m grid that a click or Enter drops where it fits. It keeps a draft with undo and
+  redo, and offers save, reset and leave. The world shows the draft while the owner builds.
 
 ### Online later
 
