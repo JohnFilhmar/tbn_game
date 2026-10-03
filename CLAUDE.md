@@ -38,11 +38,15 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `npm run format:check`, `npm run lint`, `npm run typecheck`        | Static checks. Each first builds contracts and Prisma code. |
 | `npm run build`                                                    | Build `@tbn/contracts` and `@tbn/backend`.                  |
 | `npm test`                                                         | Jest. Needs `DATABASE_URL` for a disposable database.       |
+| `npm run test:client`                                              | Vitest for the client, with a fake API and a fake socket.   |
+| `npm run e2e`                                                      | Playwright flows against the built backend and client. Needs `E2E_DATABASE_URL` and `npm run build` first. |
+| `npm run dev --workspace @tbn/client`                              | The client on Vite at port 5173, calling `VITE_API_URL`.    |
 | `printf '%s' "$PASSWORD" \| docker compose -f docker-compose.development.yml run --rm -T web dist/admin.js owner_create <username>` | Create the owner account once. |
 | `scripts/demo_phase_1a.sh`                                         | The phase 1a demo over HTTP against a running stack.        |
 | `scripts/demo_phase_1b.sh`                                         | The phase 1b demo: one goal, a manager and its interns.     |
 | `scripts/demo_phase_1c.sh`                                         | The phase 1c demo: research, a branch, a merge request, an approval, a restart. |
 | `scripts/demo_phase_2.sh`                                          | The phase 2 demo: a scripted client drops and resumes mid-run while the owner chats with the agent. |
+| `scripts/demo_phase_3.sh`                                          | The phase 3 demo: the stack with the desktop, Grafana and a backup, and the steps to follow in the browser. |
 
 Tests use a real PostgreSQL. With the development stack up:
 `DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
@@ -59,6 +63,12 @@ proxy and story specs also need Docker on `DOCKER_SOCKET`: `testing/test_launche
 network, and binds `.workspace_test` into containers as this user. They fail without Docker, never
 skip. `testing/test_proxy.ts` runs the egress proxy in-process with a dialer that maps
 `allowed.test` to local servers, so the address policy runs unchanged.
+
+The Playwright flows start `dist/web.js` and `dist/worker.js` on `E2E_DATABASE_URL`, for example
+`postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_e2e`, with a fake streaming model, and
+create the owner `e2e_owner` once. They apply migrations and never wipe the database; each run's
+rows carry its own id. Locally, point `PLAYWRIGHT_CHROMIUM_PATH` at a Chromium when Playwright's
+own is not installed.
 
 After a Prisma upgrade, approve the new engine install script with
 `npm install-scripts approve @prisma/engines`; approvals are pinned to a version.
@@ -84,11 +94,18 @@ backend/            NestJS monolith, four process types: web, worker, sandbox an
     utils/          generic helpers
     testing/        test helpers and fakes, excluded from the build
   prisma/           schema and migrations, including the pg-boss schema
-client/             phase 3: Vite, React 19, TypeScript, Tailwind v4, the game and virtual desktop
+client/             Vite, React 19, TypeScript, Tailwind v4: the virtual desktop, later the game
+  src/app/          router, desktop layout, launcher
+  src/providers/    query client, session, realtime, theme
+  src/lib/          api, session, realtime, stores, data, forms, format, ui
+  src/components/   shared fields, dialogs, tables, badges, states, Markdown
+  src/screens/      one directory per screen
+  e2e/              Playwright flows, the e2e stack and its fake model
 desktop/            phase 6: Tauri v2 shell
 mobile/             phase 5: Capacitor shell
 packages/contracts/ Zod schemas and inferred types for every API and event payload
-deploy/             host files: runner job guard, systemd units, SearXNG settings, the sandbox git script
+deploy/             host files: runner job guard, systemd units, backup and restore scripts, Prometheus
+                    and Grafana configuration, SearXNG settings, the sandbox git script
 Dockerfile.sandbox  the sandbox image: the toolchain agent code runs in, with the git script
 scripts/            CI and local helper scripts
 docs/               architecture, roadmap, plans, reports, runbook
@@ -156,6 +173,9 @@ docs/               architecture, roadmap, plans, reports, runbook
 - Sandbox containers reach nothing but the egress proxy, which refuses every private, loopback,
   link-local, metadata and VPN address, resolved names included, and wants the run's identity.
 - Compose publishes ports on `127.0.0.1` only. `scripts/check_compose_ports.sh` enforces it in CI.
+- The web process serves the built client under `/app` from `CLIENT_DIR`; the API keeps its paths.
+  The client talks to the API only through `lib/api` and the gateway, and writes every change into
+  the TanStack Query cache. The gateway accepts the CORS origins and the page's own origin.
 
 ## Code rules
 
@@ -198,7 +218,9 @@ and `process.env` rules. Prettier formats.
   Mock only LLM providers and external web calls.
 - A new repository method gets an integration test. A new endpoint gets an end-to-end test through
   supertest covering auth, the happy path and one rejection.
-- Client: Vitest for logic as colocated `<subject>.test.ts`, Playwright in `e2e/`.
+- Client: Vitest for logic as colocated `<subject>.test.ts`, Playwright in `e2e/`. A screen test
+  renders the whole client at an address with `testing/renderApp.tsx` and a route table from
+  `testing/fakeApi.ts`; `testing/setup.ts` replaces `socket.io-client` with a fake a test can drive.
 - Tests land in the same commit as the code. No coverage threshold in CI.
 - `docs/roadmap.md` lists the tests each phase must add.
 - Jest runs with `--experimental-vm-modules` because NestJS 12 ships only ES modules. Keep the
@@ -216,11 +238,11 @@ and `process.env` rules. Prettier formats.
 
 - Multi-stage `Dockerfile`, non-root user, base images pinned by digest, no secrets in layers.
 - One `docker-compose.<env>.yml` per environment with `web`, `worker`, `postgres`, `sandbox`,
-  `egress_proxy` and `searxng`. Every service declares a healthcheck, resource limits and a restart
-  policy. Development and production keep the same shape.
-- CI gates: format, lint, typecheck, build, tests, `npm audit`, Semgrep, gitleaks, actionlint and
-  shellcheck, the compose smoke test, then image build, Trivy, push, cosign signature and SBOM
-  attestation. Pin actions by commit SHA and images by digest.
+  `egress_proxy`, `searxng`, `prometheus` and `grafana`. Every service declares a healthcheck,
+  resource limits and a restart policy. Development and production keep the same shape.
+- CI gates: format, lint, typecheck, build, tests, the Playwright flows, `npm audit`, Semgrep,
+  gitleaks, actionlint and shellcheck, the compose smoke test, then image build, Trivy, push,
+  cosign signature and SBOM attestation. Pin actions by commit SHA and images by digest.
 - Production deploys the exact digest signed by CI on `main`, after the owner's approval, through
   `.github/workflows/deploy.yml` on the self-hosted runner. That runner never runs pull request code.
 - Secrets are SOPS-encrypted files the owner creates and the deploy job decrypts.

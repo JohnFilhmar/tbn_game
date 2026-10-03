@@ -19,6 +19,7 @@ import {
 import { Server, type Socket } from 'socket.io';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
+import { is_allowed_origin } from '@/lib/http/allowed_origin';
 import { MetricsService } from '@/lib/metrics/metrics.service';
 import { CHANGES_CHANNEL, STREAM_CHANNEL, StreamNoticeSchema } from '@/lib/realtime/channels';
 import { PgListenerService } from '@/lib/realtime/pg_listener.service';
@@ -114,8 +115,7 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
         maxHttpBufferSize: MAX_CLIENT_MESSAGE_BYTES,
         cors: { origin: origins.size > 0 ? [...origins] : false, credentials: true },
         allowRequest: (request: IncomingMessage, callback) => {
-          const origin = request.headers.origin;
-          callback(null, origin === undefined || origins.has(origin));
+          callback(null, is_allowed_origin(request.headers.origin, request.headers.host, origins));
         },
       },
     );

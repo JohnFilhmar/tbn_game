@@ -17,8 +17,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 1a | One agent, one task | Merged |
 | 1b | The team | Merged |
 | 1c | The outside world | Merged |
-| 2 | Realtime | In review |
-| 3 | Web app without 3D | Not started |
+| 2 | Realtime | Merged |
+| 3 | Web app without 3D | In review |
 | 4 | The 3D world | Not started |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
@@ -147,7 +147,8 @@ production deploy:
 ## Phase 3, web app without 3D
 
 The Vite client, sign in, and the full virtual desktop as 2D screens. The first production deploy,
-with Prometheus, Grafana and the backups, lands here or in phase 4, as the owner decides.
+with Prometheus, Grafana and the backups, lands here or in phase 4, as the owner decides. The owner
+chose this phase.
 
 Exit: the owner can run the whole company from the browser over the VPN.
 

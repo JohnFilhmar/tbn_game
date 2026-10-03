@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { ApprovalSchema } from './approvals';
 import { CapWindowStatusSchema } from './caps';
 import { DateTimeSchema, IdSchema } from './common';
-import { AgentSchema, DepartmentSchema, ReportSchema, TaskSchema } from './company';
+import {
+  AgentAttachmentsSchema,
+  AgentSchema,
+  DepartmentSchema,
+  ReportSchema,
+  TaskSchema,
+} from './company';
 import { BranchReviewSchema, MergeRequestSchema, RepositorySchema } from './git';
 import { IntegrationSchema, NotificationChannelSchema, NotificationSchema } from './integrations';
 import { InstructionSchema, PreferencesSchema, SkillSchema } from './knowledge';
@@ -21,6 +27,7 @@ export type EventOp = z.infer<typeof EventOpSchema>;
 /** The kinds of entity the event log records, one per view the client caches. */
 export const EventEntitySchema = z.enum([
   'agent',
+  'agent_attachments',
   'department',
   'task',
   'report',
@@ -70,11 +77,12 @@ function change_event<Entity extends EventEntity, Data extends z.ZodType>(
 /**
  * One change from the owner's event log, as the gateway and `GET /events` send it. `data` is the
  * same view the entity's own route returns, so a client writes it straight into its cache. The
- * cap windows of a provider travel together under the provider's id, and the preferences under
- * the owner's.
+ * cap windows of a provider travel together under the provider's id, an agent's attachments under
+ * the agent's, and the preferences under the owner's.
  */
 export const ChangeEventSchema = z.discriminatedUnion('entity', [
   change_event('agent', AgentSchema),
+  change_event('agent_attachments', AgentAttachmentsSchema),
   change_event('department', DepartmentSchema),
   change_event('task', TaskSchema),
   change_event('report', ReportSchema),

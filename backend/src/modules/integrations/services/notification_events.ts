@@ -54,7 +54,7 @@ export const NOTIFICATION_EVENTS: Record<
     default_body: '[{{priority}}] {{title}}\n{{message}}\n{{event}} at {{time}}',
   },
   backup_failed: {
-    description: 'A backup did not complete. Reserved for phase 2; nothing emits it yet.',
+    description: 'The weekly backup did not complete. The backup script sends it.',
     placeholders: [{ name: 'error', description: 'The error' }],
     default_body: '[{{priority}}] {{title}}\n{{message}}\n{{event}} at {{time}}',
   },

@@ -178,6 +178,11 @@ export class IntegrationService {
     return this.integrations.list_for_agent(owner_id, agent_id);
   }
 
+  /** The ids of the integrations attached to an agent. */
+  attached_ids(owner_id: string, agent_id: string): Promise<string[]> {
+    return this.integrations.attached_ids(owner_id, agent_id);
+  }
+
   /** @throws NotFoundException when the integration is missing. */
   async require(owner_id: string, id: string): Promise<IntegrationRecord> {
     const record = await this.integrations.find(owner_id, id);

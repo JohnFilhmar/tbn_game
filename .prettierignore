@@ -2,5 +2,8 @@
 **/coverage
 **/node_modules
 backend/src/generated
+.workspace_e2e
+client/test-results
+client/playwright-report
 package-lock.json
 *.md

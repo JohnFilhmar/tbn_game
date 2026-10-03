@@ -100,6 +100,11 @@ describe('the web caches, the library index and run sources', () => {
       search: { hits: 1, misses: 2 },
       fetch: { hits: 4, misses: 1, bytes_saved: 750 },
     });
+    const all = await cache.event_totals_by_kind();
+    expect(all.map((total) => total.kind)).toEqual(['fetch', 'search']);
+    const fetch = all.find((total) => total.kind === 'fetch');
+    expect(fetch?.hits).toBeGreaterThanOrEqual(13);
+    expect(fetch?.misses).toBeGreaterThanOrEqual(10);
   });
 
   it('indexes reports when they are written and finds them', async () => {

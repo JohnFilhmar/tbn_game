@@ -31,6 +31,8 @@ const env_schema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   CORS_ORIGINS: comma_list_schema.pipe(z.array(z.url())).default([]),
   HTTP_BODY_LIMIT_BYTES: z.coerce.number().int().min(1_024).max(52_428_800).default(1_048_576),
+  // Where the built client is. The web process serves it under /app; unset serves none.
+  CLIENT_DIR: z.string().min(1).optional(),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(600_000).default(25_000),
   GIT_COMMIT_SHA: z
     .string()
@@ -95,6 +97,7 @@ export const config_schema = env_schema.transform((env) => ({
     port: env.WEB_PORT,
     cors_origins: env.CORS_ORIGINS,
     body_limit_bytes: env.HTTP_BODY_LIMIT_BYTES,
+    client_dir: env.CLIENT_DIR,
   },
   worker: {
     port: env.WORKER_PORT,

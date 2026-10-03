@@ -1,9 +1,10 @@
-import { Controller, Delete, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { IdSchema, type Integration, type Plugin } from '@tbn/contracts';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { IdSchema, type AgentAttachments, type Integration, type Plugin } from '@tbn/contracts';
 import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodParam } from '@/lib/validation/zod.decorator';
 import { AgentService } from '@/modules/company/services/agent.service';
+import { AgentAttachmentService } from '@/modules/company/services/agent_attachment.service';
 import { IntegrationService } from '@/modules/integrations/services/integration.service';
 import { PluginService } from '@/modules/integrations/services/plugin.service';
 
@@ -12,9 +13,18 @@ import { PluginService } from '@/modules/integrations/services/plugin.service';
 export class AgentAttachmentController {
   constructor(
     private readonly agents: AgentService,
+    private readonly attachments: AgentAttachmentService,
     private readonly integrations: IntegrationService,
     private readonly plugins: PluginService,
   ) {}
+
+  @Get(':id/attachments')
+  list(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @ZodParam('id', IdSchema) id: string,
+  ): Promise<AgentAttachments> {
+    return this.attachments.get(owner.id, id);
+  }
 
   @Post(':id/integrations/:integration_id')
   @HttpCode(HttpStatus.CREATED)

@@ -5,6 +5,9 @@ coverage/
 *.log
 backend/src/generated/
 backend/.workspace_test/
+.workspace_e2e/
+client/test-results/
+client/playwright-report/
 
 # Local secrets never enter git. Only the example file is tracked.
 .env

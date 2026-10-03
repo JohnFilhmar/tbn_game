@@ -4,6 +4,7 @@ import type { AppConfig } from '@/config/config.schema';
 import { DatabaseModule } from '@/lib/database/database.module';
 import { LoggingModule } from '@/lib/logging/logging.module';
 import { IdentityModule } from '@/modules/identity/identity.module';
+import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { RuntimeProvidersModule } from '@/modules/runtime/runtime_providers.module';
 
 /** Root module of one-off admin commands. It loads only what the commands need. */
@@ -18,10 +19,11 @@ export class AdminModule {
     return {
       module: AdminModule,
       imports: [
-        AppConfigModule.register({ config, process_type: 'web' }),
+        AppConfigModule.register({ config, process_type: 'web', one_off: true }),
         LoggingModule,
         DatabaseModule,
         IdentityModule,
+        IntegrationsModule,
         RuntimeProvidersModule,
       ],
     };

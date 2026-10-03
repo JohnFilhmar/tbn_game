@@ -27,6 +27,7 @@ import {
 import { PrismaReportRepository } from './repositories/prisma_report.repository';
 import { PrismaTaskRepository } from './repositories/prisma_task.repository';
 import { AgentService } from './services/agent.service';
+import { AgentAttachmentService } from './services/agent_attachment.service';
 import { DepartmentService } from './services/department.service';
 import { GitRecordsService } from './services/git_records.service';
 import { ReportService } from './services/report.service';
@@ -56,10 +57,18 @@ import { TaskService } from './services/task.service';
     { provide: BRANCH_REVIEW_REPOSITORY, useClass: PrismaBranchReviewRepository },
     GitRecordsService,
     AgentService,
+    AgentAttachmentService,
     DepartmentService,
     TaskService,
     ReportService,
   ],
-  exports: [AgentService, DepartmentService, TaskService, ReportService, GitRecordsService],
+  exports: [
+    AgentService,
+    AgentAttachmentService,
+    DepartmentService,
+    TaskService,
+    ReportService,
+    GitRecordsService,
+  ],
 })
 export class CompanyModule {}

@@ -125,6 +125,11 @@ export class PluginService {
     return this.plugins.list_for_agent(owner_id, agent_id);
   }
 
+  /** The ids of every plugin attached to an agent, enabled or not. */
+  attached_ids(owner_id: string, agent_id: string): Promise<string[]> {
+    return this.plugins.attached_ids(owner_id, agent_id);
+  }
+
   /** @throws NotFoundException when the plugin is missing. */
   async require(owner_id: string, id: string): Promise<PluginRecord> {
     const record = await this.plugins.find(owner_id, id);

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { EventEntity } from '@tbn/contracts';
 import { AgentService } from '@/modules/company/services/agent.service';
+import { AgentAttachmentService } from '@/modules/company/services/agent_attachment.service';
 import { DepartmentService } from '@/modules/company/services/department.service';
 import {
   GitRecordsService,
@@ -60,6 +61,7 @@ export class EventHydratorService {
 
   constructor(
     agents: AgentService,
+    attachments: AgentAttachmentService,
     departments: DepartmentService,
     tasks: TaskService,
     reports: ReportService,
@@ -81,6 +83,7 @@ export class EventHydratorService {
   ) {
     this.loaders = {
       agent: each((owner_id, id) => agents.get(owner_id, id)),
+      agent_attachments: each((owner_id, agent_id) => attachments.get(owner_id, agent_id)),
       department: each((owner_id, id) => departments.get(owner_id, id)),
       task: each((owner_id, id) => tasks.get(owner_id, id)),
       report: each((owner_id, id) => reports.get(owner_id, id)),

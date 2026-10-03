@@ -171,6 +171,15 @@ export class PrismaRunRepository implements RunRepository {
     });
   }
 
+  async count_by_status(): Promise<Array<{ status: RunStatus; count: number }>> {
+    const groups = await this.prisma.run.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+      orderBy: { status: 'asc' },
+    });
+    return groups.map((group) => ({ status: group.status, count: group._count._all }));
+  }
+
   find_orphaned(now: Date): Promise<RunRecord[]> {
     return this.prisma.run.findMany({
       where: {

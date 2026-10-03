@@ -1,0 +1,13 @@
+# Dashboards come from the files in /etc/tbn/dashboards and cannot be changed in the UI; edit the
+# JSON in deploy/grafana/dashboards and deploy again.
+apiVersion: 1
+
+providers:
+  - name: tbn
+    folder: tbn
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/tbn/dashboards

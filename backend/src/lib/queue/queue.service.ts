@@ -46,6 +46,18 @@ function error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** The jobs of one queue by state. */
+export interface QueueDepth {
+  queue: string;
+  /** Waiting and due now. */
+  ready: number;
+  /** Waiting for a later time, such as a delayed wake or a retry. */
+  deferred: number;
+  active: number;
+  /** Failed jobs pg-boss still keeps. */
+  failed: number;
+}
+
 /**
  * The pg-boss job queue, the only queue in the system. The web process only sends; the worker
  * handles wakes and notifications, and the sandbox launcher handles sandbox jobs. The schema comes
@@ -274,6 +286,27 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
         if (job !== undefined) await handler(job.data);
       },
     );
+  }
+
+  /**
+   * How many jobs each queue holds by state, for the operations dashboards. pg-boss refreshes
+   * these counts during its maintenance, so they can trail the queue by a minute.
+   */
+  async depths(): Promise<QueueDepth[]> {
+    await this.ensure_started();
+    const depths: QueueDepth[] = [];
+    for (const name of [AGENT_WAKE_QUEUE, SANDBOX_JOB_QUEUE, NOTIFY_QUEUE]) {
+      const queue = await this.boss.getQueue(name);
+      if (queue === null) continue;
+      depths.push({
+        queue: name,
+        ready: queue.readyCount,
+        deferred: queue.deferredCount,
+        active: queue.activeCount,
+        failed: queue.failedCount,
+      });
+    }
+    return depths;
   }
 
   /** Asks the worker to send a notification. A throw retries it later. */

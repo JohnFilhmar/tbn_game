@@ -102,6 +102,20 @@ export const AgentListQuerySchema = z.strictObject({
 /** Query of `GET /agents`. */
 export type AgentListQuery = z.infer<typeof AgentListQuerySchema>;
 
+/**
+ * What an agent has attached beyond its built-in tools: the integrations it may call and the
+ * plugins whose tools it sees, oldest attachment first. `GET /agents/:id/attachments` and the
+ * `agent_attachments` event carry it.
+ */
+export const AgentAttachmentsSchema = z.strictObject({
+  agent_id: IdSchema,
+  integration_ids: z.array(IdSchema),
+  plugin_ids: z.array(IdSchema),
+});
+
+/** The integrations and plugins attached to an agent. */
+export type AgentAttachments = z.infer<typeof AgentAttachmentsSchema>;
+
 /** A department: one manager and its interns. */
 export const DepartmentSchema = z.strictObject({
   id: IdSchema,

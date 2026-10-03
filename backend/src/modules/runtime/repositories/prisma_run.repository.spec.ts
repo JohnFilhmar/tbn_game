@@ -150,6 +150,11 @@ describe('PrismaRunRepository leases and pauses', () => {
       resume_at: null,
     });
     expect(cancelled?.finished_at).toBeInstanceOf(Date);
+
+    const counts = await runs.count_by_status();
+    expect(counts.find((row) => row.status === 'done')?.count).toBeGreaterThanOrEqual(1);
+    expect(counts.find((row) => row.status === 'cancelled')?.count).toBeGreaterThanOrEqual(1);
+    expect(new Set(counts.map((row) => row.status)).size).toBe(counts.length);
   });
 
   it('finds paused runs by reason and due time, and the runs of given tasks', async () => {

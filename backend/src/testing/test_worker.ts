@@ -110,3 +110,30 @@ export async function start_worker_process(env: Record<string, string>): Promise
       }),
   };
 }
+
+/** What a one-off command printed and how it exited. */
+export interface CommandResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Runs `dist/admin.js` with `args` in the test environment, the way the backup script and the
+ * runbook run it, and waits for it to exit. `npm test` builds `dist/` first.
+ */
+export function run_admin_command(args: string[], stdin = ''): Promise<CommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [join(process.cwd(), 'dist/admin.js'), ...args], {
+      env: { ...process.env, LOG_LEVEL: 'warn' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString('utf8')));
+    child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString('utf8')));
+    child.once('error', reject);
+    child.once('exit', (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(stdin);
+  });
+}

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/lib/database/database.module';
+import { MetricsModule } from '@/lib/metrics/metrics.module';
 import { QueueModule } from '@/lib/queue/queue.module';
 import { RealtimeModule } from '@/lib/realtime/realtime.module';
 import { CompanyModule } from '@/modules/company/company.module';
@@ -37,6 +38,7 @@ import { CapWindowService } from './services/caps/cap_window.service';
 import { AgentBranchesService } from './services/git/agent_branches.service';
 import { GitJobService } from './services/git/git_job.service';
 import { GitRepositoryService } from './services/git/git_repository.service';
+import { DashboardMetricsService } from './services/ops/dashboard_metrics.service';
 import { PromptBuilderService } from './services/prompt_builder.service';
 import { CompactionService } from './services/run_loop/compaction.service';
 import { RunGateService } from './services/run_loop/run_gate.service';
@@ -82,6 +84,7 @@ import { WebSearchTool } from './tools/web_search.tool';
 @Module({
   imports: [
     DatabaseModule,
+    MetricsModule,
     QueueModule,
     RealtimeModule,
     RuntimeProvidersModule,
@@ -154,6 +157,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     TranscriptService,
     CapWindowService,
     CapNotifierService,
+    DashboardMetricsService,
   ],
   exports: [
     RuntimeProvidersModule,
