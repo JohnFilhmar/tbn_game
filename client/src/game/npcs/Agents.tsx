@@ -1,13 +1,14 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Vector3, type Group, type Mesh } from 'three';
 import { appearanceOf, resolveAppearance, type ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
-import { forwardOf, radiansOf, vec3 } from '@/game/assets/geometry';
+import { forwardOf, radiansOf, vec3, yawTowards } from '@/game/assets/geometry';
 import type { LoadedPack } from '@/game/assets/packs';
 import { Character } from '@/game/world/Character';
-import { livePositions } from '@/game/world/livePositions';
+import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
+import { talkTo } from '@/game/world/talk';
 import type { Navigation } from '@/game/world/navmesh';
 import { useWorldStore } from '@/game/world/worldStore';
 import { subscribeToChanges } from '@/lib/realtime/changeFeed';
@@ -151,6 +152,9 @@ interface AgentCharacterProps {
   onGone: (id: string) => void;
 }
 
+/** A pointer that moved farther than this between press and release was a drag, not a click. */
+const CLICK_SLOP = 6;
+
 /** One agent in the scene: its actor ticks here, and the group follows it every frame. */
 function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharacterProps) {
   const groupRef = useRef<Group | null>(null);
@@ -175,16 +179,23 @@ function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharact
     if (actor.isGone) onGone(actor.id);
   });
   // Its own boundary: a character still loading hides nothing but itself.
+  const onClick = (event: ThreeEvent<MouseEvent>): void => {
+    if (event.delta > CLICK_SLOP || actor.isGone) return;
+    event.stopPropagation();
+    talkTo(actor.id, actor.name);
+  };
   return (
     <>
       <Suspense fallback={null}>
-        <Character
-          appearance={appearance}
-          clipRef={clipRef}
-          groupRef={groupRef}
-          position={[actor.position.x, actor.position.y, actor.position.z]}
-          rotationY={radiansOf(actor.yawDeg)}
-        />
+        <group onClick={onClick}>
+          <Character
+            appearance={appearance}
+            clipRef={clipRef}
+            groupRef={groupRef}
+            position={[actor.position.x, actor.position.y, actor.position.z]}
+            rotationY={radiansOf(actor.yawDeg)}
+          />
+        </group>
       </Suspense>
       {hasApproval && <ApprovalMarker actor={actor} />}
     </>
@@ -284,6 +295,16 @@ export function Agents({ pack, navigation, agents, departments, pendingAgentIds 
       }),
     [],
   );
+
+  const talkingTo = useWorldStore((state) => state.talkingTo);
+  useEffect(() => {
+    if (talkingTo === null) return undefined;
+    const actor = actors.current.get(talkingTo);
+    const owner = livePositions.get(OWNER_KEY);
+    if (actor === undefined) return undefined;
+    actor.startTalk(owner === undefined ? actor.yawDeg : yawTowards(actor.position, owner));
+    return () => actor.endTalk();
+  }, [talkingTo]);
 
   const wander = useMemo(() => new WanderScheduler(manifest.spots, narrate), [manifest, narrate]);
   const lastWanderCheck = useRef(0);

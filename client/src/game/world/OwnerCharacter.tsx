@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type Group } from 'three';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import type { ClipName } from '@/game/assets/characterManifest';
-import { distanceXz, forwardOf, radiansOf, turnTowards, vec3 } from '@/game/assets/geometry';
+import { forwardOf, radiansOf, turnTowards, vec3, yawTowards } from '@/game/assets/geometry';
 import type { Anchor, ComputerAnchor } from '@/game/assets/packManifest';
 import { WALK_SPEED } from '@/game/npcs/agentActor';
 import { Character } from './Character';
 import type { MoveAction } from './keyboard';
 import { livePositions, OWNER_KEY } from './livePositions';
 import type { Navigation, NavNode } from './navmesh';
+import { promptAt, type Prompt } from './prompt';
 import type { SeatPose } from './seat';
 import { useWorldStore } from './worldStore';
 
@@ -33,7 +34,8 @@ interface OwnerState {
   yawDeg: number;
   /** The navigation polygon of the last step, for the next clamp. */
   node: NavNode | null;
-  isNearComputer: boolean;
+  /** The last prompt told to the store, as a key: '', 'computer' or an agent id. */
+  promptKey: string;
   wasSeated: boolean;
   /** The last teleport request taken. */
   teleportId: number;
@@ -49,7 +51,8 @@ const HEAD_HEIGHT = 1.2;
 
 /**
  * The owner's character: moved by the keys relative to the view, kept on the navigation mesh by
- * clamping every step, and watched for being within reach of the computer. Seated, it works in
+ * clamping every step, and watched for what E would act on: the computer or an agent in reach.
+ * While talking to an agent it turns to face it and stays put. Seated, it works in
  * the chair; standing up puts it on the floor beside the chair. A teleport request moves it at
  * once, snapped to the floor.
  */
@@ -64,11 +67,12 @@ export function OwnerCharacter({
   seatPose,
 }: OwnerCharacterProps) {
   const setCanUseComputer = useWorldStore((state) => state.setCanUseComputer);
+  const setNearAgentId = useWorldStore((state) => state.setNearAgentId);
   const state = useRef<OwnerState>({
     position: vec3(spawn.position),
     yawDeg: spawn.yaw_deg,
     node: null,
-    isNearComputer: false,
+    promptKey: '',
     wasSeated: false,
     teleportId: useWorldStore.getState().teleport?.id ?? 0,
   });
@@ -118,6 +122,16 @@ export function OwnerCharacter({
     }
     const keys = keysRef.current;
     const dt = Math.min(delta, 0.05);
+    const talkingTo = useWorldStore.getState().talkingTo;
+    const partner = talkingTo === null ? undefined : livePositions.get(talkingTo);
+    if (partner !== undefined) {
+      // Talking: the owner turns to the agent and never moves.
+      own.yawDeg = turnTowards(own.yawDeg, yawTowards(own.position, partner), TURN_SPEED * dt);
+      group.position.copy(own.position);
+      group.rotation.y = radiansOf(own.yawDeg);
+      clipRef.current = 'idle';
+      return;
+    }
     const ahead = (keys.has('forward') ? 1 : 0) - (keys.has('back') ? 1 : 0);
     const aside = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0);
     let moveX = 0;
@@ -143,10 +157,20 @@ export function OwnerCharacter({
     group.position.copy(own.position);
     group.rotation.y = radiansOf(own.yawDeg);
     clipRef.current = isMoving ? 'walk' : 'idle';
-    const isNear = distanceXz(own.position, computerPosition) <= computer.use_radius;
-    if (isNear !== own.isNearComputer) {
-      own.isNearComputer = isNear;
-      setCanUseComputer(isNear);
+    const agents = new Map(livePositions);
+    agents.delete(OWNER_KEY);
+    const prompt: Prompt = promptAt({
+      owner: own.position,
+      facingDeg: own.yawDeg,
+      computer: computerPosition,
+      computerReach: computer.use_radius,
+      agents,
+    });
+    const key = prompt === null ? '' : prompt.kind === 'computer' ? 'computer' : prompt.agentId;
+    if (key !== own.promptKey) {
+      own.promptKey = key;
+      setCanUseComputer(prompt?.kind === 'computer');
+      setNearAgentId(prompt?.kind === 'agent' ? prompt.agentId : null);
     }
   });
 

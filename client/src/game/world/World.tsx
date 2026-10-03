@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
 import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Group } from 'three';
@@ -9,6 +9,7 @@ import type { LoadedPack } from '@/game/assets/packs';
 import { Agents } from '@/game/npcs/Agents';
 import { CameraRig } from './CameraRig';
 import { Lighting } from './Lighting';
+import { liveView } from './livePositions';
 import { useMovementKeys, type MoveAction } from './keyboard';
 import type { Navigation } from './navmesh';
 import { OwnerCharacter } from './OwnerCharacter';
@@ -64,6 +65,18 @@ function Ground() {
   );
 }
 
+/** Hands the world's camera to the DOM overlays that follow something in the scene. */
+function CameraPublisher() {
+  const camera = useThree((state) => state.camera);
+  useEffect(() => {
+    liveView.camera = camera;
+    return () => {
+      liveView.camera = null;
+    };
+  }, [camera]);
+  return null;
+}
+
 interface PackWorldProps extends Omit<WorldProps, 'isActive' | 'isGliding'> {
   keysRef: RefObject<Set<MoveAction>>;
 }
@@ -81,6 +94,7 @@ function PackWorld({
 }: PackWorldProps) {
   const [navigation, setNavigation] = useState<Navigation | null>(null);
   const cameraMode = useWorldStore((state) => state.cameraMode);
+  const talkingTo = useWorldStore((state) => state.talkingTo);
   const ownerRef = useRef<Group | null>(null);
   const viewYawRef = useRef(pack.manifest.spawn.yaw_deg);
   const { manifest } = pack;
@@ -121,6 +135,7 @@ function PackWorld({
             initialYawDeg={manifest.spawn.yaw_deg}
             viewYawRef={viewYawRef}
             seatPose={seatPose}
+            talkingTo={talkingTo}
           />
         </>
       )}
@@ -152,7 +167,8 @@ export function World({
   isGliding,
   pendingAgentIds,
 }: WorldProps) {
-  const keysRef = useMovementKeys(isActive);
+  const talkingTo = useWorldStore((state) => state.talkingTo);
+  const keysRef = useMovementKeys(isActive && talkingTo === null);
   useEffect(() => {
     useLoader.preload(GLTFLoader, characterFiles());
   }, []);
@@ -180,6 +196,7 @@ export function World({
         />
       </Suspense>
       <FrameCounter />
+      <CameraPublisher />
     </Canvas>
   );
 }

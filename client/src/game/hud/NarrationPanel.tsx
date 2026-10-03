@@ -6,6 +6,8 @@ export interface NarrationPanelProps {
   rows: readonly AgentRow[];
   /** Teleports the owner to an agent. */
   onGo: (row: AgentRow) => void;
+  /** Starts a conversation with an agent, going to it first when it is far. */
+  onTalk: (row: AgentRow) => void;
 }
 
 /** How many agents the number keys reach. */
@@ -16,7 +18,7 @@ export const MOST_HOTKEYS = 9;
  * happened as a sentence. It is the world for anyone who cannot see the canvas, and what the tests
  * read.
  */
-export function NarrationPanel({ rows, onGo }: NarrationPanelProps) {
+export function NarrationPanel({ rows, onGo, onTalk }: NarrationPanelProps) {
   const narration = useWorldStore((state) => state.narration);
   return (
     <section
@@ -35,17 +37,27 @@ export function NarrationPanel({ rows, onGo }: NarrationPanelProps) {
               <span className="min-w-0 truncate">
                 <span className="font-medium">{row.name}</span>: {row.label}
               </span>
-              <button
-                type="button"
-                aria-label={`Go to ${row.name}`}
-                onClick={() => onGo(row)}
-                className="flex shrink-0 items-center gap-1 rounded-md border border-slate-600 bg-slate-800 px-1.5 py-0.5 font-display text-xs font-semibold text-slate-100 shadow-chunk hover:bg-slate-700 active:translate-y-px active:shadow-none"
-              >
-                Go
-                {index < MOST_HOTKEYS && (
-                  <kbd className="rounded-sm bg-slate-950 px-1 text-slate-300">{index + 1}</kbd>
-                )}
-              </button>
+              <span className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  aria-label={`Talk to ${row.name}`}
+                  onClick={() => onTalk(row)}
+                  className="rounded-md border border-slate-600 bg-slate-800 px-1.5 py-0.5 font-display text-xs font-semibold text-slate-100 shadow-chunk hover:bg-slate-700 active:translate-y-px active:shadow-none"
+                >
+                  Talk
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Go to ${row.name}`}
+                  onClick={() => onGo(row)}
+                  className="flex shrink-0 items-center gap-1 rounded-md border border-slate-600 bg-slate-800 px-1.5 py-0.5 font-display text-xs font-semibold text-slate-100 shadow-chunk hover:bg-slate-700 active:translate-y-px active:shadow-none"
+                >
+                  Go
+                  {index < MOST_HOTKEYS && (
+                    <kbd className="rounded-sm bg-slate-950 px-1 text-slate-300">{index + 1}</kbd>
+                  )}
+                </button>
+              </span>
             </li>
           ))}
         </ul>

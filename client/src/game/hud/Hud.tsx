@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ConnectionLight } from '@/app/ConnectionLight';
 import { Button } from '@/components/Button';
 import { yawTowards } from '@/game/assets/geometry';
-import { useHotkeys } from '@/game/world/keyboard';
+import { isTypingTarget, useHotkeys } from '@/game/world/keyboard';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
+import { talkTo } from '@/game/world/talk';
 import { landingBeside } from '@/game/world/seat';
 import { useWorldStore } from '@/game/world/worldStore';
 import { usePreferences } from '@/lib/data/queries';
 import { useSession } from '@/providers/SessionProvider';
+import { ConversationPanel } from './ConversationPanel';
 import { CustomiseDialog } from './CustomiseDialog';
 import { MOST_HOTKEYS, NarrationPanel } from './NarrationPanel';
+import { SpeechBubble } from './SpeechBubble';
 import { useAgentRows, type AgentRow } from './useAgentRows';
 import { WorldMenu } from './WorldMenu';
 
@@ -55,9 +58,31 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
   const fadeThrough = useWorldStore((state) => state.fadeThrough);
   const requestTeleport = useWorldStore((state) => state.requestTeleport);
   const narrate = useWorldStore((state) => state.narrate);
+  const nearAgentId = useWorldStore((state) => state.nearAgentId);
+  const talkingTo = useWorldStore((state) => state.talkingTo);
+  const setTalkingTo = useWorldStore((state) => state.setTalkingTo);
   const rows = useAgentRows();
+  const nearAgent = rows.find((row) => row.agentId === nearAgentId);
+  const isPartnerHere = rows.some((row) => row.agentId === talkingTo);
+
+  // Escape ends a conversation from anywhere; inside the panel the panel handles it first.
+  useEffect(() => {
+    if (talkingTo === null) return undefined;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented || isTypingTarget(event.target)) return;
+      setTalkingTo(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [talkingTo, setTalkingTo]);
+
+  // A conversation ends when the owner sits down, or when the agent leaves the world.
+  useEffect(() => {
+    if (talkingTo !== null && (isOverlayOpen || !isPartnerHere)) setTalkingTo(null);
+  }, [talkingTo, isOverlayOpen, isPartnerHere, setTalkingTo]);
   const [openDialog, setOpenDialog] = useState<OpenDialog>(null);
 
+  const talk = (row: AgentRow): void => talkTo(row.agentId, row.name);
   const sitDown = (): void => {
     if (canUseComputer) void navigate(lastDesktopPath);
     else fadeThrough(() => void navigate(lastDesktopPath));
@@ -72,11 +97,12 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
   const agentKeys = Object.fromEntries(
     rows.slice(0, MOST_HOTKEYS).map((row, index) => [`Digit${index + 1}`, () => goTo(row)]),
   );
-  useHotkeys(!isOverlayOpen && openDialog === null, {
+  useHotkeys(!isOverlayOpen && openDialog === null && talkingTo === null, {
     ...agentKeys,
     KeyC: toggleCamera,
     KeyE: () => {
-      if (canUseComputer) sitDown();
+      if (nearAgent !== undefined) talk(nearAgent);
+      else if (canUseComputer) sitDown();
     },
     F3: toggleFps,
   });
@@ -120,26 +146,40 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
             </Button>
           </div>
         </header>
-        <footer className="flex flex-wrap items-end justify-between gap-3">
-          <div
-            className={`${PANEL} flex max-w-sm flex-col gap-1.5 px-3 py-2 text-xs text-slate-300`}
-          >
-            {canUseComputer && (
-              <p className="font-display text-sm font-semibold text-teal-300">
-                Press E to use the computer
+        {talkingTo === null && (
+          <footer className="flex flex-wrap items-end justify-between gap-3">
+            <div
+              className={`${PANEL} flex max-w-sm flex-col gap-1.5 px-3 py-2 text-xs text-slate-300`}
+            >
+              {nearAgent !== undefined && (
+                <p className="font-display text-sm font-semibold text-teal-300">
+                  Press E to talk to {nearAgent.name}
+                </p>
+              )}
+              {canUseComputer && (
+                <p className="font-display text-sm font-semibold text-teal-300">
+                  Press E to use the computer
+                </p>
+              )}
+              <p className="leading-relaxed">
+                <Key>WASD</Key> walk · <Key>Shift</Key> run · drag look · wheel zoom · <Key>C</Key>{' '}
+                camera · <Key>E</Key> talk or sit · <Key>1-9</Key> go to an agent · <Key>F3</Key>{' '}
+                frame rate
               </p>
-            )}
-            <p className="leading-relaxed">
-              <Key>WASD</Key> walk · <Key>Shift</Key> run · drag look · wheel zoom · <Key>C</Key>{' '}
-              camera · <Key>E</Key> sit · <Key>1-9</Key> go to an agent · <Key>F3</Key> frame rate
-            </p>
-            <p role="status" className={isReady ? 'sr-only' : undefined}>
-              {isReady ? 'The world is ready.' : 'Loading the world…'}
-            </p>
-          </div>
-          <NarrationPanel rows={rows} onGo={goTo} />
-        </footer>
+              <p role="status" className={isReady ? 'sr-only' : undefined}>
+                {isReady ? 'The world is ready.' : 'Loading the world…'}
+              </p>
+            </div>
+            <NarrationPanel rows={rows} onGo={goTo} onTalk={talk} />
+          </footer>
+        )}
       </div>
+      {talkingTo !== null && (
+        <>
+          <SpeechBubble agentId={talkingTo} />
+          <ConversationPanel agentId={talkingTo} onClose={() => setTalkingTo(null)} />
+        </>
+      )}
       {/* The dialogs sit outside the overlay, which lets pointer events through to the canvas. */}
       {preferences !== undefined && (
         <>
