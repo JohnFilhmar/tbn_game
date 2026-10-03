@@ -4,6 +4,9 @@ import { TALK_REACH } from './prompt';
 import { landingBeside } from './seat';
 import { useWorldStore } from './worldStore';
 
+/** How far from the agent a teleport to talk lands, so both fit the conversation shot. */
+const TALK_DISTANCE = 1.7;
+
 /**
  * Starts a conversation with an agent: at once when the owner is within reach, or after a
  * teleport to its side, through the short fade, when not. The owner's character only turns.
@@ -18,7 +21,7 @@ export function talkTo(agentId: string, name: string): void {
     store.setTalkingTo(agentId);
     return;
   }
-  const landing = landingBeside(target, owner ?? target);
+  const landing = landingBeside(target, owner ?? target, TALK_DISTANCE);
   store.fadeThrough(() => {
     store.requestTeleport(landing, yawTowards(landing, target));
     store.setTalkingTo(agentId);

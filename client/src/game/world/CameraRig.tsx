@@ -32,13 +32,17 @@ const SHOULDER = 0.45;
 const FOLLOW_RATE = 10;
 const GLIDE_RATE = 4;
 const GLIDE_SECONDS = 1.5;
-/** The conversation pose: behind and right of the owner's head, looking at the agent's. */
-const TALK_BACK = 1.2;
-const TALK_SIDE = 0.35;
-const TALK_LIFT = 0.1;
+/**
+ * The conversation pose: behind and right of the owner's head, looking just right of the agent's,
+ * so the owner's shoulder and the agent share the part of the screen the panel leaves free.
+ */
+const TALK_BACK = 1;
+const TALK_SIDE = 0.75;
+const TALK_LIFT = 0.05;
+const LOOK_SHIFT = 0.45;
 const AGENT_HEAD = 1.5;
 const FOV = 50;
-const TALK_FOV = 38;
+const TALK_FOV = 42;
 const UP = new Vector3(0, 1, 0);
 const NORTH_UP = new Vector3(0, 0, -1);
 
@@ -148,7 +152,7 @@ export function CameraRig({
         target.position.y + FOCUS_HEIGHT + TALK_LIFT,
         target.position.z - forwardZ * TALK_BACK + forwardX * TALK_SIDE,
       );
-      focus.set(partner.x, AGENT_HEAD, partner.z);
+      focus.set(partner.x - forwardZ * LOOK_SHIFT, AGENT_HEAD, partner.z + forwardX * LOOK_SHIFT);
       fov = TALK_FOV;
     } else if (mode === 'third_person') {
       // The right of the view, so the character stands left of the middle of the screen.
