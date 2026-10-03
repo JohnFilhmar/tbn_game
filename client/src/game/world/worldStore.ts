@@ -61,7 +61,12 @@ export interface Acting {
   yawDeg: number;
   /** Seconds on `performance.now()`'s clock. */
   until: number;
+  /** Where the owner sits for the clip, on a sofa or a beanbag; null where they stand. */
+  seat: Vector3 | null;
 }
+
+/** A panel a prop opens over the world. */
+export type PropPanel = 'lights' | 'cork' | 'trophies' | 'travel';
 
 /** A short message over the world that fades on its own. */
 export interface Toast {
@@ -128,14 +133,18 @@ export interface WorldState {
   setNearProps: (nearPropId: string | null, reachablePropIds: readonly string[]) => void;
   /** The owner using a prop, or null. */
   acting: Acting | null;
-  act: (clip: ClipName, yawDeg: number, seconds: number) => void;
+  act: (clip: ClipName, yawDeg: number, seconds: number, seat?: Vector3 | null) => void;
   stopActing: () => void;
   /** The whiteboard the owner draws on, or null. A moment in the world, never a route. */
   drawingOn: string | null;
   setDrawingOn: (placementId: string | null) => void;
-  /** True while the light switch's panel is open. */
-  isLightsOpen: boolean;
-  setLightsOpen: (isOpen: boolean) => void;
+  /** The panel a prop opened, or null. */
+  panel: PropPanel | null;
+  setPanel: (panel: PropPanel | null) => void;
+  /** True once the owner sat at the computer and until they stand up in the world, so a
+   * character that first appears then starts beside the chair. */
+  hasSat: boolean;
+  setHasSat: (hasSat: boolean) => void;
   toast: Toast | null;
   showToast: (text: string) => void;
 }
@@ -218,13 +227,15 @@ export const useWorldStore = create<WorldState>((set) => ({
   reachablePropIds: [],
   setNearProps: (nearPropId, reachablePropIds) => set({ nearPropId, reachablePropIds }),
   acting: null,
-  act: (clip, yawDeg, seconds) =>
-    set({ acting: { clip, yawDeg, until: performance.now() / 1000 + seconds } }),
+  act: (clip, yawDeg, seconds, seat = null) =>
+    set({ acting: { clip, yawDeg, until: performance.now() / 1000 + seconds, seat } }),
   stopActing: () => set({ acting: null }),
   drawingOn: null,
   setDrawingOn: (drawingOn) => set({ drawingOn }),
-  isLightsOpen: false,
-  setLightsOpen: (isLightsOpen) => set({ isLightsOpen }),
+  panel: null,
+  setPanel: (panel) => set({ panel }),
+  hasSat: false,
+  setHasSat: (hasSat) => set({ hasSat }),
   toast: null,
   showToast: (text) => set((state) => ({ toast: { id: (state.toast?.id ?? 0) + 1, text } })),
 }));

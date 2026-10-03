@@ -10,9 +10,13 @@ export function propStatesOf(states: readonly WorldPropState[] | undefined): Pro
 
 const EMPTY_BOARD: WhiteboardContent = { strokes: [], texts: [] };
 
+/** How long a plant stays up after a watering. */
+export const THIRSTY_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
+
 /**
- * What a placed prop is in now: blinds open, a lamp's mode, a board's content. A prop with no
- * saved state is in its kind's first one: open, on auto, empty.
+ * What a placed prop is in now: blinds open, a lamp's mode, a board's content, when a plant was
+ * watered, a radio's switch. A prop with no saved state is in its kind's first one: open, on
+ * auto, empty, never watered, off.
  */
 export const stateOf = {
   isOpen: (states: PropStates, id: string): boolean => {
@@ -27,4 +31,17 @@ export const stateOf = {
     const state = states.get(id);
     return state?.kind === 'whiteboard' ? state.state : EMPTY_BOARD;
   },
+  wateredAt: (states: PropStates, id: string): string | null => {
+    const state = states.get(id);
+    return state?.kind === 'plant' || state?.kind === 'tree' ? state.state.watered_at : null;
+  },
+  isRadioOn: (states: PropStates, id: string): boolean => {
+    const state = states.get(id);
+    return state?.kind === 'radio' ? state.state.on : false;
+  },
 };
+
+/** True when a plant droops: never watered, or watered more than three days before `now`. */
+export function isThirsty(wateredAt: string | null, now: number): boolean {
+  return wateredAt === null || now - Date.parse(wateredAt) > THIRSTY_AFTER_MS;
+}

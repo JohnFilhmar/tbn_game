@@ -185,3 +185,28 @@ test('the owner touches grass twice and the count goes up by two', async ({ page
     .poll(async () => PreferencesSchema.parse(await read(page, '/preferences')).grass_touched)
     .toBe(before + 2);
 });
+
+test('the owner checks the inbox on the desk and sits down to the approvals', async ({ page }) => {
+  await standInOffice(page);
+  await withinReach(page).getByRole('button', { name: 'Check the inbox' }).click();
+  await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible();
+});
+
+test('the owner waters a plant, and it stays watered after a reload', async ({ page }) => {
+  await standInOffice(page);
+  // The pot plant in the corner is left past the board.
+  const water = withinReach(page).getByRole('button', { name: 'Water the plant' });
+  await walkTo(page, 'a', water);
+  const since = Date.now() - 60_000;
+  await water.click();
+  await expect(page.getByRole('list', { name: 'What happened' })).toContainText(
+    'You water the plant.',
+  );
+  await reloadBesideComputer(page);
+  const { states } = PropStatesSchema.parse(await read(page, '/world/office/props'));
+  const watered = states
+    .filter((one) => one.kind === 'plant')
+    .map((one) => Date.parse(String(one.state['watered_at'])));
+  expect(watered.some((at) => at > since)).toBe(true);
+});

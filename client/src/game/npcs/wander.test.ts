@@ -172,4 +172,32 @@ describe('the things to use', () => {
     expect(lines).toContain('Ada pours a coffee.');
     expect(effects).toContain('steam');
   });
+
+  it('sit an idle agent back on a seat, and stand it on its spot again after', () => {
+    const lines: string[] = [];
+    const sofa: Spot = {
+      kind: 'rest',
+      position: [3, 0, 0],
+      yaw_deg: 180,
+      clip: 'sit',
+      seconds: 2,
+      seat: [3, 0, -0.8],
+    };
+    const ada = actor('ada', 0, lines);
+    const scheduler = new WanderScheduler([sofa], (text) => lines.push(text));
+    let wasSeated = false;
+    let isBackOnSpot = false;
+    let now = 0;
+    for (let step = 0; step < 40 * 20; step += 1) {
+      now += 0.05;
+      ada.tick(0.05);
+      if (step % 10 === 0) scheduler.update(now, [ada]);
+      const onSeat = ada.position.distanceTo(new Vector3(3, 0, -0.8)) < 0.01;
+      if (ada.clip === 'sit' && onSeat) wasSeated = true;
+      if (wasSeated && ada.clip !== 'sit' && !onSeat) isBackOnSpot = true;
+    }
+    expect(lines).toContain('ada sits back for a nap.');
+    expect(wasSeated).toBe(true);
+    expect(isBackOnSpot).toBe(true);
+  });
 });

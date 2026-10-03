@@ -68,6 +68,18 @@ export function buildOffice(): PackResult {
   layout.add('whiteboard', -10.86, 6, 90);
   layout.add('grass_patch', -6, 6.7, 180, { width: 1.6, depth: 1.6 });
   layout.add('coffee_set', 2.4, 7.45, 180);
+  // The company's objects: the inbox on the owner's desk, reports on the cork board, the rack
+  // by the water, the clock between windows, trophies on the west wall, a lounge by the door,
+  // the radio by the coffee and the exit sign over the door.
+  layout.add('inbox_tray', -5.05, 6.4, 180);
+  layout.add('cork_board', -5, -7.9, 0);
+  layout.add('server_rack', 10.5, 6.4, 270);
+  layout.add('wall_clock', 5, -7.9, 0);
+  layout.add('trophy_shelf', -10.9, 0, 90);
+  layout.add('sofa', 5.5, 7.35, 180, { width: 2 });
+  layout.add('beanbag', 7.6, 6.9, 180);
+  layout.add('radio', 3.6, 7.9, 180);
+  layout.add('exit_sign', 0, 7.9, 180);
 
   return {
     manifest: {

@@ -127,7 +127,11 @@ export function arrange(shell: ShellAnchors, placements: readonly WorldPlacement
         z: placed.seat[2],
       });
     }
-    for (const anchor of model.anchors.spots) spots.push(anchorToWorld(placement, anchor));
+    for (const anchor of model.anchors.spots) {
+      const placed = anchorToWorld(placement, anchor);
+      if (anchor.seat !== undefined) placed.seat = toWorld(placement, anchor.seat);
+      spots.push(placed);
+    }
     for (const point of model.anchors.reach) {
       const at = toWorld(placement, point);
       reach.push({ name: `the chair at ${label.toLowerCase()}`, x: at[0], z: at[2] });

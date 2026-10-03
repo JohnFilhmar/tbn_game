@@ -15,7 +15,12 @@ export const EFFECT_SECONDS = 2;
 export const MOST_EFFECTS = 16;
 
 /** The height a burst starts at above the floor, by kind. */
-const START_HEIGHT: Record<EffectKind, number> = { steam: 1.2, bubbles: 1.3, blades: 0.15 };
+const START_HEIGHT: Record<EffectKind, number> = {
+  steam: 1.2,
+  bubbles: 1.3,
+  blades: 0.15,
+  drops: 1.6,
+};
 
 /** The bursts alive now; the effects in the scene read it every frame, so it never re-renders. */
 export const liveEffects: LiveEffect[] = [];

@@ -25,6 +25,12 @@ export type LampMode = z.infer<typeof LampModeSchema>;
 /** A lamp's switch. */
 export const LampStateSchema = z.strictObject({ mode: LampModeSchema });
 
+/** A plant or a tree: when it was last watered. */
+export const PlantStateSchema = z.strictObject({ watered_at: DateTimeSchema });
+
+/** A radio: playing or not. */
+export const RadioStateSchema = z.strictObject({ on: z.boolean() });
+
 /** One pen line on a whiteboard: its points in board shares, its colour and its width. */
 export const WhiteboardStrokeSchema = z.strictObject({
   color: HexColorSchema,
@@ -93,15 +99,39 @@ export const WhiteboardPropStateSchema = z.strictObject({
   state: WhiteboardContentSchema,
 });
 
+/** When a placed pot plant was last watered. */
+export const PlantPropStateSchema = z.strictObject({
+  ...PROP_STATE_FIELDS,
+  kind: z.literal('plant'),
+  state: PlantStateSchema,
+});
+
+/** When a placed tree was last watered. */
+export const TreePropStateSchema = z.strictObject({
+  ...PROP_STATE_FIELDS,
+  kind: z.literal('tree'),
+  state: PlantStateSchema,
+});
+
+/** Whether a placed radio plays. */
+export const RadioPropStateSchema = z.strictObject({
+  ...PROP_STATE_FIELDS,
+  kind: z.literal('radio'),
+  state: RadioStateSchema,
+});
+
 /**
  * A placed prop's own state, kept apart from the layout so using a prop never moves the layout's
  * revision. A prop with no row is in its kind's first state: blinds open, a lamp on auto, a board
- * empty.
+ * empty, a plant never watered, a radio off.
  */
 export const WorldPropStateSchema = z.discriminatedUnion('kind', [
   BlindsPropStateSchema,
   LampPropStateSchema,
   WhiteboardPropStateSchema,
+  PlantPropStateSchema,
+  TreePropStateSchema,
+  RadioPropStateSchema,
 ]);
 
 /** A placed prop's state. */
@@ -115,6 +145,9 @@ export const SaveWorldPropStateSchema = z.discriminatedUnion('kind', [
   BlindsPropStateSchema.pick({ kind: true, state: true }),
   LampPropStateSchema.pick({ kind: true, state: true }),
   WhiteboardPropStateSchema.pick({ kind: true, state: true }),
+  PlantPropStateSchema.pick({ kind: true, state: true }),
+  TreePropStateSchema.pick({ kind: true, state: true }),
+  RadioPropStateSchema.pick({ kind: true, state: true }),
 ]);
 
 /** Body of `PUT /world/:environment/props/:placement_id`. */

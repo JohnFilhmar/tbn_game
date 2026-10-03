@@ -182,6 +182,31 @@ describe('world routes', () => {
         .expect(400);
     });
 
+    it('keeps when a plant was watered and whether a radio plays', async () => {
+      const plant = randomUUID();
+      const radio = randomUUID();
+      const watered_at = '2026-10-03T08:00:00.000Z';
+      await api()
+        .put(`/world/home/props/${plant}`)
+        .set(auth())
+        .send({ kind: 'plant', state: { watered_at } })
+        .expect(200);
+      await api()
+        .put(`/world/home/props/${radio}`)
+        .set(auth())
+        .send({ kind: 'radio', state: { on: true } })
+        .expect(200);
+      const read = await api().get('/world/home/props').set(auth()).expect(200);
+      const { states } = WorldPropStatesResponseSchema.parse(read.body);
+      expect(states.find((state) => state.placement_id === plant)?.state).toEqual({ watered_at });
+      expect(states.find((state) => state.placement_id === radio)?.state).toEqual({ on: true });
+      await api()
+        .put(`/world/home/props/${plant}`)
+        .set(auth())
+        .send({ kind: 'tree', state: { watered_at: 'yesterday' } })
+        .expect(400);
+    });
+
     it('refuses a whiteboard over its cap with 413', async () => {
       // 1,500 strokes of 20 points each is about 650 KB: under the body limit, over the board's.
       const points = Array.from({ length: 20 }, (_, index) => [index / 20, 0.123456789]);
