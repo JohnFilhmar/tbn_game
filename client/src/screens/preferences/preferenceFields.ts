@@ -24,8 +24,41 @@ export interface PreferenceGroup {
   fields: readonly PreferenceField[];
 }
 
-/** Every preference, grouped, with how it reads and how it is typed. */
+/** Every preference the screen edits, grouped, with how it reads and how it is typed. */
 export const PREFERENCE_GROUPS: readonly PreferenceGroup[] = [
+  {
+    title: 'World',
+    fields: [
+      {
+        key: 'environment',
+        label: 'Environment',
+        hint: 'Where the company is. The world menu changes it too.',
+        kind: {
+          type: 'choice',
+          options: [
+            { value: 'office', label: 'Office' },
+            { value: 'home', label: 'Home' },
+            { value: 'warehouse', label: 'Warehouse' },
+          ],
+        },
+      },
+      {
+        key: 'time_of_day',
+        label: 'Time of day',
+        hint: 'My clock follows your time zone.',
+        kind: {
+          type: 'choice',
+          options: [
+            { value: 'morning', label: 'Morning' },
+            { value: 'noon', label: 'Noon' },
+            { value: 'afternoon', label: 'Afternoon' },
+            { value: 'night', label: 'Night' },
+            { value: 'clock', label: 'My clock' },
+          ],
+        },
+      },
+    ],
+  },
   {
     title: 'Desk',
     fields: [

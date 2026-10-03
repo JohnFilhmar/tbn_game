@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Button } from '@/components/Button';
+import { isTypingTarget } from '@/game/world/keyboard';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection, useMe } from '@/lib/data/queries';
 import { cx } from '@/lib/ui/cx';
@@ -14,17 +15,33 @@ function usePendingApprovals(): number {
 }
 
 /**
- * The virtual desktop: the launcher on the left, the bar with the live light and the owner on
- * top, and the open screen. On a narrow screen the launcher folds behind a menu button.
+ * The virtual desktop, the screen of the in-world computer: the launcher on the left, the bar with
+ * the way back to the world, the live light and the owner on top, and the open screen. On a narrow
+ * screen the launcher folds behind a menu button. Escape, outside a field or a dialog, returns to
+ * the world.
  */
 export function DesktopLayout() {
   const { signOut } = useSession();
   const { data: me } = useMe();
+  const navigate = useNavigate();
   const pendingApprovals = usePendingApprovals();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented || isTypingTarget(event.target)) return;
+      void navigate('/');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [navigate]);
+
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div
+      role="region"
+      aria-label="The desk"
+      className="fixed inset-0 z-20 flex overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+    >
       <a
         href="#main"
         className="sr-only z-50 rounded-md bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:top-2 focus:left-2 dark:bg-slate-900"
@@ -82,7 +99,7 @@ export function DesktopLayout() {
           onClick={() => setIsMenuOpen(false)}
         />
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
           <Button
             variant="ghost"
@@ -93,6 +110,9 @@ export function DesktopLayout() {
             onClick={() => setIsMenuOpen((open) => !open)}
           >
             Menu
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => void navigate('/')}>
+            World
           </Button>
           <ConnectionLight />
           <div className="ml-auto flex items-center gap-3">

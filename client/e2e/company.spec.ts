@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { APPROVAL_MARKER } from './fakeModel';
-import { openScreen, signIn } from './session';
+import { openDesk, openScreen, signIn } from './session';
 import { OWNER, RUN_ID } from './stack';
 
 const PROVIDER = `Fake model ${RUN_ID}`;
@@ -27,6 +27,8 @@ test('sign in', async ({ page }) => {
 
   await page.getByLabel('Password').fill(OWNER.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
+  // Signing in lands in the world; the desk is the computer in it.
+  await openDesk(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
   await expect(page.getByText(OWNER.username)).toBeVisible();
 
@@ -106,6 +108,7 @@ test('assign', async ({ page }) => {
 
 test('approve', async ({ page }) => {
   await signIn(page);
+  await openDesk(page);
   const launcher = page.getByRole('navigation', { name: 'Launcher' });
   await expect(launcher.getByRole('link', { name: /Approvals \d+ waiting/ })).toBeVisible();
   await openScreen(page, 'Approvals');

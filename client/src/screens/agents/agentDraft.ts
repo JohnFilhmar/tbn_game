@@ -1,4 +1,6 @@
 import type { Agent, ToolPolicy } from '@tbn/contracts';
+import { PaletteSlotSchema, type PaletteSlot } from '@/game/assets/characterManifest';
+import { CHARACTER_SET } from '@/game/assets/characters';
 import { optionalText } from '@/lib/forms/text';
 
 /** One row of the tool policy editor. */
@@ -19,7 +21,19 @@ export interface AgentDraft {
   hair: string;
   outfit: string;
   accessory: string;
+  /** Every palette slot, the set's default where the agent chose nothing. */
+  colors: Record<PaletteSlot, string>;
   tool_policy: ToolPolicyRow[];
+}
+
+/** The palette with an agent's own colours over it. */
+export function paletteOf(colors: Record<string, string> | undefined): Record<PaletteSlot, string> {
+  const palette: Record<PaletteSlot, string> = { ...CHARACTER_SET.manifest.palette };
+  for (const slot of PaletteSlotSchema.options) {
+    const own = colors?.[slot];
+    if (own !== undefined) palette[slot] = own;
+  }
+  return palette;
 }
 
 /** An empty recruit form. */
@@ -34,6 +48,7 @@ export const EMPTY_AGENT_DRAFT: AgentDraft = {
   hair: '',
   outfit: '',
   accessory: '',
+  colors: paletteOf(undefined),
   tool_policy: [],
 };
 
@@ -50,12 +65,20 @@ export function agentDraftOf(agent: Agent): AgentDraft {
     hair: agent.appearance.hair ?? '',
     outfit: agent.appearance.outfit ?? '',
     accessory: agent.appearance.accessory ?? '',
+    colors: paletteOf(agent.appearance.colors),
     tool_policy: Object.entries(agent.tool_policy).map(([tool, policy]) => ({ tool, policy })),
   };
 }
 
-/** The request body of the form, keeping the agent's palette, which the form does not edit. */
-export function agentInput(draft: AgentDraft, colors?: Record<string, string>): unknown {
+/**
+ * The request body of the form. Only a colour that differs from the set's palette is sent, so an
+ * agent whose look was never touched keeps the one the world derives from its id.
+ */
+export function agentInput(draft: AgentDraft): unknown {
+  const palette = new Map<string, string>(Object.entries(CHARACTER_SET.manifest.palette));
+  const colors = Object.fromEntries(
+    Object.entries(draft.colors).filter(([slot, color]) => palette.get(slot) !== color),
+  );
   return {
     name: draft.name.trim(),
     role: draft.role.trim(),
@@ -68,7 +91,7 @@ export function agentInput(draft: AgentDraft, colors?: Record<string, string>): 
       hair: optionalText(draft.hair),
       outfit: optionalText(draft.outfit),
       accessory: optionalText(draft.accessory),
-      colors,
+      colors: Object.keys(colors).length > 0 ? colors : undefined,
     },
     tool_policy: Object.fromEntries(
       draft.tool_policy

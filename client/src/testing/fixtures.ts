@@ -111,8 +111,14 @@ export function chunkFixture(overrides: Partial<StreamChunk> = {}): StreamChunk 
 }
 
 /** An event about an agent: its view, or null once it is gone. */
-export function agentChange(id: string, op: EventOp, data: Agent | null, seq = 1): ChangeEvent {
-  return { seq, entity: 'agent', id, op, changed: null, data, at: AT };
+export function agentChange(
+  id: string,
+  op: EventOp,
+  data: Agent | null,
+  seq = 1,
+  changed: string[] | null = null,
+): ChangeEvent {
+  return { seq, entity: 'agent', id, op, changed, data, at: AT };
 }
 
 /** An event about a transcript entry. */

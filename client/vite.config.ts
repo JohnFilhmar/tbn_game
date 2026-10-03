@@ -7,7 +7,8 @@ const source = (path: string): string => fileURLToPath(new URL(path, import.meta
 
 /**
  * The client builds under `/app/`, where the web process serves it. `@tbn/contracts` resolves to
- * its TypeScript source, so the client always validates with the schemas the backend uses.
+ * its TypeScript source, so the client always validates with the schemas the backend uses. The
+ * world's models and manifests come in through `import.meta.glob`, so they ship hashed.
  */
 export default defineConfig({
   base: '/app/',
@@ -19,7 +20,14 @@ export default defineConfig({
     },
   },
   server: { port: 5173, strictPort: true },
-  build: { outDir: 'dist', emptyOutDir: true, sourcemap: false },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
+    // A model stays a file whatever its size: the loader fetches it, and the page's content
+    // security policy allows no data URLs.
+    assetsInlineLimit: (file) => (file.endsWith('.glb') ? false : undefined),
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],

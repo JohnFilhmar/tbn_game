@@ -47,6 +47,8 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `scripts/demo_phase_1c.sh`                                         | The phase 1c demo: research, a branch, a merge request, an approval, a restart. |
 | `scripts/demo_phase_2.sh`                                          | The phase 2 demo: a scripted client drops and resumes mid-run while the owner chats with the agent. |
 | `scripts/demo_phase_3.sh`                                          | The phase 3 demo: the stack with the desktop, Grafana and a backup, and the steps to follow in the browser. |
+| `scripts/demo_phase_4.sh`                                          | The phase 4 demo: the stack serving the world's packs and characters, the world preferences, and the steps to walk the company in the browser. |
+| `npm run build:assets --workspace @tbn/client`                     | Remakes the three environment packs and the character set from `client/scripts/assets/`; the files are committed. |
 
 Tests use a real PostgreSQL. With the development stack up:
 `DATABASE_URL=postgresql://tbn:tbn_development_only@127.0.0.1:5432/tbn_test npm test`. The migration
@@ -90,16 +92,20 @@ backend/            NestJS monolith, four process types: web, worker, sandbox an
                     workspace paths, health, metrics, logging, http, process, docker_engine,
                     sandbox_launcher, egress_proxy, html_text, disk, realtime, realtime_client,
                     idempotency
-    modules/        identity, company, runtime, knowledge, integrations, world, events
+    modules/        identity, company, runtime, knowledge, integrations, events
     utils/          generic helpers
     testing/        test helpers and fakes, excluded from the build
   prisma/           schema and migrations, including the pg-boss schema
-client/             Vite, React 19, TypeScript, Tailwind v4: the virtual desktop, later the game
-  src/app/          router, desktop layout, launcher
+client/             Vite, React 19, TypeScript, Tailwind v4: the world and the desk in it
+  src/app/          router, desk layout, launcher
   src/providers/    query client, session, realtime, theme
   src/lib/          api, session, realtime, stores, data, forms, format, ui
   src/components/   shared fields, dialogs, tables, badges, states, Markdown
-  src/screens/      one directory per screen
+  src/screens/      one directory per desk screen
+  src/game/         the 3D world: assets (manifests, loaders, appearance), world (canvas, scene,
+                    lighting, cameras, owner character, navigation), npcs (world events, seats,
+                    actors), hud, and the shipped packs and characters
+  scripts/assets/   the generator of the packs and the character set
   e2e/              Playwright flows, the e2e stack and its fake model
 desktop/            phase 6: Tauri v2 shell
 mobile/             phase 5: Capacitor shell
@@ -176,6 +182,11 @@ docs/               architecture, roadmap, plans, reports, runbook
 - The web process serves the built client under `/app` from `CLIENT_DIR`; the API keeps its paths.
   The client talks to the API only through `lib/api` and the gateway, and writes every change into
   the TanStack Query cache. The gateway accepts the CORS origins and the page's own origin.
+- The world is the client's root route; the desk screens render over it on their own routes. The
+  world reads models and clips through the asset manifests by slot name, never by path, and the
+  agents move only on world events derived from the change events; nothing in the world is
+  server state but the three preferences. The packs and characters are generated files under
+  `client/src/game/`, remade by `npm run build:assets`, to the contract in `docs/assets.md`.
 
 ## Code rules
 

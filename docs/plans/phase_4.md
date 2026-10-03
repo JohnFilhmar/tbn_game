@@ -177,8 +177,9 @@ None.
 - Playwright, against the built web process and worker with the fake model: sign in lands in the
   world; assign a task and the narration says the agent walked to its desk and works; the fake
   delegates to an intern and the narration says it arrived, the manager handed off and the result
-  came back; the intern leaves when terminated; the same with the camera toggled and in each
-  environment, with a screenshot of each; the computer opens the desk and `Escape` closes it.
+  came back; the intern leaves when terminated. The story runs once, in the office; the camera
+  toggle and each environment are checked by rendering, with a screenshot of each, so the slowest
+  flow is not run six times. The computer opens the desk and `Escape` closes it.
 - Backend, Jest: the three preferences round trip and reject a bad value.
 - Operations: none.
 

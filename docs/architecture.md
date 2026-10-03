@@ -176,9 +176,15 @@ output as it is generated.
   `BACKUP_KEEP` sets, and on failure sends `backup_failed` through `dist/admin.js`.
   `tbn_restore.sh` restores a set into a fresh database, swaps it in for `tbn` and keeps the old
   one until the owner drops it.
-- **Not yet.** The 3D world, the in-world computer that opens this desktop, and semantic world
-  events come in phase 4; the mobile and desktop shells in phases 5 and 6. The production deploy
-  is ready for the owner to dispatch.
+- **Phase 4 built the world.** After sign in the owner is in a semi low poly 3D scene: one of
+  three environment packs, lit by the time of day or the owner's clock, with their own character
+  and every agent at a desk in its department's zone. The desk screens above are the in-world
+  computer: they keep their routes and render as an overlay over the canvas. Agents move on the
+  entity events the client already receives, derived into world events on the client; the server
+  never knows a position. The packs and the character set are written by a script in the client
+  workspace to the contract in `docs/assets.md`.
+- **Not yet.** The mobile and desktop shells come in phases 5 and 6. The production deploy is
+  ready for the owner to dispatch.
 
 ## Backend
 
@@ -197,7 +203,6 @@ backend/src/
                   approvals, run sources
     knowledge/    instructions, skills, preferences
     integrations/ request templates, notification channels and log, plugins, restart detection
-    world/        environments, appearance, time of day
     events/       event log, WebSocket gateway
   config/  lib/  utils/
 ```
@@ -613,6 +618,27 @@ effect on the next model turn with no deploy.
   savings.
 - Each department has its own zone of desks in every environment pack, so the owner can see who
   works for whom.
+
+How phase 4 built it, in `client/src/game/`:
+
+- `assets/`: Zod schemas for the pack and character manifests, the loaders that bring the files
+  in through Vite's `import.meta.glob` so they ship hashed, and the appearance resolver. An agent
+  whose appearance is empty gets a look derived from its id.
+- `world/`: the React Three Fiber canvas, the pack scene, the lighting from the hour, the two
+  camera rigs, the owner's character and the navigation over the pack's mesh with
+  `three-pathfinding`. The character is clamped to the navigation mesh every step; there is no
+  physics engine. The world's state for the HUD is a zustand store.
+- `npcs/`: the world events derived from change events, the seat assignment by department zone,
+  the agent actor (a position, a facing, a clip and a queue of steps) and the component that keeps
+  the actors in step with the roster and the change feed.
+- `hud/`: the overlay: the live light and the frame counter, the desk button, the camera toggle,
+  the world menu, the customise dialog with its live preview, the controls help, the computer
+  prompt and the narration panel, which is the world for anyone who cannot see the canvas.
+- The world's settings are preferences: `environment`, `time_of_day` and `owner_appearance`. The
+  camera mode is a device setting in local storage.
+- The assets come from `client/scripts/assets/`, under CC0, because the free pack hosts were not
+  reachable from the build session; the generator also asserts that every anchor is on walkable
+  floor. A downloaded pack that meets `docs/assets.md` can replace a generated one.
 
 ### Online later
 
