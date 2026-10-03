@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/lib/database/prisma.service';
 import type { PreferenceRecord } from '@/modules/knowledge/types/knowledge_records';
-import type { PreferenceRepository } from './interface/preference_repository.interface';
+import type {
+  PreferenceRepository,
+  PreferenceValue,
+} from './interface/preference_repository.interface';
 
 /** `PreferenceRepository` on Prisma. */
 @Injectable()
@@ -15,7 +18,7 @@ export class PrismaPreferenceRepository implements PreferenceRepository {
     });
   }
 
-  async set(owner_id: string, key: string, value: string | number | boolean): Promise<void> {
+  async set(owner_id: string, key: string, value: PreferenceValue): Promise<void> {
     await this.prisma.preference.upsert({
       where: { owner_id_key: { owner_id, key } },
       create: { owner_id, key, value },

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTimeSchema, IdSchema } from './common';
-import { RoleNameSchema } from './company';
+import { AppearanceSchema, RoleNameSchema } from './company';
 
 /** Where an instruction applies: every agent, every agent with a role, or one agent. */
 export const InstructionScopeSchema = z.enum(['global', 'role', 'agent']);
@@ -150,11 +150,26 @@ function is_time_zone(value: string): boolean {
   }
 }
 
+/** The environment packs the world ships: the scene the company works in. */
+export const EnvironmentNameSchema = z.enum(['office', 'home', 'warehouse']);
+
+/** `office`, `home` or `warehouse`. */
+export type EnvironmentName = z.infer<typeof EnvironmentNameSchema>;
+
+/** The time of day the world is lit by: a fixed time, or the owner's real clock. */
+export const TimeOfDaySchema = z.enum(['morning', 'noon', 'afternoon', 'night', 'clock']);
+
+/** `morning`, `noon`, `afternoon`, `night` or `clock`. */
+export type TimeOfDay = z.infer<typeof TimeOfDaySchema>;
+
 /** Every preference with its type. `GET /preferences` returns all of them, defaults applied. */
 export const PreferencesSchema = z.strictObject({
   report_style: z.enum(['concise', 'detailed']),
   time_zone: z.string().min(1).max(64).refine(is_time_zone, 'an IANA time zone'),
   theme: z.enum(['light', 'dark', 'system']),
+  environment: EnvironmentNameSchema,
+  time_of_day: TimeOfDaySchema,
+  owner_appearance: AppearanceSchema,
   intern_idle_ttl_minutes: z.number().min(0.01).max(10_080),
   runaway_guard_turns: z.number().int().min(3).max(1_000),
   cap_threshold_longest_percent: z.number().int().min(1).max(100),
@@ -185,6 +200,9 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   report_style: 'concise',
   time_zone: 'UTC',
   theme: 'system',
+  environment: 'office',
+  time_of_day: 'clock',
+  owner_appearance: {},
   intern_idle_ttl_minutes: 30,
   runaway_guard_turns: 50,
   cap_threshold_longest_percent: 75,
