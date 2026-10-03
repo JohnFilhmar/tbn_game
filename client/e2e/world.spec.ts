@@ -206,8 +206,9 @@ test('an agent walks, works, hands off, and the intern arrives and leaves', asyn
   });
   await expect(happened).toContainText(`${MANAGER} finishes "${TASK}".`, { timeout: 60_000 });
   await expect(happened).toContainText('leaves.', { timeout: 60_000 });
+  // Done and resting: at its desk, or off on a break of its own.
   await expect(page.getByRole('list', { name: 'Agents in the world' })).toContainText(
-    `${MANAGER}: at the desk`,
+    new RegExp(`${MANAGER}: (at the desk|taking a break)`),
     { timeout: 30_000 },
   );
 });

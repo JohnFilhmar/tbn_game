@@ -57,17 +57,15 @@ describe('talking to an agent in the world', () => {
     );
 
     act(() => {
-      openedSockets
-        .at(-1)
-        ?.serverSends(
-          'stream',
-          chunkFixture({
-            agent_id: ADA.id,
-            run_id: fixtureId(),
-            call_id: fixtureId(),
-            text: 'Going well',
-          }),
-        );
+      openedSockets.at(-1)?.serverSends(
+        'stream',
+        chunkFixture({
+          agent_id: ADA.id,
+          run_id: fixtureId(),
+          call_id: fixtureId(),
+          text: 'Going well',
+        }),
+      );
     });
     await waitFor(() => expect(panel.textContent).toContain('Going well'));
 
