@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Mesh, MeshStandardMaterial, type Object3D } from 'three';
+import { Mesh, type Object3D } from 'three';
+import { layoutProblems } from '#game/props/layoutProblems.ts';
 import {
   BODY_VARIANTS,
   CLIP_NAMES,
@@ -67,18 +68,17 @@ async function writeCharacters(): Promise<void> {
 async function writePacks(): Promise<void> {
   for (const build of [buildOffice, buildHome, buildWarehouse]) {
     const pack = build();
-    const dir = join(gameDir, 'packs', pack.manifest.name);
+    const { manifest } = pack;
+    // The default layout must be one an owner could save: nothing in a wall, every seat reachable.
+    const problems = layoutProblems(manifest.bounds, manifest, manifest.default_layout);
+    if (problems.length > 0) {
+      throw new Error(`The ${manifest.name} pack's default layout: ${problems.join(' ')}`);
+    }
+    const dir = join(gameDir, 'packs', manifest.name);
     const sceneBytes = await writeGlb(join(dir, 'scene.glb'), pack.scene);
-    const navmesh = new Mesh(pack.navmesh, new MeshStandardMaterial({ name: 'navmesh' }));
-    navmesh.name = 'navmesh';
-    const navmeshBytes = await writeGlb(join(dir, 'navmesh.glb'), navmesh);
-    await writeJson(join(dir, 'manifest.json'), {
-      ...pack.manifest,
-      scene: 'scene.glb',
-      navmesh: 'navmesh.glb',
-    });
+    await writeJson(join(dir, 'manifest.json'), { ...manifest, scene: 'scene.glb' });
     console.log(
-      `packs/${pack.manifest.name}: scene ${triangles(pack.scene)} triangles in ${pack.scene.children.length} meshes, ${sceneBytes} bytes; navmesh ${triangles(navmesh)} triangles, ${navmeshBytes} bytes`,
+      `packs/${manifest.name}: shell ${triangles(pack.scene)} triangles in ${pack.scene.children.length} meshes, ${sceneBytes} bytes; ${manifest.default_layout.length} props`,
     );
   }
 }

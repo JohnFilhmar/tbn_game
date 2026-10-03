@@ -7,49 +7,6 @@
   "spawn": { "position": [-5, 0, 6.25], "yaw_deg": 180 },
   "entry": { "position": [-8, 0, 7.25], "yaw_deg": 180 },
   "exit": { "position": [-8, 0, 7.25], "yaw_deg": 0 },
-  "computer": { "position": [-2.5, 1.19, 5.22], "yaw_deg": 180, "use_radius": 1.9 },
-  "zones": [
-    {
-      "name": "zone_1",
-      "label": "North west benches",
-      "desks": [
-        { "position": [-8, 0.74, -7], "yaw_deg": 180, "seat": [-8, 0, -6.05] },
-        { "position": [-6, 0.74, -7], "yaw_deg": 180, "seat": [-6, 0, -6.05] },
-        { "position": [-4, 0.74, -7], "yaw_deg": 180, "seat": [-4, 0, -6.05] },
-        { "position": [-2, 0.74, -7], "yaw_deg": 180, "seat": [-2, 0, -6.05] }
-      ]
-    },
-    {
-      "name": "zone_2",
-      "label": "North east benches",
-      "desks": [
-        { "position": [2, 0.74, -7], "yaw_deg": 180, "seat": [2, 0, -6.05] },
-        { "position": [4, 0.74, -7], "yaw_deg": 180, "seat": [4, 0, -6.05] },
-        { "position": [6, 0.74, -7], "yaw_deg": 180, "seat": [6, 0, -6.05] },
-        { "position": [8, 0.74, -7], "yaw_deg": 180, "seat": [8, 0, -6.05] }
-      ]
-    },
-    {
-      "name": "zone_3",
-      "label": "South benches",
-      "desks": [
-        { "position": [0.5, 0.74, 7], "yaw_deg": 0, "seat": [0.5, 0, 6.05] },
-        { "position": [2.5, 0.74, 7], "yaw_deg": 0, "seat": [2.5, 0, 6.05] },
-        { "position": [4.5, 0.74, 7], "yaw_deg": 0, "seat": [4.5, 0, 6.05] },
-        { "position": [6.5, 0.74, 7], "yaw_deg": 0, "seat": [6.5, 0, 6.05] }
-      ]
-    },
-    {
-      "name": "zone_4",
-      "label": "East wall benches",
-      "desks": [
-        { "position": [11.3, 0.74, 2], "yaw_deg": 90, "seat": [10.35, 0, 2] },
-        { "position": [11.3, 0.74, 3.5], "yaw_deg": 90, "seat": [10.35, 0, 3.5] },
-        { "position": [11.3, 0.74, 5], "yaw_deg": 90, "seat": [10.35, 0, 5] },
-        { "position": [11.3, 0.74, 6.5], "yaw_deg": 90, "seat": [10.35, 0, 6.5] }
-      ]
-    }
-  ],
   "waiting": [
     { "position": [-7.5, 0, 0.25], "yaw_deg": 90 },
     { "position": [7, 0, 0.25], "yaw_deg": 270 },
@@ -57,9 +14,6 @@
     { "position": [0, 0, 0.25], "yaw_deg": 180 }
   ],
   "spots": [
-    { "kind": "look", "position": [6.8, 0, -0.5], "yaw_deg": 90, "clip": "look", "seconds": 4 },
-    { "kind": "look", "position": [-8.5, 0, 2.3], "yaw_deg": 0, "clip": "look", "seconds": 4 },
-    { "kind": "look", "position": [0, 0, -3.2], "yaw_deg": 0, "clip": "look", "seconds": 4 },
     { "kind": "stretch", "position": [5, 0, 4.5], "yaw_deg": 0, "clip": "stretch", "seconds": 3 },
     {
       "kind": "stretch",
@@ -68,6 +22,13 @@
       "clip": "stretch",
       "seconds": 3
     }
+  ],
+  "blocks": [
+    { "minX": -12, "maxX": 12, "minZ": -8.15, "maxZ": -7.85 },
+    { "minX": -12.15, "maxX": -11.85, "minZ": -8, "maxZ": 8 },
+    { "minX": 11.85, "maxX": 12.15, "minZ": -8, "maxZ": 8 },
+    { "minX": -12, "maxX": -9.5, "minZ": 7.85, "maxZ": 8.15 },
+    { "minX": -6.5, "maxX": 12, "minZ": 7.85, "maxZ": 8.15 }
   ],
   "lighting": {
     "ambient": "#8a95a3",
@@ -80,6 +41,355 @@
       { "position": [0, 5.6, 0], "color": "#f3f7ff", "intensity": 16, "distance": 16 }
     ]
   },
-  "scene": "scene.glb",
-  "navmesh": "navmesh.glb"
+  "default_layout": [
+    {
+      "id": "00000000-0000-4000-8000-000000000bb9",
+      "kind": "shelf",
+      "x": 0,
+      "z": -2,
+      "yaw_deg": 90,
+      "width": 10,
+      "depth": 1,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bba",
+      "kind": "shelf",
+      "x": 0,
+      "z": 2,
+      "yaw_deg": 90,
+      "width": 10,
+      "depth": 1,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bbb",
+      "kind": "shelf",
+      "x": -11.3,
+      "z": -1,
+      "yaw_deg": 0,
+      "width": 10,
+      "depth": 1,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bbc",
+      "kind": "shelf",
+      "x": 11.3,
+      "z": -3,
+      "yaw_deg": 180,
+      "width": 6,
+      "depth": 1,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bbd",
+      "kind": "desk",
+      "x": -8,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bbe",
+      "kind": "desk",
+      "x": -6,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bbf",
+      "kind": "desk",
+      "x": -4,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc0",
+      "kind": "desk",
+      "x": -2,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc1",
+      "kind": "zone_rug",
+      "x": -5,
+      "z": -6.5,
+      "yaw_deg": 0,
+      "width": 8,
+      "depth": 3,
+      "zone": 1,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc2",
+      "kind": "desk",
+      "x": 2,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc3",
+      "kind": "desk",
+      "x": 4,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc4",
+      "kind": "desk",
+      "x": 6,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc5",
+      "kind": "desk",
+      "x": 8,
+      "z": -7,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc6",
+      "kind": "zone_rug",
+      "x": 5,
+      "z": -6.5,
+      "yaw_deg": 0,
+      "width": 8,
+      "depth": 3,
+      "zone": 2,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc7",
+      "kind": "desk",
+      "x": 0.5,
+      "z": 7,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc8",
+      "kind": "desk",
+      "x": 2.5,
+      "z": 7,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bc9",
+      "kind": "desk",
+      "x": 4.5,
+      "z": 7,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bca",
+      "kind": "desk",
+      "x": 6.5,
+      "z": 7,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bcb",
+      "kind": "zone_rug",
+      "x": 3.5,
+      "z": 6.5,
+      "yaw_deg": 0,
+      "width": 8,
+      "depth": 3,
+      "zone": 3,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bcc",
+      "kind": "desk",
+      "x": 11.3,
+      "z": 2,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bcd",
+      "kind": "desk",
+      "x": 11.3,
+      "z": 3.5,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bce",
+      "kind": "desk",
+      "x": 11.3,
+      "z": 5,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bcf",
+      "kind": "desk",
+      "x": 11.3,
+      "z": 6.5,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd0",
+      "kind": "zone_rug",
+      "x": 10.5,
+      "z": 4.25,
+      "yaw_deg": 0,
+      "width": 3,
+      "depth": 6.5,
+      "zone": 4,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd1",
+      "kind": "computer_desk",
+      "x": -2.5,
+      "z": 5.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd2",
+      "kind": "pallet",
+      "x": -8.5,
+      "z": 3.5,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd3",
+      "kind": "pallet",
+      "x": -7.1,
+      "z": 3.5,
+      "yaw_deg": 15,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd4",
+      "kind": "pallet",
+      "x": -10.3,
+      "z": 5.8,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000bd5",
+      "kind": "forklift",
+      "x": 8.5,
+      "z": -0.5,
+      "yaw_deg": 90,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    }
+  ],
+  "scene": "scene.glb"
 }

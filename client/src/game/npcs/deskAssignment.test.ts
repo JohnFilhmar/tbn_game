@@ -1,6 +1,7 @@
 import type { Department } from '@tbn/contracts';
 import { describe, expect, it } from 'vitest';
 import { PACKS } from '@/game/assets/packs';
+import { arrangePack } from '@/game/props/arrangedPack';
 import { agentFixture, fixtureId } from '@/testing/fixtures';
 import { assignSeats, isLiveAgent } from './deskAssignment';
 
@@ -19,7 +20,8 @@ function department(
   };
 }
 
-const { manifest } = PACKS.office;
+const office = arrangePack(PACKS.office, null);
+const manifest = { zones: office.zones, waiting: office.manifest.waiting };
 
 describe('assigning seats', () => {
   it('gives departments the zones in creation order and the manager the first desk', () => {

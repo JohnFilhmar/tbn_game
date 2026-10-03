@@ -3,6 +3,7 @@ import { CharacterManifestSchema } from './characterManifest';
 import { ClipNameSchema } from './clipNames';
 import { CHARACTER_SET, bodyNames, partNames } from './characters';
 import { PackManifestSchema } from './packManifest';
+import { arrangePack } from '@/game/props/arrangedPack';
 import { PACKS } from './packs';
 
 describe('the shipped manifests', () => {
@@ -11,13 +12,13 @@ describe('the shipped manifests', () => {
       const pack = PACKS[name];
       expect(pack.manifest.name).toBe(name);
       expect(pack.sceneUrl).toMatch(/scene.*\.glb$/);
-      expect(pack.navmeshUrl).toMatch(/navmesh.*\.glb$/);
-      expect(pack.manifest.zones).toHaveLength(4);
-      for (const zone of pack.manifest.zones) expect(zone.desks).toHaveLength(4);
+      const arranged = arrangePack(pack, null);
+      expect(arranged.zones).toHaveLength(4);
+      for (const zone of arranged.zones) expect(zone.desks).toHaveLength(4);
       expect(pack.manifest.waiting.length).toBeGreaterThan(0);
-      expect(pack.manifest.computer.use_radius).toBeGreaterThan(0);
-      expect(pack.manifest.spots.length).toBeGreaterThanOrEqual(5);
-      for (const place of pack.manifest.spots) {
+      expect(arranged.computer.use_radius).toBeGreaterThan(0);
+      expect(arranged.spots.length).toBeGreaterThanOrEqual(5);
+      for (const place of arranged.spots) {
         expect(CHARACTER_SET.manifest.clips).toContain(place.clip);
       }
     }
@@ -25,8 +26,8 @@ describe('the shipped manifests', () => {
 
   it('reject a pack without an anchor the world needs', () => {
     const { manifest } = PACKS.office;
-    expect(PackManifestSchema.safeParse({ ...manifest, zones: [] }).success).toBe(false);
-    expect(PackManifestSchema.safeParse({ ...manifest, computer: undefined }).success).toBe(false);
+    expect(PackManifestSchema.safeParse({ ...manifest, default_layout: [] }).success).toBe(false);
+    expect(PackManifestSchema.safeParse({ ...manifest, blocks: undefined }).success).toBe(false);
     expect(PackManifestSchema.safeParse({ ...manifest, extra: 1 }).success).toBe(false);
     expect(
       PackManifestSchema.safeParse({ ...manifest, spawn: { position: [0, 0], yaw_deg: 0 } })

@@ -1,6 +1,9 @@
-import type { BufferGeometry, Group } from 'three';
-import type { ComputerAnchor } from './furniture.ts';
-import type { Anchor, Bounds, DeskAnchor, Vec3 } from './kit.ts';
+import type { PropKind, WorldPlacement } from '@tbn/contracts';
+import type { Group } from 'three';
+import type { Anchor, Bounds, Footprint, Vec3 } from '#game/props/builder.ts';
+import type { SpotAnchor } from '#game/props/catalog.ts';
+
+export { spot } from '#game/props/catalog.ts';
 
 /** A light inside the pack, on from dusk. */
 export interface InteriorLight {
@@ -17,80 +20,68 @@ export interface Lighting {
   interior: InteriorLight[];
 }
 
-/** What an idle agent goes to do at a spot. */
-export type SpotKind = 'water' | 'window' | 'plant' | 'board' | 'grass' | 'stretch' | 'look';
-
-/** A place an idle agent goes: where it stands, the way it faces, the clip it plays and how long. */
-export interface Spot {
-  kind: SpotKind;
-  position: Vec3;
-  yaw_deg: number;
-  clip: string;
-  seconds: number;
-}
-
-const SPOT_CLIPS: Record<SpotKind, [string, number]> = {
-  water: ['drink', 4],
-  window: ['look', 5],
-  plant: ['look', 3],
-  board: ['write', 5],
-  grass: ['touch', 4],
-  stretch: ['stretch', 3],
-  look: ['look', 4],
-};
-
-/** A spot standing at `at` and facing `facing`, both on the floor, with its kind's clip. */
-export function spot(kind: SpotKind, at: [number, number], facing: [number, number]): Spot {
-  const yaw = (Math.atan2(facing[0] - at[0], facing[1] - at[1]) * 180) / Math.PI;
-  const [clip, seconds] = SPOT_CLIPS[kind];
-  return { kind, position: [at[0], 0, at[1]], yaw_deg: Math.round(yaw), clip, seconds };
-}
-
-/** A department's zone: its desks, the manager's first. */
-export interface Zone {
-  name: string;
-  label: string;
-  desks: DeskAnchor[];
-}
-
 /** What `manifest.json` holds, as `docs/assets.md` describes it. */
 export interface PackManifest {
   name: string;
   title: string;
   scale: number;
   scene: string;
-  navmesh: string;
   bounds: Bounds;
   ceiling: number;
   spawn: Anchor;
   entry: Anchor;
   exit: Anchor;
-  computer: ComputerAnchor;
-  zones: Zone[];
   waiting: Anchor[];
-  spots: Spot[];
+  /** The shell's own spots; every prop brings its own. */
+  spots: SpotAnchor[];
+  /** The floor the shell's walls block. */
+  blocks: Footprint[];
   lighting: Lighting;
+  /** The props the pack starts with, until the owner saves a layout of their own. */
+  default_layout: WorldPlacement[];
 }
 
 /** A built pack, before its files are written. */
 export interface PackResult {
-  manifest: Omit<PackManifest, 'scene' | 'navmesh'>;
+  manifest: Omit<PackManifest, 'scene'>;
   scene: Group;
-  navmesh: BufferGeometry;
 }
 
-/** The anchors a navmesh must reach: every seat and every place someone stands. */
-export function anchorsOf(
-  manifest: Omit<PackManifest, 'scene' | 'navmesh'>,
-  extra: Vec3[],
-): Vec3[] {
-  return [
-    manifest.entry.position,
-    manifest.exit.position,
-    manifest.spawn.position,
-    ...manifest.zones.flatMap((zone) => zone.desks.map((desk) => desk.seat)),
-    ...manifest.waiting.map((anchor) => anchor.position),
-    ...manifest.spots.map((place) => place.position),
-    ...extra,
-  ];
+/** Extra settings of one placement in a default layout. */
+export interface PlacementOptions {
+  width?: number;
+  depth?: number;
+  zone?: number;
+  variant?: string;
+}
+
+/**
+ * Collects a pack's default layout. Ids are fixed per pack and position in the list, so a
+ * rebuilt pack keeps them and the layout's order, which decides who gets which desk.
+ */
+export class LayoutBuilder {
+  readonly placements: WorldPlacement[] = [];
+  private readonly pack: number;
+
+  /** `pack` is a number per pack, which keeps ids unique across packs. */
+  constructor(pack: number) {
+    this.pack = pack;
+  }
+
+  /** Places a prop of `kind` at (`x`, `z`), facing `yawDeg`. */
+  add(kind: PropKind, x: number, z: number, yawDeg = 0, options: PlacementOptions = {}): void {
+    const serial = (this.pack * 1000 + this.placements.length + 1).toString(16).padStart(12, '0');
+    this.placements.push({
+      id: `00000000-0000-4000-8000-${serial}`,
+      kind,
+      x,
+      z,
+      yaw_deg: yawDeg,
+      width: options.width ?? null,
+      depth: options.depth ?? null,
+      zone: options.zone ?? null,
+      variant: options.variant ?? null,
+      color: null,
+    });
+  }
 }

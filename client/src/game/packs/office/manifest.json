@@ -7,49 +7,6 @@
   "spawn": { "position": [2.5, 0, 6.25], "yaw_deg": 180 },
   "entry": { "position": [0, 0, 7.25], "yaw_deg": 180 },
   "exit": { "position": [0, 0, 7.25], "yaw_deg": 0 },
-  "computer": { "position": [-4.5, 1.19, 6.22], "yaw_deg": 180, "use_radius": 1.9 },
-  "zones": [
-    {
-      "name": "zone_1",
-      "label": "North west island",
-      "desks": [
-        { "position": [-6.5, 0.74, -4.1], "yaw_deg": 0, "seat": [-6.5, 0, -5.05] },
-        { "position": [-4.5, 0.74, -4.1], "yaw_deg": 0, "seat": [-4.5, 0, -5.05] },
-        { "position": [-6.5, 0.74, -2.4], "yaw_deg": 180, "seat": [-6.5, 0, -1.45] },
-        { "position": [-4.5, 0.74, -2.4], "yaw_deg": 180, "seat": [-4.5, 0, -1.45] }
-      ]
-    },
-    {
-      "name": "zone_2",
-      "label": "North east island",
-      "desks": [
-        { "position": [4.5, 0.74, -4.1], "yaw_deg": 0, "seat": [4.5, 0, -5.05] },
-        { "position": [6.5, 0.74, -4.1], "yaw_deg": 0, "seat": [6.5, 0, -5.05] },
-        { "position": [4.5, 0.74, -2.4], "yaw_deg": 180, "seat": [4.5, 0, -1.45] },
-        { "position": [6.5, 0.74, -2.4], "yaw_deg": 180, "seat": [6.5, 0, -1.45] }
-      ]
-    },
-    {
-      "name": "zone_3",
-      "label": "South west island",
-      "desks": [
-        { "position": [-6.5, 0.74, 1.9], "yaw_deg": 0, "seat": [-6.5, 0, 0.95] },
-        { "position": [-4.5, 0.74, 1.9], "yaw_deg": 0, "seat": [-4.5, 0, 0.95] },
-        { "position": [-6.5, 0.74, 3.6], "yaw_deg": 180, "seat": [-6.5, 0, 4.55] },
-        { "position": [-4.5, 0.74, 3.6], "yaw_deg": 180, "seat": [-4.5, 0, 4.55] }
-      ]
-    },
-    {
-      "name": "zone_4",
-      "label": "South east island",
-      "desks": [
-        { "position": [4.5, 0.74, 1.9], "yaw_deg": 0, "seat": [4.5, 0, 0.95] },
-        { "position": [6.5, 0.74, 1.9], "yaw_deg": 0, "seat": [6.5, 0, 0.95] },
-        { "position": [4.5, 0.74, 3.6], "yaw_deg": 180, "seat": [4.5, 0, 4.55] },
-        { "position": [6.5, 0.74, 3.6], "yaw_deg": 180, "seat": [6.5, 0, 4.55] }
-      ]
-    }
-  ],
   "waiting": [
     { "position": [-2.5, 0, -0.25], "yaw_deg": 90 },
     { "position": [2.5, 0, -0.25], "yaw_deg": 270 },
@@ -57,14 +14,18 @@
     { "position": [0, 0, 1.25], "yaw_deg": 180 }
   ],
   "spots": [
-    { "kind": "water", "position": [9, 0, 6.7], "yaw_deg": 45, "clip": "drink", "seconds": 4 },
     { "kind": "window", "position": [-7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
     { "kind": "window", "position": [7.5, 0, -7.2], "yaw_deg": 180, "clip": "look", "seconds": 5 },
     { "kind": "window", "position": [10.1, 0, 0], "yaw_deg": 90, "clip": "look", "seconds": 5 },
-    { "kind": "plant", "position": [-9.7, 0, -6.8], "yaw_deg": -131, "clip": "look", "seconds": 3 },
-    { "kind": "board", "position": [1.5, 0, -7.3], "yaw_deg": -122, "clip": "write", "seconds": 5 },
     { "kind": "stretch", "position": [0, 0, 4], "yaw_deg": 0, "clip": "stretch", "seconds": 3 },
     { "kind": "stretch", "position": [8.5, 0, 6], "yaw_deg": 0, "clip": "stretch", "seconds": 3 }
+  ],
+  "blocks": [
+    { "minX": -11, "maxX": 11, "minZ": -8.1, "maxZ": -7.9 },
+    { "minX": -11, "maxX": -0.9, "minZ": 7.9, "maxZ": 8.1 },
+    { "minX": 0.9, "maxX": 11, "minZ": 7.9, "maxZ": 8.1 },
+    { "minX": -11.1, "maxX": -10.9, "minZ": -8, "maxZ": 8 },
+    { "minX": 10.9, "maxX": 11.1, "minZ": -8, "maxZ": 8 }
   ],
   "lighting": {
     "ambient": "#9fb4c8",
@@ -78,6 +39,475 @@
       { "position": [0, 2.8, 6], "color": "#fff1d6", "intensity": 7, "distance": 10 }
     ]
   },
-  "scene": "scene.glb",
-  "navmesh": "navmesh.glb"
+  "default_layout": [
+    {
+      "id": "00000000-0000-4000-8000-0000000003e9",
+      "kind": "desk",
+      "x": -6.5,
+      "z": -4.1,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ea",
+      "kind": "desk",
+      "x": -4.5,
+      "z": -4.1,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003eb",
+      "kind": "desk",
+      "x": -6.5,
+      "z": -2.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ec",
+      "kind": "desk",
+      "x": -4.5,
+      "z": -2.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ed",
+      "kind": "partition",
+      "x": -5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": 3.5,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ee",
+      "kind": "partition",
+      "x": -7.25,
+      "z": -3.25,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ef",
+      "kind": "partition",
+      "x": -3.75,
+      "z": -3.25,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f0",
+      "kind": "zone_rug",
+      "x": -5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": 4,
+      "depth": 4.4,
+      "zone": 1,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f1",
+      "kind": "desk",
+      "x": 4.5,
+      "z": -4.1,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f2",
+      "kind": "desk",
+      "x": 6.5,
+      "z": -4.1,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f3",
+      "kind": "desk",
+      "x": 4.5,
+      "z": -2.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f4",
+      "kind": "desk",
+      "x": 6.5,
+      "z": -2.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f5",
+      "kind": "partition",
+      "x": 5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": 3.5,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f6",
+      "kind": "partition",
+      "x": 3.75,
+      "z": -3.25,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f7",
+      "kind": "partition",
+      "x": 7.25,
+      "z": -3.25,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f8",
+      "kind": "zone_rug",
+      "x": 5.5,
+      "z": -3.25,
+      "yaw_deg": 0,
+      "width": 4,
+      "depth": 4.4,
+      "zone": 2,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003f9",
+      "kind": "desk",
+      "x": -6.5,
+      "z": 1.9,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003fa",
+      "kind": "desk",
+      "x": -4.5,
+      "z": 1.9,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003fb",
+      "kind": "desk",
+      "x": -6.5,
+      "z": 3.6,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003fc",
+      "kind": "desk",
+      "x": -4.5,
+      "z": 3.6,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003fd",
+      "kind": "partition",
+      "x": -5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": 3.5,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003fe",
+      "kind": "partition",
+      "x": -7.25,
+      "z": 2.75,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000003ff",
+      "kind": "partition",
+      "x": -3.75,
+      "z": 2.75,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000400",
+      "kind": "zone_rug",
+      "x": -5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": 4,
+      "depth": 4.4,
+      "zone": 3,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000401",
+      "kind": "desk",
+      "x": 4.5,
+      "z": 1.9,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000402",
+      "kind": "desk",
+      "x": 6.5,
+      "z": 1.9,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000403",
+      "kind": "desk",
+      "x": 4.5,
+      "z": 3.6,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000404",
+      "kind": "desk",
+      "x": 6.5,
+      "z": 3.6,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000405",
+      "kind": "partition",
+      "x": 5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": 3.5,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000406",
+      "kind": "partition",
+      "x": 3.75,
+      "z": 2.75,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000407",
+      "kind": "partition",
+      "x": 7.25,
+      "z": 2.75,
+      "yaw_deg": 90,
+      "width": 2.4,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000408",
+      "kind": "zone_rug",
+      "x": 5.5,
+      "z": 2.75,
+      "yaw_deg": 0,
+      "width": 4,
+      "depth": 4.4,
+      "zone": 4,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000409",
+      "kind": "table",
+      "x": 0,
+      "z": -6,
+      "yaw_deg": 0,
+      "width": 2.4,
+      "depth": 1.2,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040a",
+      "kind": "whiteboard",
+      "x": 0,
+      "z": -7.86,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040b",
+      "kind": "plant",
+      "x": -10.4,
+      "z": -7.4,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040c",
+      "kind": "plant",
+      "x": 10.4,
+      "z": -7.4,
+      "yaw_deg": 0,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040d",
+      "kind": "plant",
+      "x": -10.4,
+      "z": 7.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040e",
+      "kind": "water_cooler",
+      "x": 9.6,
+      "z": 7.3,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000040f",
+      "kind": "computer_desk",
+      "x": -4.5,
+      "z": 6.4,
+      "yaw_deg": 180,
+      "width": null,
+      "depth": null,
+      "zone": null,
+      "variant": null,
+      "color": null
+    }
+  ],
+  "scene": "scene.glb"
 }

@@ -1,9 +1,15 @@
 import type { Agent, Department } from '@tbn/contracts';
-import type { Anchor, DeskAnchor, PackManifest, Zone } from '@/game/assets/packManifest';
+import type { Anchor, DeskAnchor, Zone } from '@/game/assets/packManifest';
 
 /** Where an agent belongs in a pack: a desk in its department's zone, or an overflow anchor. */
 export type Seat =
   { kind: 'desk'; zone: Zone; desk: DeskAnchor } | { kind: 'waiting'; anchor: Anchor };
+
+/** What seating needs of an arranged pack: its zones and its overflow anchors. */
+export interface SeatingPlan {
+  zones: readonly Zone[];
+  waiting: readonly Anchor[];
+}
 
 /** True for an agent that is still in the company. */
 export function isLiveAgent(agent: Agent): boolean {
@@ -20,7 +26,7 @@ function byCreation<T extends { created_at: string; id: string }>(left: T, right
  * of its zone, or in a department past the last zone, stands at an overflow anchor, round robin.
  */
 export function assignSeats(
-  manifest: PackManifest,
+  plan: SeatingPlan,
   departments: readonly Department[],
   agents: readonly Agent[],
 ): Map<string, Seat> {
@@ -30,7 +36,7 @@ export function assignSeats(
   const overflow: Agent[] = [];
   const seen = new Set<string>();
   orderedDepartments.forEach((department, index) => {
-    const zone = manifest.zones[index];
+    const zone = plan.zones[index];
     const members = live
       .filter((agent) => agent.department_id === department.id)
       .sort((left, right) => {
@@ -51,7 +57,7 @@ export function assignSeats(
     if (!seen.has(agent.id)) overflow.push(agent);
   }
   overflow.forEach((agent, index) => {
-    const anchor = manifest.waiting[index % manifest.waiting.length];
+    const anchor = plan.waiting[index % plan.waiting.length];
     if (anchor !== undefined) seats.set(agent.id, { kind: 'waiting', anchor });
   });
   return seats;

@@ -1,35 +1,20 @@
-import {
-  BASE_MATERIALS,
-  computerDesk,
-  desk,
-  doorFrame,
-  lamp,
-  partition,
-  plant,
-  tableSeats,
-  waterCooler,
-  whiteboard,
-  windowPane,
-} from '../furniture.ts';
-import { PackBuilder } from '../kit.ts';
-import { anchorsOf, spot, type PackResult, type Zone } from '../manifest.ts';
+import { PackBuilder } from '#game/props/builder.ts';
+import { BASE_MATERIALS, doorFrame, lamp, windowPane } from '#game/props/furniture.ts';
+import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -11, max_x: 11, min_z: -8, max_z: 8 };
 const CEILING = 3;
 
-/** An island of four desks, two facing two across a partition. */
-function island(b: PackBuilder, cx: number, cz: number, name: string, label: string): Zone {
-  const desks = [
-    desk(b, [cx - 1, cz - 0.85], 0),
-    desk(b, [cx + 1, cz - 0.85], 0),
-    desk(b, [cx - 1, cz + 0.85], 180),
-    desk(b, [cx + 1, cz + 0.85], 180),
-  ];
-  partition(b, [cx - 1.75, cz], [cx + 1.75, cz]);
-  partition(b, [cx - 1.75, cz - 1.2], [cx - 1.75, cz + 1.2]);
-  partition(b, [cx + 1.75, cz - 1.2], [cx + 1.75, cz + 1.2]);
-  lamp(b, [cx, cz], CEILING);
-  return { name, label, desks };
+/** An island of four desks, two facing two across a partition, on its department's zone rug. */
+function island(layout: LayoutBuilder, cx: number, cz: number, zone: number): void {
+  layout.add('desk', cx - 1, cz - 0.85, 0);
+  layout.add('desk', cx + 1, cz - 0.85, 0);
+  layout.add('desk', cx - 1, cz + 0.85, 180);
+  layout.add('desk', cx + 1, cz + 0.85, 180);
+  layout.add('partition', cx, cz, 0, { width: 3.5 });
+  layout.add('partition', cx - 1.75, cz, 90, { width: 2.4 });
+  layout.add('partition', cx + 1.75, cz, 90, { width: 2.4 });
+  layout.add('zone_rug', cx, cz, 0, { width: 4, depth: 4.4, zone });
 }
 
 /** An open plan office: four islands, a meeting table by the windows, the owner's desk by the door. */
@@ -44,15 +29,6 @@ export function buildOffice(): PackResult {
   doorFrame(b, [0, 8], 0, 1.8);
   for (const x of [-7.5, -2.5, 2.5, 7.5]) windowPane(b, [x, -7.88], 0, 2);
   for (const z of [-4, 0, 4]) windowPane(b, [10.88, z], 270, 2);
-  whiteboard(b, [0, -7.86], 0);
-
-  const zones = [
-    island(b, -5.5, -3.25, 'zone_1', 'North west island'),
-    island(b, 5.5, -3.25, 'zone_2', 'North east island'),
-    island(b, -5.5, 2.75, 'zone_3', 'South west island'),
-    island(b, 5.5, 2.75, 'zone_4', 'South east island'),
-  ];
-  tableSeats(b, [0, -6], 0, [2.4, 1.2]);
   const lights: [number, number][] = [
     [-5.5, -3.25],
     [5.5, -3.25],
@@ -61,56 +37,57 @@ export function buildOffice(): PackResult {
     [0, -6],
     [0, 6],
   ];
-  lamp(b, [0, -6], CEILING);
-  lamp(b, [0, 6], CEILING);
-  for (const corner of [
-    [-10.4, -7.4],
-    [10.4, -7.4],
-    [-10.4, 7.4],
-  ] as const) {
-    plant(b, [corner[0], corner[1]]);
-  }
-  waterCooler(b, [9.6, 7.3]);
-  const { desk: ownerDesk, computer } = computerDesk(b, [-4.5, 6.4], 180);
+  for (const at of lights) lamp(b, at, CEILING);
 
-  const manifest: PackResult['manifest'] = {
-    name: 'office',
-    title: 'Office',
-    scale: 1,
-    bounds: BOUNDS,
-    ceiling: CEILING,
-    spawn: { position: [2.5, 0, 6.25], yaw_deg: 180 },
-    entry: { position: [0, 0, 7.25], yaw_deg: 180 },
-    exit: { position: [0, 0, 7.25], yaw_deg: 0 },
-    computer,
-    zones,
-    waiting: [
-      { position: [-2.5, 0, -0.25], yaw_deg: 90 },
-      { position: [2.5, 0, -0.25], yaw_deg: 270 },
-      { position: [0, 0, -1.75], yaw_deg: 0 },
-      { position: [0, 0, 1.25], yaw_deg: 180 },
-    ],
-    spots: [
-      spot('water', [9, 6.7], [9.6, 7.3]),
-      spot('window', [-7.5, -7.2], [-7.5, -8]),
-      spot('window', [7.5, -7.2], [7.5, -8]),
-      spot('window', [10.1, 0], [11, 0]),
-      spot('plant', [-9.7, -6.8], [-10.4, -7.4]),
-      spot('board', [1.5, -7.3], [0.6, -7.86]),
-      spot('stretch', [0, 4], [0, 8]),
-      spot('stretch', [8.5, 6], [8.5, 8]),
-    ],
-    lighting: {
-      ambient: '#9fb4c8',
-      sun_azimuth_deg: 135,
-      interior: lights.map(([x, z]) => ({
-        position: [x, CEILING - 0.2, z],
-        color: '#fff1d6',
-        intensity: 7,
-        distance: 10,
-      })),
+  const layout = new LayoutBuilder(1);
+  island(layout, -5.5, -3.25, 1);
+  island(layout, 5.5, -3.25, 2);
+  island(layout, -5.5, 2.75, 3);
+  island(layout, 5.5, 2.75, 4);
+  layout.add('table', 0, -6, 0, { width: 2.4, depth: 1.2 });
+  layout.add('whiteboard', 0, -7.86, 0);
+  layout.add('plant', -10.4, -7.4, 0);
+  layout.add('plant', 10.4, -7.4, 0);
+  layout.add('plant', -10.4, 7.4, 180);
+  layout.add('water_cooler', 9.6, 7.3, 180);
+  layout.add('computer_desk', -4.5, 6.4, 180);
+
+  return {
+    manifest: {
+      name: 'office',
+      title: 'Office',
+      scale: 1,
+      bounds: BOUNDS,
+      ceiling: CEILING,
+      spawn: { position: [2.5, 0, 6.25], yaw_deg: 180 },
+      entry: { position: [0, 0, 7.25], yaw_deg: 180 },
+      exit: { position: [0, 0, 7.25], yaw_deg: 0 },
+      waiting: [
+        { position: [-2.5, 0, -0.25], yaw_deg: 90 },
+        { position: [2.5, 0, -0.25], yaw_deg: 270 },
+        { position: [0, 0, -1.75], yaw_deg: 0 },
+        { position: [0, 0, 1.25], yaw_deg: 180 },
+      ],
+      spots: [
+        spot('window', [-7.5, -7.2], [-7.5, -8]),
+        spot('window', [7.5, -7.2], [7.5, -8]),
+        spot('window', [10.1, 0], [11, 0]),
+        spot('stretch', [0, 4], [0, 8]),
+        spot('stretch', [8.5, 6], [8.5, 8]),
+      ],
+      blocks: b.footprints,
+      lighting: {
+        ambient: '#9fb4c8',
+        sun_azimuth_deg: 135,
+        interior: lights.map(([x, z]) => ({
+          position: [x, CEILING - 0.2, z],
+          color: '#fff1d6',
+          intensity: 7,
+          distance: 10,
+        })),
+      },
+      default_layout: layout.placements,
     },
+    scene: b.build(),
   };
-  const navmesh = b.navmesh(BOUNDS, 0.5, 0.3, anchorsOf(manifest, [ownerDesk.seat]));
-  return { manifest, scene: b.build(), navmesh };
 }

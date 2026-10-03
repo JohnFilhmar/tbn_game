@@ -9,7 +9,8 @@ import { useWorldHour } from '@/game/world/useWorldHour';
 import { canRenderWorld } from '@/game/world/webgl';
 import { useWorldStore } from '@/game/world/worldStore';
 import { COLLECTIONS } from '@/lib/data/collections';
-import { useCollection, usePreferences } from '@/lib/data/queries';
+import { useCollection, usePreferences, useWorldLayout } from '@/lib/data/queries';
+import { arrangePack } from '@/game/props/arrangedPack';
 import { cx } from '@/lib/ui/cx';
 import { useSession } from '@/providers/SessionProvider';
 
@@ -74,7 +75,10 @@ export function WorldLayout() {
     if (preferredEnvironment !== undefined) setEnvironment(preferredEnvironment);
   }, [preferredEnvironment, setEnvironment]);
 
-  const pack = PACKS[preferredEnvironment ?? environment];
+  const shownEnvironment = preferredEnvironment ?? environment;
+  const pack = PACKS[shownEnvironment];
+  const { data: savedLayout } = useWorldLayout(shownEnvironment);
+  const arranged = useMemo(() => arrangePack(pack, savedLayout ?? null), [pack, savedLayout]);
   const hour = useWorldHour(
     preferences?.time_of_day ?? 'clock',
     preferences?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -100,7 +104,7 @@ export function WorldLayout() {
       {canRender ? (
         <Suspense fallback={<WorldNotice text="Loading the world…" />}>
           <LazyWorld
-            pack={pack}
+            arranged={arranged}
             hour={hour}
             ownerAppearance={ownerAppearance}
             agents={agents}

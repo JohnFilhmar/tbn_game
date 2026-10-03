@@ -67,7 +67,8 @@ export class AgentActor {
   clip: ClipName = 'idle';
   activity: Activity = 'at_desk';
   home: ActorHome;
-  private readonly planner: PathPlanner;
+  /** Plans the walks; the world hands over a new one when the layout changes. */
+  planner: PathPlanner;
   private readonly listener: ActorListener;
   private queue: Step[] = [];
   private path: Vector3[] = [];
@@ -246,6 +247,17 @@ export class AgentActor {
       { kind: 'walk', to: exit, activity: 'leaving', narration: `${this.name} leaves.` },
       { kind: 'vanish' },
     );
+  }
+
+  /**
+   * Gives the agent a new home it walks to, as when the owner moves its desk: after whatever it
+   * is doing, it settles at the new desk or stands by it.
+   */
+  relocate(home: ActorHome): void {
+    this.dropWander();
+    this.home = home;
+    this.isSeated = false;
+    this.queue.push({ kind: 'settle' });
   }
 
   /** Puts the agent at a new home at once, as a pack switch does. */

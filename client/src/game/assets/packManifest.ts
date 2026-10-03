@@ -1,4 +1,4 @@
-import { EnvironmentNameSchema } from '@tbn/contracts';
+import { EnvironmentNameSchema, WorldPlacementSchema } from '@tbn/contracts';
 import { z } from 'zod';
 import { ClipNameSchema } from './clipNames';
 
@@ -50,15 +50,12 @@ export const SpotSchema = AnchorSchema.extend({
 /** A spot. */
 export type Spot = z.infer<typeof SpotSchema>;
 
-/** A department's zone: its desks, the manager's first. */
-export const ZoneSchema = z.strictObject({
-  name: z.string().min(1),
-  label: z.string().min(1),
-  desks: DeskAnchorSchema.array().min(1),
-});
-
-/** A department's zone. */
-export type Zone = z.infer<typeof ZoneSchema>;
+/** A department's zone: its desks, the manager's first. A layout makes them from its zone rugs. */
+export interface Zone {
+  name: string;
+  label: string;
+  desks: DeskAnchor[];
+}
 
 /** A light inside the pack, on from dusk. */
 export const InteriorLightSchema = z.strictObject({
@@ -86,23 +83,33 @@ export const BoundsSchema = z.strictObject({
 /** The floor rectangle of a pack. */
 export type Bounds = z.infer<typeof BoundsSchema>;
 
+/** Floor nobody walks through: a wall of the shell. */
+export const FootprintSchema = z.strictObject({
+  minX: z.number(),
+  maxX: z.number(),
+  minZ: z.number(),
+  maxZ: z.number(),
+});
+
 /** An environment pack's `manifest.json`, as `docs/assets.md` describes it. */
 export const PackManifestSchema = z.strictObject({
   name: EnvironmentNameSchema,
   title: z.string().min(1),
   scale: z.number().positive(),
   scene: z.string().min(1),
-  navmesh: z.string().min(1),
   bounds: BoundsSchema,
   ceiling: z.number().positive(),
   spawn: AnchorSchema,
   entry: AnchorSchema,
   exit: AnchorSchema,
-  computer: ComputerAnchorSchema,
-  zones: ZoneSchema.array().min(1),
   waiting: AnchorSchema.array().min(1),
+  /** The shell's own spots; the props bring theirs. */
   spots: SpotSchema.array(),
+  /** The floor the shell's walls block. */
+  blocks: FootprintSchema.array(),
   lighting: LightingSchema,
+  /** The props the pack starts with, until the owner saves a layout of their own. */
+  default_layout: WorldPlacementSchema.array().min(1),
 });
 
 /** An environment pack's manifest. */
