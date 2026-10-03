@@ -8,6 +8,7 @@ import { IdentityModule } from '@/modules/identity/identity.module';
 import { IntegrationsModule } from '@/modules/integrations/integrations.module';
 import { KnowledgeModule } from '@/modules/knowledge/knowledge.module';
 import { RuntimeModule } from '@/modules/runtime/runtime.module';
+import { WorldModule } from '@/modules/world/world.module';
 import { EventController } from './controllers/event.controller';
 import { EVENT_REPOSITORY } from './repositories/interface/event_repository.interface';
 import { PrismaEventRepository } from './repositories/prisma_event.repository';
@@ -33,6 +34,7 @@ import { RetentionService } from './services/retention.service';
     RuntimeModule,
     KnowledgeModule,
     IntegrationsModule,
+    WorldModule,
   ],
   controllers: [EventController],
   providers: [
