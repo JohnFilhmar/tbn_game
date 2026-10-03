@@ -57,6 +57,15 @@ describe('the E prompt', () => {
     expect(promptAt(scene({}, [0, -5], [prop('switch', 0, -3, 1.5)]))).toBeNull();
   });
 
+  it('keeps E for the computer over a nearer prop, such as the inbox on its desk', () => {
+    const tray = prop('tray', 0, 1);
+    expect(promptAt(scene({}, [0, 0], [tray]))).toEqual({ kind: 'computer' });
+    expect(promptAt(scene({ ada: [0, 0.5] }, [0, 0], [prop('mug', 0, 0.3)]))).toEqual({
+      kind: 'prop',
+      placementId: 'mug',
+    });
+  });
+
   it('lists every prop within reach, nearest first, whichever way the owner faces', () => {
     const owner = new Vector3(0, 0, -5);
     const props = [prop('far', 0, -2), prop('behind', 0, -6), prop('front', 0, -4.2)];

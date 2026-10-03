@@ -19,6 +19,7 @@ const COLORS: Record<EffectKind, Color> = {
   steam: new Color('#f1f5f9'),
   bubbles: new Color('#a8dcff'),
   blades: new Color('#5fa84a'),
+  drops: new Color('#5aa9e6'),
 };
 /** The golden angle, which spreads a burst's particles evenly around it. */
 const SPREAD = 2.39996;
@@ -31,6 +32,11 @@ function place(kind: EffectKind, index: number, age: number, out: Vector3): numb
     const sway = angle + age * 1.5;
     out.set(Math.cos(sway) * 0.06, age * 0.35 + index * 0.03, Math.sin(sway) * 0.06);
     return 0.02 + 0.04 * (1 - life);
+  }
+  if (kind === 'drops') {
+    const fall = Math.min(1.2, 0.6 * age + 2 * age * age);
+    out.set(Math.cos(angle) * 0.15, -((fall + index * 0.07) % 1.2), Math.sin(angle) * 0.15);
+    return 0.022;
   }
   if (kind === 'bubbles') {
     out.set(Math.cos(angle) * 0.07, (age * 0.4 + index * 0.05) % 0.4, Math.sin(angle) * 0.07);

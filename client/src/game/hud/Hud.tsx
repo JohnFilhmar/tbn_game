@@ -1,28 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ConnectionLight } from '@/app/ConnectionLight';
 import { Button } from '@/components/Button';
 import { yawTowards } from '@/game/assets/geometry';
-import { stateOf, type PropStates } from '@/game/objects/propStates';
+import type { LiveData } from '@/game/objects/liveData';
+import type { PropStates } from '@/game/objects/propStates';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
-import { themeColor } from '@/game/props/themes';
 import { isTypingTarget, useHotkeys } from '@/game/world/keyboard';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
 import { talkTo } from '@/game/world/talk';
 import { landingBeside } from '@/game/world/seat';
 import { useWorldStore } from '@/game/world/worldStore';
 import { usePreferences } from '@/lib/data/queries';
-import { useSavePropState } from '@/lib/data/useSavePropState';
 import { useSession } from '@/providers/SessionProvider';
+import { ControlsHelp } from './ControlsHelp';
 import { ConversationPanel } from './ConversationPanel';
 import { CustomiseDialog } from './CustomiseDialog';
-import { LightsDialog } from './LightsDialog';
 import { MOST_HOTKEYS, NarrationPanel } from './NarrationPanel';
+import { PropOverlays } from './PropOverlays';
 import { PropReach } from './PropReach';
 import { SpeechBubble } from './SpeechBubble';
 import { useAgentRows, type AgentRow } from './useAgentRows';
 import { propVerb, useInteract } from './useInteract';
-import { WhiteboardDialog } from './WhiteboardDialog';
 import { WorldMenu } from './WorldMenu';
 import { WorldToast } from './WorldToast';
 
@@ -37,6 +36,8 @@ export interface HudProps {
   arranged: ArrangedPack;
   /** The saved state of each prop that keeps one. */
   propStates: PropStates;
+  /** What the company's objects show: the inbox, the cork board, the trophies. */
+  live: LiveData;
 }
 
 type OpenDialog = 'world' | 'customise' | null;
@@ -44,21 +45,13 @@ type OpenDialog = 'world' | 'customise' | null;
 const PANEL =
   'pointer-events-auto rounded-lg border-2 border-slate-700 bg-slate-900/85 text-slate-100 shadow-chunk backdrop-blur';
 
-function Key({ children }: { children: string }) {
-  return (
-    <kbd className="rounded-sm border border-slate-600 bg-slate-800 px-1 font-display text-slate-100">
-      {children}
-    </kbd>
-  );
-}
-
 /**
  * What lies over the canvas: the live light and the pack, the buttons for the desk, the camera,
  * the world menu and customisation, the controls help, the computer prompt, and the narration with
  * a way to go to each agent. The Desk button sits the owner at the computer from anywhere, through
  * a short fade; E does it without one within reach of the computer.
  */
-export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }: HudProps) {
+export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, live }: HudProps) {
   const navigate = useNavigate();
   const { signOut } = useSession();
   const { data: preferences } = usePreferences();
@@ -80,12 +73,18 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }:
   const reachablePropIds = useWorldStore((state) => state.reachablePropIds);
   const drawingOn = useWorldStore((state) => state.drawingOn);
   const setDrawingOn = useWorldStore((state) => state.setDrawingOn);
-  const isLightsOpen = useWorldStore((state) => state.isLightsOpen);
-  const setLightsOpen = useWorldStore((state) => state.setLightsOpen);
+  const panel = useWorldStore((state) => state.panel);
+  const setPanel = useWorldStore((state) => state.setPanel);
+  const [openDialog, setOpenDialog] = useState<OpenDialog>(null);
   const { placements } = arranged;
-  const environment = arranged.manifest.name;
-  const interact = useInteract(placements, propStates, environment);
-  const savePropState = useSavePropState(environment);
+  const host = useMemo(
+    () => ({
+      openDesk: (path: string) => fadeThrough(() => void navigate(path)),
+      openWorldMenu: () => setOpenDialog('world'),
+    }),
+    [fadeThrough, navigate],
+  );
+  const interact = useInteract(placements, propStates, arranged.manifest.name, host);
   const nearProp = placements.find((placement) => placement.id === nearPropId);
   const nearVerb = nearProp === undefined ? null : propVerb(nearProp, propStates);
   const rows = useAgentRows();
@@ -103,18 +102,17 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }:
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [talkingTo, setTalkingTo]);
 
-  // Drawing and the light panel end when the owner sits down.
+  // Drawing and the props' panels end when the owner sits down.
   useEffect(() => {
     if (!isOverlayOpen) return;
     setDrawingOn(null);
-    setLightsOpen(false);
-  }, [isOverlayOpen, setDrawingOn, setLightsOpen]);
+    setPanel(null);
+  }, [isOverlayOpen, setDrawingOn, setPanel]);
 
   // A conversation ends when the owner sits down, or when the agent leaves the world.
   useEffect(() => {
     if (talkingTo !== null && (isOverlayOpen || !isPartnerHere)) setTalkingTo(null);
   }, [talkingTo, isOverlayOpen, isPartnerHere, setTalkingTo]);
-  const [openDialog, setOpenDialog] = useState<OpenDialog>(null);
 
   const talk = (row: AgentRow): void => talkTo(row.agentId, row.name);
   const sitDown = (): void => {
@@ -131,7 +129,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }:
   const agentKeys = Object.fromEntries(
     rows.slice(0, MOST_HOTKEYS).map((row, index) => [`Digit${index + 1}`, () => goTo(row)]),
   );
-  const isBusy = talkingTo !== null || drawingOn !== null || isLightsOpen;
+  const isBusy = talkingTo !== null || drawingOn !== null || panel !== null;
   useHotkeys(!isOverlayOpen && openDialog === null && !isBusy, {
     ...agentKeys,
     KeyC: toggleCamera,
@@ -212,11 +210,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }:
                 states={propStates}
                 onUse={interact}
               />
-              <p className="leading-relaxed">
-                <Key>WASD</Key> walk · <Key>Shift</Key> run · drag look · wheel zoom · <Key>C</Key>{' '}
-                camera · <Key>E</Key> talk, use or sit · <Key>1-9</Key> go to an agent ·{' '}
-                <Key>B</Key> build · <Key>F3</Key> frame rate
-              </p>
+              <ControlsHelp />
               <p role="status" className={isReady ? 'sr-only' : undefined}>
                 {isReady ? 'The world is ready.' : 'Loading the world…'}
               </p>
@@ -226,22 +220,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates }:
         )}
       </div>
       <WorldToast />
-      {drawingOn !== null && (
-        <WhiteboardDialog
-          key={drawingOn}
-          initial={stateOf.board(propStates, drawingOn)}
-          background={themeColor(arranged.theme, 'board')}
-          onSave={(content) => savePropState(drawingOn, { kind: 'whiteboard', state: content })}
-          onClose={() => setDrawingOn(null)}
-        />
-      )}
-      <LightsDialog
-        isOpen={isLightsOpen}
-        onClose={() => setLightsOpen(false)}
-        placements={placements}
-        states={propStates}
-        onSetMode={(lampId, mode) => savePropState(lampId, { kind: 'lamp', state: { mode } })}
-      />
+      <PropOverlays arranged={arranged} propStates={propStates} live={live} />
       {talkingTo !== null && (
         <>
           <SpeechBubble agentId={talkingTo} />

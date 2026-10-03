@@ -22,8 +22,9 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 4 | The 3D world | Merged |
 | 4b | Game feel | Merged |
 | 4c | Living agents | Merged |
-| 4d | Build mode and themes | In progress |
-| 4e | Interactive objects | Planned |
+| 4d | Build mode and themes | Merged |
+| 4e | Interactive objects | Merged |
+| 4f | The suggested objects | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -211,6 +212,12 @@ layout and theme are kept in the database. Plan: `docs/plans/phase_4d.md`.
 A whiteboard that keeps its drawing, a coffee set, a water dispenser, blinds, a light switch panel
 and a patch of grass, usable by the owner and the agents, each placeable in build mode. Plan:
 `docs/plans/phase_4e.md`.
+
+## Phase 4f, the suggested objects
+
+The nine objects phase 4e suggested: an inbox tray, a cork board, a server rack, a wall clock, a
+sofa and a beanbag to sit on, an exit sign to travel by, plants that need watering, a trophy
+shelf and a radio. Plan: `docs/plans/phase_4f.md`.
 
 ## Phase 5, mobile
 

@@ -47,6 +47,11 @@ export function buildWarehouse(): PackResult {
   }
   layout.add('light_switch', -6, 7.85, 180);
   layout.add('coffee_set', -4.5, 7.55, 180);
+  // The company's objects that suit a warehouse: the inbox, the clock, the radio and the exit.
+  layout.add('inbox_tray', -3.05, 5.4, 180);
+  layout.add('wall_clock', 0, -7.85, 0);
+  layout.add('radio', -5.6, 7.85, 180);
+  layout.add('exit_sign', -8, 7.85, 180);
 
   return {
     manifest: {

@@ -2,9 +2,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { EnvironmentName, Preferences, WorldPlacement } from '@tbn/contracts';
 import { useCallback } from 'react';
 import { Vector3 } from 'three';
-import { yawTowards } from '@/game/assets/geometry';
+import { vec3, yawTowards } from '@/game/assets/geometry';
 import { emitEffect } from '@/game/objects/liveEffects';
 import { stateOf, type PropStates } from '@/game/objects/propStates';
+import { toWorld } from '@/game/props/arrangement';
 import { INTERACTIONS, verbOf } from '@/game/props/interactions';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
 import { useWorldStore } from '@/game/world/worldStore';
@@ -17,23 +18,35 @@ import { useSetPreference } from '@/lib/data/useSetPreference';
 export function propVerb(placement: WorldPlacement, states: PropStates): string | null {
   const interaction = INTERACTIONS[placement.kind];
   if (interaction === undefined) return null;
-  const isClosed = placement.kind === 'blinds' && !stateOf.isOpen(states, placement.id);
-  return verbOf(interaction, isClosed);
+  const isSet =
+    (placement.kind === 'blinds' && !stateOf.isOpen(states, placement.id)) ||
+    (placement.kind === 'radio' && stateOf.isRadioOn(states, placement.id));
+  return verbOf(interaction, isSet);
+}
+
+/** What using a prop asks of the HUD around it. */
+export interface InteractHost {
+  /** Sits the owner at the computer on a desk screen. */
+  openDesk: (path: string) => void;
+  /** Opens the world menu, with its time of day. */
+  openWorldMenu: () => void;
 }
 
 /**
- * Uses a placed prop as the owner: they turn to it and play its clip where they stand, the prop
- * gives off its burst, the narration says so, and the prop does its part: the board opens, the
- * blinds turn, the light panel opens, or the grass counts.
+ * Uses a placed prop as the owner: they turn to it and play its clip where they stand, or sit on
+ * its seat, the prop gives off its burst, the narration says so, and the prop does its part:
+ * the board, the blinds, a panel, a desk screen, the grass count, a watering or the radio.
  */
 export function useInteract(
   placements: readonly WorldPlacement[],
   states: PropStates,
   environment: EnvironmentName,
+  host: InteractHost,
 ): (placementId: string) => void {
   const savePropState = useSavePropState(environment);
   const setPreference = useSetPreference();
   const client = useQueryClient();
+  const { openDesk, openWorldMenu } = host;
   return useCallback(
     (placementId: string) => {
       const placement = placements.find((one) => one.id === placementId);
@@ -41,26 +54,62 @@ export function useInteract(
       const verb = placement === undefined ? null : propVerb(placement, states);
       if (placement === undefined || interaction === undefined || verb === null) return;
       const store = useWorldStore.getState();
-      const at = new Vector3(placement.x, 0, placement.z);
-      const owner = livePositions.get(OWNER_KEY);
-      store.act(
-        interaction.clip,
-        owner === undefined ? placement.yaw_deg + 180 : yawTowards(owner, at),
-        interaction.seconds,
-      );
+      const fail = (error: unknown): void => store.showToast(errorMessage(error));
+      const seatSpot = interaction.action === 'sit' ? interaction.spots[0] : undefined;
+      if (seatSpot?.seat !== undefined) {
+        store.act(
+          interaction.clip,
+          placement.yaw_deg + seatSpot.yaw_deg,
+          interaction.seconds,
+          vec3(toWorld(placement, seatSpot.seat)),
+        );
+      } else {
+        const owner = livePositions.get(OWNER_KEY);
+        const at = new Vector3(placement.x, 0, placement.z);
+        const yaw = owner === undefined ? placement.yaw_deg + 180 : yawTowards(owner, at);
+        store.act(interaction.clip, yaw, interaction.seconds);
+      }
       store.narrate(`You ${verb}.`);
       if (interaction.effect !== null) emitEffect(interaction.effect, placement.x, placement.z);
-      const fail = (error: unknown): void => store.showToast(errorMessage(error));
       switch (interaction.action) {
         case 'draw':
           store.setDrawingOn(placement.id);
           return;
         case 'lights':
-          store.setLightsOpen(true);
+          store.setPanel('lights');
+          return;
+        case 'cork':
+          store.setPanel('cork');
+          return;
+        case 'trophies':
+          store.setPanel('trophies');
+          return;
+        case 'travel':
+          store.setPanel('travel');
+          return;
+        case 'clock':
+          openWorldMenu();
+          return;
+        case 'desk':
+          if (interaction.path !== undefined) openDesk(interaction.path);
           return;
         case 'blinds': {
           const isOpen = stateOf.isOpen(states, placement.id);
           savePropState(placement.id, { kind: 'blinds', state: { open: !isOpen } }).catch(fail);
+          return;
+        }
+        case 'radio': {
+          const isOn = stateOf.isRadioOn(states, placement.id);
+          savePropState(placement.id, { kind: 'radio', state: { on: !isOn } }).catch(fail);
+          return;
+        }
+        case 'water': {
+          if (placement.kind !== 'plant' && placement.kind !== 'tree') return;
+          const wateredAt = new Date().toISOString();
+          savePropState(placement.id, {
+            kind: placement.kind,
+            state: { watered_at: wateredAt },
+          }).catch(fail);
           return;
         }
         case 'grass': {
@@ -75,9 +124,10 @@ export function useInteract(
           return;
         }
         case 'drink':
+        case 'sit':
           return;
       }
     },
-    [placements, states, savePropState, setPreference, client],
+    [placements, states, savePropState, setPreference, client, openDesk, openWorldMenu],
   );
 }

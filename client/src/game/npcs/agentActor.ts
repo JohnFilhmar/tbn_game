@@ -42,6 +42,8 @@ export interface WanderTarget {
   seconds: number;
   /** What the prop there gives off while the agent uses it. */
   effect?: EffectKind;
+  /** Where the agent sits for the clip, when the spot is sat on. */
+  seat?: Vector3;
 }
 
 /** A step of the queue; `isWander` marks the steps any real work drops. */
@@ -54,6 +56,7 @@ type Step = (
       activity: Activity;
       faceDeg?: number;
       effect?: EffectKind;
+      seat?: Vector3;
     }
   | { kind: 'sit' }
   | { kind: 'stand' }
@@ -90,6 +93,8 @@ export class AgentActor {
   private hasLeaveQueued = false;
   /** True while the step being played is part of a wander. */
   private isInWander = false;
+  /** Where the agent stood before it sat on a seat, to step back to when the clip ends. */
+  private standBackTo: Vector3 | null = null;
   private isTalking = false;
 
   constructor(options: {
@@ -159,6 +164,7 @@ export class AgentActor {
         activity: 'wandering',
         faceDeg: target.yawDeg,
         effect: target.effect,
+        seat: target.seat,
         isWander: true,
       },
       { kind: 'walk', to: this.home.standing, activity: 'wandering', isWander: true },
@@ -319,6 +325,10 @@ export class AgentActor {
         this.clip = step.clip;
         this.timer = step.seconds;
         if (step.faceDeg !== undefined) this.yawDeg = step.faceDeg;
+        if (step.seat !== undefined) {
+          this.standBackTo = this.position.clone();
+          this.position.copy(step.seat);
+        }
         this.setActivity(step.activity);
         if (step.effect !== undefined)
           this.listener.onEffect?.(step.effect, this.position, this.yawDeg);
@@ -361,6 +371,10 @@ export class AgentActor {
       this.timer -= dt;
       if (this.timer > 0) return;
       this.timer = 0;
+    }
+    if (this.standBackTo !== null) {
+      this.position.copy(this.standBackTo);
+      this.standBackTo = null;
     }
     const next = this.queue.shift();
     if (next !== undefined) {

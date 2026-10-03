@@ -78,6 +78,16 @@ export function buildHome(): PackResult {
   layout.add('coffee_set', 8.6, -2, 270);
   layout.add('grass_patch', 7.2, 2.4, 180, { width: 1.6, depth: 1.6 });
   layout.add('grass_patch', 2.6, 5.2, 180, { width: 1.6, depth: 1.6 });
+  // The company's objects, at home size: the inbox on the desk, reports over the study desks,
+  // the clock and the radio in the kitchen, trophies in the living room, a beanbag, and the
+  // exit sign over the front door.
+  layout.add('inbox_tray', -8.4, 5.1, 270);
+  layout.add('cork_board', -8.9, -4.25, 90);
+  layout.add('wall_clock', 7, -6.9, 0);
+  layout.add('radio', 8.9, -4, 270);
+  layout.add('trophy_shelf', -8.9, 6, 90);
+  layout.add('beanbag', -0.9, 1.1, 270);
+  layout.add('exit_sign', -4.5, 6.9, 180);
 
   return {
     manifest: {
