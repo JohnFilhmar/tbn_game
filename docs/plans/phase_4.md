@@ -10,6 +10,12 @@ time of day the owner chose or by their real clock, seen from a third person or 
 The virtual desktop of phase 3 is a computer in the scene the owner walks up to. Nothing the agents
 do in the world comes from anywhere but the backend's events; the server never knows a position.
 
+## What the owner decided
+
+Both objections below were put to the owner before building, and the owner took both: the world's
+events are derived on the client from the entity events it already receives, and the owner's
+character is kept on the navigation mesh without Rapier. The plan below is written as built.
+
 ## Exit criteria
 
 1. When the owner assigns a task, the right agent walks to its desk and works; when a manager
@@ -37,13 +43,13 @@ client/
     hud/           the overlay: status, controls help, narration, world menu, customisation
     WorldLayout    the canvas with the desktop screens as an overlay route
   src/game/packs/<office|home|warehouse>/   manifest.json, scene.glb, navmesh.glb
-  src/game/characters/                       base.glb and the part files, manifest.json
-  scripts/buildAssets.ts                     writes every glb above from code
+  src/game/characters/                       the body variants, the part files, manifest.json
+  scripts/assets/                            writes every file above from code: npm run build:assets
 docs/assets.md                               the pack and character contract
 ```
 
-- Three.js through React Three Fiber, `three-pathfinding` over each pack's navigation mesh, and
-  the Rapier character controller the architecture names (see the objections). Game state that
+- Three.js through React Three Fiber and `three-pathfinding` over each pack's navigation mesh,
+  for the NPCs' paths and for keeping the owner's character on the floor. Game state that
   changes every frame stays out of React: positions and animation live in refs and a zustand
   store updated in `useFrame`; React renders the HUD and the overlay.
 - Every model and clip is reached through the asset manifest by slot name. Files are imported
@@ -121,10 +127,8 @@ the tests read.
   `time_of_day` (default `clock`) and `owner_appearance` (the `AppearanceSchema` shape, default
   empty). Preferences already reach the client live, so a change in the desk or the HUD moves the
   world at once.
-- Nothing else, unless the owner answers the first objection below: then a `world_events` table
-  written by the company and runtime services at each semantic moment, with its trigger, its
-  entity in `ChangeEventSchema`, its hydrator loader and `GET /world_events`, in the `world`
-  module.
+- Nothing else. The `world` module placeholder in the backend goes, as every world setting is a
+  preference and the world's events are the entity events.
 
 ### What waits for a later phase
 
@@ -149,12 +153,10 @@ the tests read.
 
 - `PreferencesSchema` gains `environment`, `time_of_day` and `owner_appearance`, with
   `EnvironmentNameSchema` and `TimeOfDaySchema`.
-- If the owner asks for server world events: `WorldEventSchema` and `world_event` in
-  `EventEntitySchema` and `ChangeEventSchema`.
 
 ### Routes
 
-None, unless the owner asks for server world events: `GET /world_events`.
+None.
 
 ### Files
 
@@ -191,7 +193,7 @@ None, unless the owner asks for server world events: `GET /world_events`.
    on the walkable floor. Keeping the character on the navmesh, as every NPC is, leaves one source
    of truth and a smaller first load.
 
-Both are built as the brief says unless the owner answers.
+The owner took both; see above.
 
 ### What this session cannot do
 

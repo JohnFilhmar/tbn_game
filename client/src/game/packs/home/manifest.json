@@ -1,0 +1,71 @@
+{
+  "name": "home",
+  "title": "Home",
+  "scale": 1,
+  "bounds": { "min_x": -9, "max_x": 9, "min_z": -7, "max_z": 7 },
+  "ceiling": 2.8,
+  "spawn": { "position": [-4.5, 0, 5.25], "yaw_deg": 180 },
+  "entry": { "position": [-4.5, 0, 6.25], "yaw_deg": 180 },
+  "exit": { "position": [-4.5, 0, 6.25], "yaw_deg": 0 },
+  "computer": { "position": [-8.58, 1.19, 4.6], "yaw_deg": 270, "use_radius": 1.9 },
+  "zones": [
+    {
+      "name": "zone_1",
+      "label": "Study",
+      "desks": [
+        { "position": [-8.4, 0.74, -5.5], "yaw_deg": 270, "seat": [-7.45, 0, -5.5] },
+        { "position": [-8.4, 0.74, -3], "yaw_deg": 270, "seat": [-7.45, 0, -3] },
+        { "position": [-5.5, 0.74, -6.4], "yaw_deg": 180, "seat": [-5.5, 0, -5.45] },
+        { "position": [-3, 0.74, -6.4], "yaw_deg": 180, "seat": [-3, 0, -5.45] }
+      ]
+    },
+    {
+      "name": "zone_2",
+      "label": "Kitchen table",
+      "desks": [
+        { "position": [4.5, 0.74, -3.68], "yaw_deg": 0, "seat": [4.5, 0, -4.5] },
+        { "position": [3.72, 0.74, -3.3], "yaw_deg": 90, "seat": [2.9, 0, -3.3] },
+        { "position": [4.5, 0.74, -2.92], "yaw_deg": 180, "seat": [4.5, 0, -2.1] },
+        { "position": [5.28, 0.74, -3.3], "yaw_deg": 270, "seat": [6.1, 0, -3.3] }
+      ]
+    },
+    {
+      "name": "zone_3",
+      "label": "Living room",
+      "desks": [
+        { "position": [-6, 0.74, 2.22], "yaw_deg": 0, "seat": [-6, 0, 1.4] },
+        { "position": [-6.68, 0.74, 2.5], "yaw_deg": 90, "seat": [-7.5, 0, 2.5] },
+        { "position": [-6, 0.74, 2.78], "yaw_deg": 180, "seat": [-6, 0, 3.6] },
+        { "position": [-5.32, 0.74, 2.5], "yaw_deg": 270, "seat": [-4.5, 0, 2.5] }
+      ]
+    },
+    {
+      "name": "zone_4",
+      "label": "Garden",
+      "desks": [
+        { "position": [4.5, 0.74, 2.92], "yaw_deg": 0, "seat": [4.5, 0, 2.1] },
+        { "position": [3.92, 0.74, 3.5], "yaw_deg": 90, "seat": [3.1, 0, 3.5] },
+        { "position": [4.5, 0.74, 4.08], "yaw_deg": 180, "seat": [4.5, 0, 4.9] },
+        { "position": [5.08, 0.74, 3.5], "yaw_deg": 270, "seat": [5.9, 0, 3.5] }
+      ]
+    }
+  ],
+  "waiting": [
+    { "position": [-2.5, 0, -1.25], "yaw_deg": 0 },
+    { "position": [-2.5, 0, 1.25], "yaw_deg": 180 },
+    { "position": [2.5, 0, -1.25], "yaw_deg": 0 },
+    { "position": [2.5, 0, 1.25], "yaw_deg": 180 }
+  ],
+  "lighting": {
+    "ambient": "#b8c4cc",
+    "sun_azimuth_deg": 210,
+    "interior": [
+      { "position": [-4.5, 2.6, -3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
+      { "position": [4.5, 2.6, -3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
+      { "position": [-4.5, 2.6, 3.5], "color": "#fff1d6", "intensity": 6, "distance": 8 },
+      { "position": [4.5, 2.4, 3.5], "color": "#ffd9a0", "intensity": 4, "distance": 7 }
+    ]
+  },
+  "scene": "scene.glb",
+  "navmesh": "navmesh.glb"
+}

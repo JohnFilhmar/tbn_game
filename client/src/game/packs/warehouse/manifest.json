@@ -1,0 +1,72 @@
+{
+  "name": "warehouse",
+  "title": "Warehouse",
+  "scale": 1,
+  "bounds": { "min_x": -12, "max_x": 12, "min_z": -8, "max_z": 8 },
+  "ceiling": 6,
+  "spawn": { "position": [-5, 0, 6.25], "yaw_deg": 180 },
+  "entry": { "position": [-8, 0, 7.25], "yaw_deg": 180 },
+  "exit": { "position": [-8, 0, 7.25], "yaw_deg": 0 },
+  "computer": { "position": [-2.5, 1.19, 5.22], "yaw_deg": 180, "use_radius": 1.9 },
+  "zones": [
+    {
+      "name": "zone_1",
+      "label": "North west benches",
+      "desks": [
+        { "position": [-8, 0.74, -7], "yaw_deg": 180, "seat": [-8, 0, -6.05] },
+        { "position": [-6, 0.74, -7], "yaw_deg": 180, "seat": [-6, 0, -6.05] },
+        { "position": [-4, 0.74, -7], "yaw_deg": 180, "seat": [-4, 0, -6.05] },
+        { "position": [-2, 0.74, -7], "yaw_deg": 180, "seat": [-2, 0, -6.05] }
+      ]
+    },
+    {
+      "name": "zone_2",
+      "label": "North east benches",
+      "desks": [
+        { "position": [2, 0.74, -7], "yaw_deg": 180, "seat": [2, 0, -6.05] },
+        { "position": [4, 0.74, -7], "yaw_deg": 180, "seat": [4, 0, -6.05] },
+        { "position": [6, 0.74, -7], "yaw_deg": 180, "seat": [6, 0, -6.05] },
+        { "position": [8, 0.74, -7], "yaw_deg": 180, "seat": [8, 0, -6.05] }
+      ]
+    },
+    {
+      "name": "zone_3",
+      "label": "South benches",
+      "desks": [
+        { "position": [0.5, 0.74, 7], "yaw_deg": 0, "seat": [0.5, 0, 6.05] },
+        { "position": [2.5, 0.74, 7], "yaw_deg": 0, "seat": [2.5, 0, 6.05] },
+        { "position": [4.5, 0.74, 7], "yaw_deg": 0, "seat": [4.5, 0, 6.05] },
+        { "position": [6.5, 0.74, 7], "yaw_deg": 0, "seat": [6.5, 0, 6.05] }
+      ]
+    },
+    {
+      "name": "zone_4",
+      "label": "East wall benches",
+      "desks": [
+        { "position": [11.3, 0.74, 2], "yaw_deg": 90, "seat": [10.35, 0, 2] },
+        { "position": [11.3, 0.74, 3.5], "yaw_deg": 90, "seat": [10.35, 0, 3.5] },
+        { "position": [11.3, 0.74, 5], "yaw_deg": 90, "seat": [10.35, 0, 5] },
+        { "position": [11.3, 0.74, 6.5], "yaw_deg": 90, "seat": [10.35, 0, 6.5] }
+      ]
+    }
+  ],
+  "waiting": [
+    { "position": [-7.5, 0, 0.25], "yaw_deg": 90 },
+    { "position": [7, 0, 0.25], "yaw_deg": 270 },
+    { "position": [0, 0, -0.25], "yaw_deg": 0 },
+    { "position": [0, 0, 0.25], "yaw_deg": 180 }
+  ],
+  "lighting": {
+    "ambient": "#8a95a3",
+    "sun_azimuth_deg": 90,
+    "interior": [
+      { "position": [-6, 5.6, -4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
+      { "position": [6, 5.6, -4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
+      { "position": [-6, 5.6, 4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
+      { "position": [6, 5.6, 4.5], "color": "#f3f7ff", "intensity": 16, "distance": 16 },
+      { "position": [0, 5.6, 0], "color": "#f3f7ff", "intensity": 16, "distance": 16 }
+    ]
+  },
+  "scene": "scene.glb",
+  "navmesh": "navmesh.glb"
+}
