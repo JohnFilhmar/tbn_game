@@ -20,7 +20,10 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 2 | Realtime | Merged |
 | 3 | Web app without 3D | Merged |
 | 4 | The 3D world | Merged |
-| 4b | Game feel | In progress |
+| 4b | Game feel | Merged |
+| 4c | Living agents | Planned |
+| 4d | Build mode and themes | Planned |
+| 4e | Interactive objects | Planned |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -191,6 +194,23 @@ and phase 4 flow still passes.
 
 Required tests: a reloaded desk screen lands seated; signing in lands on the desk; an expired
 session signs in again at the monitor and returns to the screen; a teleport to an agent.
+
+## Phase 4c, living agents
+
+Idle agents wander to spots in the room and play animations there, and the owner talks to any
+agent in the world through an over the shoulder camera and a side panel with its live session.
+Plan: `docs/plans/phase_4c.md`.
+
+## Phase 4d, build mode and themes
+
+The owner places, moves, recolours and removes every prop and picks a theme. Each environment's
+layout and theme are kept in the database. Plan: `docs/plans/phase_4d.md`.
+
+## Phase 4e, interactive objects
+
+A whiteboard that keeps its drawing, a coffee set, a water dispenser, blinds, a light switch panel
+and a patch of grass, usable by the owner and the agents, each placeable in build mode. Plan:
+`docs/plans/phase_4e.md`.
 
 ## Phase 5, mobile
 
