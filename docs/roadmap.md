@@ -19,7 +19,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 1c | The outside world | Merged |
 | 2 | Realtime | Merged |
 | 3 | Web app without 3D | Merged |
-| 4 | The 3D world | In progress |
+| 4 | The 3D world | Merged |
+| 4b | Game feel | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -171,6 +172,25 @@ Required tests: Vitest for client logic. Playwright in `e2e/` for:
 Exit: when the owner assigns a task, the right agent walks, works, hands off and returns, and
 interns arrive and leave. This holds in both camera modes and all three environments, at 60 frames
 per second on a mid-range laptop.
+
+## Phase 4b, game feel
+
+The owner asked for this after phase 4: the app should feel like one game, not a dashboard with
+a 3D lobby.
+
+- Sign in on the owner's desk monitor, in first person; after sign in the same monitor shows the
+  desk.
+- The desk, sign in and HUD in the world's low poly look: palette, faceted corners, fonts.
+- Leaving the desk glides the camera back to the owner's camera mode; sitting down glides it in,
+  from the computer or from anywhere through a short teleport.
+- A teleport to every agent.
+
+Exit: the owner signs in at the monitor, works at the desk, stands up into the world, jumps to an
+agent and sits back down, all with no hard cut; a reloaded desk screen lands seated; every phase 3
+and phase 4 flow still passes.
+
+Required tests: a reloaded desk screen lands seated; signing in lands on the desk; an expired
+session signs in again at the monitor and returns to the screen; a teleport to an agent.
 
 ## Phase 5, mobile
 

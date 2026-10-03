@@ -1,12 +1,13 @@
 import { useFrame } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Vector3, type Group } from 'three';
+import { Vector3, type Group, type Mesh } from 'three';
 import { appearanceOf, resolveAppearance, type ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { forwardOf, radiansOf, vec3 } from '@/game/assets/geometry';
 import type { LoadedPack } from '@/game/assets/packs';
 import { Character } from '@/game/world/Character';
+import { livePositions } from '@/game/world/livePositions';
 import type { Navigation } from '@/game/world/navmesh';
 import { useWorldStore } from '@/game/world/worldStore';
 import { subscribeToChanges } from '@/lib/realtime/changeFeed';
@@ -20,6 +21,8 @@ export interface AgentsProps {
   navigation: Navigation;
   agents: readonly Agent[];
   departments: readonly Department[];
+  /** The agents with an approval waiting for the owner. */
+  pendingAgentIds: ReadonlySet<string>;
 }
 
 /** How long a world event waits for the actor it names, when the roster has not caught up yet. */
@@ -105,14 +108,48 @@ function play(event: WorldEvent, actors: Map<string, AgentActor>): boolean {
   }
 }
 
+const MARKER_HEIGHT = 2.25;
+/** The longest step an actor takes, and the most time one frame catches up on. */
+const TICK = 0.1;
+const MOST_CATCH_UP = 0.5;
+
+/** A faceted gem that floats and turns over an agent waiting on the owner's approval. */
+function ApprovalMarker({ actor }: { actor: AgentActor }) {
+  const meshRef = useRef<Mesh | null>(null);
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (mesh === null) return;
+    const time = clock.elapsedTime;
+    mesh.position.set(
+      actor.position.x,
+      MARKER_HEIGHT + Math.sin(time * 2.4) * 0.08,
+      actor.position.z,
+    );
+    mesh.rotation.y = time * 1.6;
+    mesh.visible = !actor.isGone;
+  });
+  return (
+    <mesh ref={meshRef} position={[actor.position.x, MARKER_HEIGHT, actor.position.z]}>
+      <octahedronGeometry args={[0.16, 0]} />
+      <meshStandardMaterial
+        color="#f59e0b"
+        emissive="#b45309"
+        emissiveIntensity={0.8}
+        flatShading
+      />
+    </mesh>
+  );
+}
+
 interface AgentCharacterProps {
   actor: AgentActor;
   appearance: ResolvedAppearance;
+  hasApproval: boolean;
   onGone: (id: string) => void;
 }
 
 /** One agent in the scene: its actor ticks here, and the group follows it every frame. */
-function AgentCharacter({ actor, appearance, onGone }: AgentCharacterProps) {
+function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharacterProps) {
   const groupRef = useRef<Group | null>(null);
   const clipRef = useMemo(
     () => ({
@@ -125,7 +162,10 @@ function AgentCharacter({ actor, appearance, onGone }: AgentCharacterProps) {
   useFrame((_, delta) => {
     const group = groupRef.current;
     if (group === null) return;
-    actor.tick(Math.min(delta, 0.1));
+    // Steps of at most 0.1 s, so a slow frame rate never slows the agents down.
+    for (let left = Math.min(delta, MOST_CATCH_UP); left > 0; left -= TICK) {
+      actor.tick(Math.min(left, TICK));
+    }
     group.position.copy(actor.position);
     group.rotation.y = radiansOf(actor.yawDeg);
     group.visible = !actor.isGone;
@@ -133,15 +173,18 @@ function AgentCharacter({ actor, appearance, onGone }: AgentCharacterProps) {
   });
   // Its own boundary: a character still loading hides nothing but itself.
   return (
-    <Suspense fallback={null}>
-      <Character
-        appearance={appearance}
-        clipRef={clipRef}
-        groupRef={groupRef}
-        position={[actor.position.x, actor.position.y, actor.position.z]}
-        rotationY={radiansOf(actor.yawDeg)}
-      />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <Character
+          appearance={appearance}
+          clipRef={clipRef}
+          groupRef={groupRef}
+          position={[actor.position.x, actor.position.y, actor.position.z]}
+          rotationY={radiansOf(actor.yawDeg)}
+        />
+      </Suspense>
+      {hasApproval && <ApprovalMarker actor={actor} />}
+    </>
   );
 }
 
@@ -151,7 +194,7 @@ function AgentCharacter({ actor, appearance, onGone }: AgentCharacterProps) {
  * walks in from the entry, one that leaves walks out through the exit, and the change feed's
  * world events drive everything in between.
  */
-export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
+export function Agents({ pack, navigation, agents, departments, pendingAgentIds }: AgentsProps) {
   const actors = useRef(new Map<string, AgentActor>());
   const pending = useRef<{ event: WorldEvent; until: number }[]>([]);
   const hasRoster = useRef(false);
@@ -189,20 +232,19 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
       }
       const home = homeOf(seat, navigation);
       if (actor === undefined) {
-        actors.current.set(
-          agent.id,
-          new AgentActor({
-            id: agent.id,
-            name: agent.name,
-            home,
-            planner: navigation,
-            listener: {
-              onActivity: (activity) => setActivity(agent.id, activity),
-              onNarrate: narrate,
-            },
-            from: hasRoster.current ? entry : 'home',
-          }),
-        );
+        const created = new AgentActor({
+          id: agent.id,
+          name: agent.name,
+          home,
+          planner: navigation,
+          listener: {
+            onActivity: (activity) => setActivity(agent.id, activity),
+            onNarrate: narrate,
+          },
+          from: hasRoster.current ? entry : 'home',
+        });
+        actors.current.set(agent.id, created);
+        livePositions.set(agent.id, created.position);
         setActivity(agent.id, 'at_desk');
         changed = true;
       } else {
@@ -222,8 +264,12 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
     const own = actors.current;
     return () => {
       setReady(false);
-      for (const id of own.keys()) dropActivity(id);
+      for (const id of own.keys()) {
+        dropActivity(id);
+        livePositions.delete(id);
+      }
       own.clear();
+      hasRoster.current = false;
     };
   }, [setReady, dropActivity]);
 
@@ -248,6 +294,7 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
     (id: string) => {
       if (!actors.current.delete(id)) return;
       dropActivity(id);
+      livePositions.delete(id);
       setRoster([...actors.current.values()]);
     },
     [dropActivity],
@@ -259,7 +306,13 @@ export function Agents({ pack, navigation, agents, departments }: AgentsProps) {
         const appearance = appearances.get(actor.id);
         if (appearance === undefined) return null;
         return (
-          <AgentCharacter key={actor.id} actor={actor} appearance={appearance} onGone={onGone} />
+          <AgentCharacter
+            key={actor.id}
+            actor={actor}
+            appearance={appearance}
+            hasApproval={pendingAgentIds.has(actor.id)}
+            onGone={onGone}
+          />
         );
       })}
     </>

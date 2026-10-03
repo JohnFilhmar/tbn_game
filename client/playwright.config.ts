@@ -18,6 +18,9 @@ export default defineConfig({
   reporter: process.env['CI'] === undefined ? 'list' : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: APP_URL,
+    // The camera's glides, the fades and the monitor's power-on are instant, so no flow waits on
+    // an animation.
+    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -27,8 +27,8 @@ test('sign in', async ({ page }) => {
 
   await page.getByLabel('Password').fill(OWNER.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  // Signing in lands in the world; the desk is the computer in it.
-  await openDesk(page);
+  // Signing in happens at the desk's monitor, which then shows the desk.
+  await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
   await expect(page.getByText(OWNER.username)).toBeVisible();
 

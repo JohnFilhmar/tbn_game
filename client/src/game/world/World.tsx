@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
-import { Suspense, useEffect, useRef, useState, type RefObject } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
@@ -13,6 +13,7 @@ import { useMovementKeys, type MoveAction } from './keyboard';
 import type { Navigation } from './navmesh';
 import { OwnerCharacter } from './OwnerCharacter';
 import { PackScene } from './PackScene';
+import { seatPoseOf } from './seat';
 import { lightingAt } from './timeOfDay';
 import { useWorldStore } from './worldStore';
 
@@ -24,8 +25,14 @@ export interface WorldProps {
   /** The roster; the agents enter the world once both are loaded. */
   agents: readonly Agent[] | undefined;
   departments: readonly Department[] | undefined;
-  /** False while the desk covers the world: the keys rest and the frames stop. */
+  /** False while the owner is seated or signed out: the keys rest. */
   isActive: boolean;
+  /** True while the owner sits at the computer: the camera looks at the monitor. */
+  isSeated: boolean;
+  /** True while the camera glides to or from the seat: every frame renders until it ends. */
+  isGliding: boolean;
+  /** The agents with an approval waiting for the owner, who wear a marker. */
+  pendingAgentIds: ReadonlySet<string>;
 }
 
 function FrameCounter() {
@@ -44,19 +51,44 @@ function FrameCounter() {
   return null;
 }
 
-interface PackWorldProps extends Omit<WorldProps, 'isActive'> {
+/**
+ * The ground every pack stands on, a low poly disc that runs out into the fog. It takes no shadow
+ * and the cheapest lit material, since it can fill a third of the screen.
+ */
+function Ground() {
+  return (
+    <mesh rotation-x={-Math.PI / 2} position-y={-0.02}>
+      <circleGeometry args={[160, 9]} />
+      <meshLambertMaterial color="#7d8f6a" />
+    </mesh>
+  );
+}
+
+interface PackWorldProps extends Omit<WorldProps, 'isActive' | 'isGliding'> {
   keysRef: RefObject<Set<MoveAction>>;
 }
 
 /** Everything that belongs to one pack; a pack switch replaces it whole. */
-function PackWorld({ pack, hour, ownerAppearance, agents, departments, keysRef }: PackWorldProps) {
+function PackWorld({
+  pack,
+  hour,
+  ownerAppearance,
+  agents,
+  departments,
+  keysRef,
+  isSeated,
+  pendingAgentIds,
+}: PackWorldProps) {
   const [navigation, setNavigation] = useState<Navigation | null>(null);
   const cameraMode = useWorldStore((state) => state.cameraMode);
   const ownerRef = useRef<Group | null>(null);
   const viewYawRef = useRef(pack.manifest.spawn.yaw_deg);
   const { manifest } = pack;
+  const pose = useMemo(() => seatPoseOf(manifest.computer), [manifest]);
+  const seatPose = isSeated ? pose : null;
   return (
     <>
+      <Ground />
       <PackScene pack={pack} isLit={lightingAt(hour).interiorOn} onNavigation={setNavigation} />
       <Lighting hour={hour} profile={manifest.lighting} bounds={manifest.bounds} />
       {navigation !== null && (
@@ -70,10 +102,17 @@ function PackWorld({ pack, hour, ownerAppearance, agents, departments, keysRef }
               keysRef={keysRef}
               viewYawRef={viewYawRef}
               groupRef={ownerRef}
+              seatPose={seatPose}
             />
           </Suspense>
           {agents !== undefined && departments !== undefined && (
-            <Agents pack={pack} navigation={navigation} agents={agents} departments={departments} />
+            <Agents
+              pack={pack}
+              navigation={navigation}
+              agents={agents}
+              departments={departments}
+              pendingAgentIds={pendingAgentIds}
+            />
           )}
           <CameraRig
             targetRef={ownerRef}
@@ -81,6 +120,7 @@ function PackWorld({ pack, hour, ownerAppearance, agents, departments, keysRef }
             ceiling={manifest.ceiling}
             initialYawDeg={manifest.spawn.yaw_deg}
             viewYawRef={viewYawRef}
+            seatPose={seatPose}
           />
         </>
       )}
@@ -97,8 +137,21 @@ function characterFiles(): string[] {
   ];
 }
 
-/** The 3D world: one canvas that lives as long as the owner is signed in. */
-export function World({ pack, hour, ownerAppearance, agents, departments, isActive }: WorldProps) {
+/**
+ * The 3D world: one canvas for the whole visit, signed in or not. While the owner is seated it
+ * renders only on change once the glide is over, so the desk costs no frames.
+ */
+export function World({
+  pack,
+  hour,
+  ownerAppearance,
+  agents,
+  departments,
+  isActive,
+  isSeated,
+  isGliding,
+  pendingAgentIds,
+}: WorldProps) {
   const keysRef = useMovementKeys(isActive);
   useEffect(() => {
     useLoader.preload(GLTFLoader, characterFiles());
@@ -107,7 +160,7 @@ export function World({ pack, hour, ownerAppearance, agents, departments, isActi
     <Canvas
       shadows="percentage"
       dpr={[1, 1.5]}
-      frameloop={isActive ? 'always' : 'never'}
+      frameloop={isActive || isGliding ? 'always' : 'demand'}
       camera={{ fov: 50, near: 0.1, far: 300, position: [0, 8, 14] }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       className="h-full w-full"
@@ -122,6 +175,8 @@ export function World({ pack, hour, ownerAppearance, agents, departments, isActi
           agents={agents}
           departments={departments}
           keysRef={keysRef}
+          isSeated={isSeated}
+          pendingAgentIds={pendingAgentIds}
         />
       </Suspense>
       <FrameCounter />

@@ -8,6 +8,7 @@ import { cx } from '@/lib/ui/cx';
 import { useSession } from '@/providers/SessionProvider';
 import { ConnectionLight } from './ConnectionLight';
 import { LAUNCHER } from './launcher';
+import { MonitorFrame } from './MonitorFrame';
 
 function usePendingApprovals(): number {
   const { data } = useCollection(COLLECTIONS.approvals);
@@ -17,8 +18,8 @@ function usePendingApprovals(): number {
 /**
  * The virtual desktop, the screen of the in-world computer: the launcher on the left, the bar with
  * the way back to the world, the live light and the owner on top, and the open screen. On a narrow
- * screen the launcher folds behind a menu button. Escape, outside a field or a dialog, returns to
- * the world.
+ * screen the launcher folds behind a menu button. Escape, outside a field or a dialog, stands the
+ * owner up and returns to the world.
  */
 export function DesktopLayout() {
   const { signOut } = useSession();
@@ -37,97 +38,102 @@ export function DesktopLayout() {
   }, [navigate]);
 
   return (
-    <div
-      role="region"
-      aria-label="The desk"
-      className="fixed inset-0 z-20 flex overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
-    >
-      <a
-        href="#main"
-        className="sr-only z-50 rounded-md bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:top-2 focus:left-2 dark:bg-slate-900"
-      >
-        Skip to the screen
-      </a>
-      <nav
-        id="launcher"
-        aria-label="Launcher"
-        className={cx(
-          'w-56 shrink-0 flex-col gap-6 overflow-y-auto border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900',
-          isMenuOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden md:flex',
+    <MonitorFrame>
+      <div role="region" aria-label="The desk" className="flex min-w-0 flex-1 overflow-hidden">
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-md bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:top-2 focus:left-2 dark:bg-slate-900"
+        >
+          Skip to the screen
+        </a>
+        <nav
+          id="launcher"
+          aria-label="Launcher"
+          className={cx(
+            'w-56 shrink-0 flex-col gap-6 overflow-y-auto border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900',
+            isMenuOpen ? 'absolute inset-y-0 left-0 z-40 flex' : 'hidden md:flex',
+          )}
+        >
+          <p className="font-display text-xl font-bold tracking-wide uppercase">
+            tbn <span className="text-teal-600 dark:text-teal-400">desk</span>
+          </p>
+          {LAUNCHER.map((section) => (
+            <div key={section.title} className="flex flex-col gap-1">
+              <h2 className="px-2 font-display text-xs font-semibold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+                {section.title}
+              </h2>
+              <ul className="flex flex-col gap-0.5">
+                {section.items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={({ isActive }) =>
+                        cx(
+                          'flex items-center justify-between rounded-md border-l-4 px-2 py-1.5 text-sm',
+                          isActive
+                            ? 'border-teal-600 bg-teal-50 font-medium text-teal-900 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                            : 'border-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+                        )
+                      }
+                    >
+                      {item.label}
+                      {item.to === '/approvals' && pendingApprovals > 0 && (
+                        <span className="rounded-full bg-amber-500 px-2 text-xs font-semibold text-slate-950">
+                          {pendingApprovals}
+                          <span className="sr-only"> waiting</span>
+                        </span>
+                      )}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+        {isMenuOpen && (
+          <button
+            type="button"
+            aria-label="Close the launcher"
+            className="absolute inset-0 z-30 bg-slate-950/40 md:hidden"
+            onClick={() => setIsMenuOpen(false)}
+          />
         )}
-      >
-        <p className="text-lg font-semibold tracking-tight">tbn desk</p>
-        {LAUNCHER.map((section) => (
-          <div key={section.title} className="flex flex-col gap-1">
-            <h2 className="px-2 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-              {section.title}
-            </h2>
-            <ul className="flex flex-col gap-0.5">
-              {section.items.map((item) => (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) =>
-                      cx(
-                        'flex items-center justify-between rounded-md px-2 py-1.5 text-sm',
-                        isActive
-                          ? 'bg-teal-50 font-medium text-teal-900 dark:bg-teal-950 dark:text-teal-200'
-                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-                      )
-                    }
-                  >
-                    {item.label}
-                    {item.to === '/approvals' && pendingApprovals > 0 && (
-                      <span className="rounded-full bg-amber-500 px-2 text-xs font-semibold text-slate-950">
-                        {pendingApprovals}
-                        <span className="sr-only"> waiting</span>
-                      </span>
-                    )}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
-      {isMenuOpen && (
-        <button
-          type="button"
-          aria-label="Close the launcher"
-          className="fixed inset-0 z-30 bg-slate-950/40 md:hidden"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden"
-            aria-expanded={isMenuOpen}
-            aria-controls="launcher"
-            onClick={() => setIsMenuOpen((open) => !open)}
-          >
-            Menu
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => void navigate('/')}>
-            World
-          </Button>
-          <ConnectionLight />
-          <div className="ml-auto flex items-center gap-3">
-            {me !== undefined && (
-              <span className="text-sm text-slate-600 dark:text-slate-400">{me.username}</span>
-            )}
-            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-              Sign out
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+          <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              aria-expanded={isMenuOpen}
+              aria-controls="launcher"
+              onClick={() => setIsMenuOpen((open) => !open)}
+            >
+              Menu
             </Button>
-          </div>
-        </header>
-        <main id="main" tabIndex={-1} className="flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6">
-          <Outlet />
-        </main>
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Stand up and return to the world (Escape)"
+              onClick={() => void navigate('/')}
+            >
+              World
+            </Button>
+            <ConnectionLight />
+            <div className="ml-auto flex items-center gap-3">
+              {me !== undefined && (
+                <span className="text-sm text-slate-600 dark:text-slate-400">{me.username}</span>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => void signOut()}>
+                Sign out
+              </Button>
+            </div>
+          </header>
+          <main id="main" tabIndex={-1} className="flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </MonitorFrame>
   );
 }
