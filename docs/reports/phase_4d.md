@@ -61,7 +61,12 @@ rug it stands on, and an agent whose desk moved walks to the new one.
   - a plant against a wall was refused only because its break spot faced the wall.
 - **Playwright on CI**, as before: a new flow places a plant, paints the floor, saves, reads it
   back from the server, reloads, resets and leaves. The earlier flows run on the default layouts,
-  which reproduce the old packs.
+  which reproduce the old packs. Two CI fixes came out of it:
+  - the flow first imported `@tbn/contracts`, which Playwright loads as CommonJS without named
+    exports, so it now reads the saved office with its own small schema;
+  - the compose smoke test failed at random on the worker's `/metrics`: under `pipefail`,
+    `grep -q` stopped reading at the first match and curl failed writing the rest. The script now
+    reads every response whole.
 
 ## What changed from the plan
 
