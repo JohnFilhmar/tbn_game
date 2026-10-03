@@ -34,9 +34,10 @@ const UNLIT = new MeshStandardMaterial({ name: 'light', color: '#e4dfd2', roughn
 const PICK_EVERY = 0.25;
 
 /**
- * Every lamp's shade, glowing when it shines, and a fixed pool of eight point lights given to the
- * lit lamps nearest the camera. The pool never changes size, so switching a lamp never recompiles
- * a shader.
+ * Every lamp's shade, glowing when it shines, and a pool of eight point lights given to the lit
+ * lamps nearest the camera. The pool is there only while some lamp shines, since every material
+ * pays for every light, and it keeps its size meanwhile, so switching one lamp of several never
+ * recompiles a shader; the first lamp on and the last one off do.
  */
 export function Lamps({ lamps, states, isInteriorOn, onPick }: LampsProps) {
   const spots = useMemo(
@@ -54,6 +55,7 @@ export function Lamps({ lamps, states, isInteriorOn, onPick }: LampsProps) {
       }),
     [lamps, states, isInteriorOn],
   );
+  const isAnyLit = spots.some((lamp) => lamp.isLit);
   const lights = useRef<(PointLight | null)[]>([]);
   const picked = useRef({ at: -Infinity, spots });
 
@@ -93,7 +95,7 @@ export function Lamps({ lamps, states, isInteriorOn, onPick }: LampsProps) {
           }}
         />
       ))}
-      {Array.from({ length: MOST_LIT_LAMPS }, (_, index) => (
+      {Array.from({ length: isAnyLit ? MOST_LIT_LAMPS : 0 }, (_, index) => (
         <pointLight
           key={index}
           ref={(light) => {

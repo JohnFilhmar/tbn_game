@@ -725,8 +725,9 @@ How phase 4e changed it:
   never moves the layout's revision, so it never refuses an open build draft, and a prop of a pack
   default has a state with no saved layout. Its trigger sends a `world_prop_state` event.
 - **Lamps are props.** The shell has no lights. Each lamp is a placement; the eight lit lamps
-  nearest the camera hold a fixed pool of point lights and the rest glow, so switching a lamp
-  never recompiles a shader. Blinds dim the sun and the sky with the share closed.
+  nearest the camera hold a pool of point lights and the rest glow. The pool exists only while a
+  lamp shines, since every material pays for every light, so only the first lamp on and the last
+  one off recompile shaders. Blinds dim the sun and the sky with the share closed.
 - **The whiteboard** is vectors, drawn by one function onto the 3D board's texture and onto the
   DOM canvas the owner draws on. The camera stands square onto the board at the distance where it
   fills the canvas, so the drawing lines up with the wall.
