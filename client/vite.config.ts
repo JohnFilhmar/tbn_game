@@ -24,9 +24,9 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
-    // A model stays a file whatever its size: the loader fetches it, and the page's content
+    // A model or a font stays a file whatever its size: the loader fetches it, and the page's content
     // security policy allows no data URLs.
-    assetsInlineLimit: (file) => (file.endsWith('.glb') ? false : undefined),
+    assetsInlineLimit: (file) => (/\.(glb|woff2)$/.test(file) ? false : undefined),
   },
   test: {
     environment: 'jsdom',

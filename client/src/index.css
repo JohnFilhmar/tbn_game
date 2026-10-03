@@ -3,16 +3,110 @@
 /* The theme preference sets `dark` on the root element; `system` follows the device. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Self-hosted under the SIL Open Font License (see assets/fonts), since the VPN may have no
+   internet: Chakra Petch for display, Rubik for text. */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/chakra_petch_600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/chakra_petch_700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rubik';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./assets/fonts/rubik.woff2') format('woff2');
+}
+
+/* The world's palette. Every screen draws with the slate and teal scales, so redefining them here
+   dresses the whole desk in the world's materials: the warm floor and the blue grey walls for the
+   neutrals, the plants' green for the accent. */
 @theme {
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Rubik', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
+  --font-display: 'Chakra Petch', 'Rubik', ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --color-slate-50: #f5f2ea;
+  --color-slate-100: #e9e4d8;
+  --color-slate-200: #d6d0c2;
+  --color-slate-300: #b9b4a8;
+  --color-slate-400: #8f95a0;
+  --color-slate-500: #6b7482;
+  --color-slate-600: #525b6b;
+  --color-slate-700: #3d4657;
+  --color-slate-800: #2a3344;
+  --color-slate-900: #1c2433;
+  --color-slate-950: #121825;
+
+  --color-teal-50: #ecf8ef;
+  --color-teal-100: #d2efd9;
+  --color-teal-200: #a8dfb6;
+  --color-teal-300: #74c98d;
+  --color-teal-400: #4cb36d;
+  --color-teal-500: #2f9a55;
+  --color-teal-600: #237f45;
+  --color-teal-700: #1d6639;
+  --color-teal-800: #19512f;
+  --color-teal-900: #143f26;
+  --color-teal-950: #0a2414;
+
+  /* A hard offset shadow, the way a low poly block sits on the ground. */
+  --shadow-chunk: 0 3px 0 0 rgb(0 0 0 / 0.3);
+  --shadow-glow: 0 0 6px 1px currentColor;
+
+  --animate-power-on: power-on 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 450ms both;
+
+  @keyframes power-on {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+      filter: brightness(2.2);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+      filter: brightness(1);
+    }
+  }
 }
 
 @layer base {
   html {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Every rounded corner becomes a facet, borders and focus rings with it. A browser without
+     `corner-shape` keeps the round corners. */
+  *,
+  ::before,
+  ::after {
+    corner-shape: bevel;
+  }
+
+  h1,
+  h2,
+  h3,
+  button,
+  label,
+  th {
+    font-family: var(--font-display);
+  }
+
+  h1 {
+    @apply tracking-wide;
   }
 
   :focus-visible {

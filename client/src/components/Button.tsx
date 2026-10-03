@@ -14,7 +14,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
     'border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700',
   danger:
     'bg-red-700 text-white hover:bg-red-800 dark:bg-red-500 dark:text-slate-950 dark:hover:bg-red-400',
-  ghost: 'text-slate-700 hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800',
+  ghost:
+    'text-slate-700 shadow-none hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800',
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -28,7 +29,7 @@ export function buttonClasses(
   size: ButtonSize = 'md',
 ): string {
   return cx(
-    'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+    'inline-flex items-center justify-center gap-2 rounded-md font-semibold tracking-wide shadow-chunk transition active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0',
     VARIANTS[variant],
     SIZES[size],
   );

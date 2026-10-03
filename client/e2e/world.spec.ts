@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { DELEGATE_MARKER, PART_TITLE } from './fakeModel';
 import { openDesk, openScreen, signIn } from './session';
-import { RUN_ID } from './stack';
+import { OWNER, RUN_ID } from './stack';
 
 const MANAGER = `Ada ${RUN_ID}`;
 const ROLE = `Research ${RUN_ID}`;
@@ -52,8 +52,12 @@ test('the owner lands in the world and walks to the computer', async ({ page }, 
   await expect(camera).toHaveText('Camera: top down');
   await page.screenshot({ path: testInfo.outputPath('office_top_down.png') });
 
-  // From above, left is west: the owner's desk and its computer are that way from the spawn.
-  await expect(page.getByText('Press E to use the computer')).toBeHidden();
+  // Standing up from the desk leaves the owner by the computer: walk east out of its reach, then
+  // west back to it. From above, left is west.
+  const prompt = page.getByText('Press E to use the computer');
+  await page.keyboard.down('d');
+  await expect(prompt).toBeHidden({ timeout: 15_000 });
+  await page.keyboard.up('d');
   await page.keyboard.down('a');
   await expect(page.getByText('Press E to use the computer')).toBeVisible({ timeout: 15_000 });
   await page.keyboard.up('a');
@@ -114,6 +118,44 @@ test('the owner customises their character', async ({ page }) => {
   await expect(dialog.getByLabel('Accessory')).toHaveValue('glasses');
   await expect(dialog.getByLabel('Top')).toHaveValue('#2a9d8f');
   await dialog.getByRole('button', { name: 'Close' }).click();
+});
+
+test('a desk screen reloads seated, and an expired session signs in again at the monitor', async ({
+  page,
+}) => {
+  await signIn(page);
+  await openScreen(page, 'Tasks');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Desk' })).toBeHidden();
+
+  // A token the server no longer knows: the monitor swaps to sign in, then back to the screen.
+  await page.evaluate(() => window.sessionStorage.setItem('tbn.session', 'tbn_expired'));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByText('You were signed out')).toBeVisible();
+  await page.getByLabel('Username').fill(OWNER.username);
+  await page.getByLabel('Password').fill(OWNER.password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/tasks$/);
+});
+
+test('the owner goes to an agent and sits back down at the desk', async ({ page }) => {
+  await signIn(page);
+  await expect(worldReady(page)).toBeAttached();
+  const agents = page.getByRole('list', { name: 'Agents in the world' });
+  await expect(agents).toContainText(MANAGER);
+  await page.keyboard.press('1');
+  await expect(narration(page)).toContainText('You go to ');
+  await agents.getByRole('button', { name: `Go to ${MANAGER}` }).click();
+  await expect(narration(page)).toContainText(`You go to ${MANAGER}.`);
+
+  await page.getByRole('button', { name: 'Desk' }).click();
+  await expect(page.getByRole('navigation', { name: 'Launcher' })).toBeVisible();
+  await backToWorld(page);
+  await expect(page.getByText('Press E to use the computer')).toBeVisible();
 });
 
 test('an agent walks, works, hands off, and the intern arrives and leaves', async ({ page }) => {

@@ -2,6 +2,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Vector3, type Object3D } from 'three';
 import { radiansOf } from '@/game/assets/geometry';
+import { prefersReducedMotion } from './motion';
+import type { SeatPose } from './seat';
 import type { CameraMode } from './worldStore';
 
 /** Props of `CameraRig`. */
@@ -14,21 +16,38 @@ export interface CameraRigProps {
   initialYawDeg: number;
   /** Written every frame: the yaw the movement keys treat as forward. */
   viewYawRef: RefObject<number>;
+  /** The pose at the monitor while the owner is seated, or null in the world. */
+  seatPose: SeatPose | null;
 }
 
 const DEG = Math.PI / 180;
 const FOCUS_HEIGHT = 1.2;
+/** How fast the camera follows: briskly while walking, slower while it glides to or from the
+ * seat, so sitting down and standing up read as one move. */
+const FOLLOW_RATE = 10;
+const GLIDE_RATE = 4;
+const GLIDE_SECONDS = 1.5;
+const UP = new Vector3(0, 1, 0);
+const NORTH_UP = new Vector3(0, 0, -1);
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
 /**
- * The two camera rigs. Third person orbits behind the character: drag to look around, wheel to
- * zoom. Top down looks straight down from above the character with north up: wheel to zoom. The
- * toggle changes nothing but this rig, and the movement keys stay relative to what is on screen.
+ * The camera rigs. Third person orbits behind the character: drag to look around, wheel to zoom.
+ * Top down looks straight down from above the character with north up: wheel to zoom. Seated looks
+ * at the monitor from the owner's chair. A change between them glides; the first frame and a
+ * device that asks for reduced motion snap. The movement keys stay relative to what is on screen.
  */
-export function CameraRig({ targetRef, mode, ceiling, initialYawDeg, viewYawRef }: CameraRigProps) {
+export function CameraRig({
+  targetRef,
+  mode,
+  ceiling,
+  initialYawDeg,
+  viewYawRef,
+  seatPose,
+}: CameraRigProps) {
   const camera = useThree((state) => state.camera);
   const element = useThree((state) => state.gl.domElement);
   const orbit = useRef({
@@ -39,6 +58,9 @@ export function CameraRig({ targetRef, mode, ceiling, initialYawDeg, viewYawRef 
   });
   const focus = useMemo(() => new Vector3(), []);
   const desired = useMemo(() => new Vector3(), []);
+  const look = useMemo(() => new Vector3(), []);
+  const glide = useRef({ isFirstFrame: true, until: 0 });
+  const isSeated = seatPose !== null;
 
   useEffect(() => {
     let isDragging = false;
@@ -86,16 +108,19 @@ export function CameraRig({ targetRef, mode, ceiling, initialYawDeg, viewYawRef 
   }, [element, mode, ceiling]);
 
   useEffect(() => {
-    if (mode === 'top_down') camera.up.set(0, 0, -1);
-    else camera.up.set(0, 1, 0);
-  }, [camera, mode]);
+    glide.current.until = performance.now() / 1000 + GLIDE_SECONDS;
+  }, [isSeated]);
 
   useFrame((_, delta) => {
     const target = targetRef.current;
-    if (target === null) return;
     const state = orbit.current;
-    const ease = 1 - Math.exp(-10 * Math.min(delta, 0.1));
-    if (mode === 'third_person') {
+    let up = UP;
+    if (seatPose !== null) {
+      desired.copy(seatPose.eye);
+      focus.copy(seatPose.look);
+    } else if (target === null) {
+      return;
+    } else if (mode === 'third_person') {
       focus.set(target.position.x, target.position.y + FOCUS_HEIGHT, target.position.z);
       const flat = Math.cos(state.pitch) * state.distance;
       desired.set(
@@ -103,16 +128,22 @@ export function CameraRig({ targetRef, mode, ceiling, initialYawDeg, viewYawRef 
         focus.y + Math.sin(state.pitch) * state.distance,
         focus.z + Math.cos(state.yaw) * flat,
       );
-      camera.position.lerp(desired, ease);
-      camera.lookAt(focus);
       viewYawRef.current = state.yaw / DEG + 180;
     } else {
       focus.set(target.position.x, 0, target.position.z);
       desired.set(focus.x, state.height, focus.z);
-      camera.position.lerp(desired, ease);
-      camera.lookAt(focus);
+      up = NORTH_UP;
       viewYawRef.current = 180;
     }
+    const own = glide.current;
+    const rate = performance.now() / 1000 < own.until ? GLIDE_RATE : FOLLOW_RATE;
+    const ease =
+      own.isFirstFrame || prefersReducedMotion() ? 1 : 1 - Math.exp(-rate * Math.min(delta, 0.1));
+    own.isFirstFrame = false;
+    camera.position.lerp(desired, ease);
+    look.lerp(focus, ease);
+    camera.up.lerp(up, ease).normalize();
+    camera.lookAt(look);
   });
 
   return null;

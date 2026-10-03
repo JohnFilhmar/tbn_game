@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { useWorldStore } from '@/game/world/worldStore';
 import { ApiError } from '@/lib/api/apiError';
 import { loadToken } from '@/lib/session/tokenStorage';
 import { fakeApi } from '@/testing/fakeApi';
@@ -40,6 +41,29 @@ describe('signing in', () => {
       username: 'owner',
       password: 'correct-horse-battery',
     });
+  });
+
+  it('signs in at the monitor with no world to draw, then the monitor shows the desk', async () => {
+    const api = fakeApi({
+      'POST /auth/login': () => SESSION,
+      'GET /agents': () => [],
+      'GET /departments': () => [],
+    });
+    useWorldStore.setState({ lastDesktopPath: '/agents' });
+    const { router } = renderApp({ api, path: '/', isSignedIn: false });
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeDefined();
+    expect(
+      screen.getByText('This device cannot draw the world. The desk still works.'),
+    ).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Desk' })).toBeNull();
+
+    await userEvent.type(screen.getByLabelText('Username'), 'owner');
+    await userEvent.type(screen.getByLabelText('Password'), 'correct-horse-battery');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('navigation', { name: 'Launcher' })).toBeDefined();
+    expect(router.state.location.pathname).toBe('/agents');
+    expect(screen.queryByRole('button', { name: 'Desk' })).toBeNull();
   });
 
   it('shows the server reason when the account does not match', async () => {

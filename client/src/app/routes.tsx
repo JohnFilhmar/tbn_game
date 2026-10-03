@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { LazyRouteFunction, RouteObject } from 'react-router';
+import { Outlet, type LazyRouteFunction, type RouteObject } from 'react-router';
 import { WorldLayout } from '@/game/WorldLayout';
 import { SignInScreen } from '@/screens/signIn/SignInScreen';
 import { DesktopLayout } from './DesktopLayout';
@@ -242,20 +242,29 @@ const DESK_ROUTES: RouteObject[] = [
   { path: '*', element: <RouteError isMissing /> },
 ];
 
-/** Every route of the client, under the `/app` base path: the world at `/`, the desk over it. */
+/**
+ * Every route of the client, under the `/app` base path. The world is the root for everyone: `/`
+ * is the owner walking in it, and every other route is the owner seated at the monitor, signing in
+ * or using the desk.
+ */
 export const APP_ROUTES: RouteObject[] = [
-  { path: '/sign_in', element: <SignInScreen />, errorElement: <RouteError /> },
   {
     path: '/',
-    element: (
-      <RequireSession>
-        <WorldLayout />
-      </RequireSession>
-    ),
+    element: <WorldLayout />,
     errorElement: <RouteError />,
     children: [
-      { index: true, element: null },
-      { element: <DesktopLayout />, children: DESK_ROUTES },
+      { path: 'sign_in', element: <SignInScreen /> },
+      {
+        element: (
+          <RequireSession>
+            <Outlet />
+          </RequireSession>
+        ),
+        children: [
+          { index: true, element: null },
+          { element: <DesktopLayout />, children: DESK_ROUTES },
+        ],
+      },
     ],
   },
 ];

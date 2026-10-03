@@ -1,9 +1,15 @@
+import { EnvironmentNameSchema, type EnvironmentName } from '@tbn/contracts';
+import type { Vector3 } from 'three';
 import { create } from 'zustand';
+import { prefersReducedMotion } from './motion';
 
 /** The two camera rigs: behind the owner's character, or straight down from above it. */
 export type CameraMode = 'third_person' | 'top_down';
 
 const CAMERA_MODE_KEY = 'tbn_camera_mode';
+const ENVIRONMENT_KEY = 'tbn_environment';
+/** How long the screen stays dark on each side of a teleport. */
+const FADE_MS = 180;
 
 function loadCameraMode(): CameraMode {
   try {
@@ -21,6 +27,31 @@ function saveCameraMode(mode: CameraMode): void {
   } catch {
     // A device that blocks storage starts in third person every time.
   }
+}
+
+/** The pack the owner last used on this device, which the world shows before sign in. */
+function loadEnvironment(): EnvironmentName {
+  try {
+    const parsed = EnvironmentNameSchema.safeParse(window.localStorage.getItem(ENVIRONMENT_KEY));
+    return parsed.success ? parsed.data : 'office';
+  } catch {
+    return 'office';
+  }
+}
+
+function saveEnvironment(environment: EnvironmentName): void {
+  try {
+    window.localStorage.setItem(ENVIRONMENT_KEY, environment);
+  } catch {
+    // A device that blocks storage shows the office before sign in.
+  }
+}
+
+/** A request to move the owner's character at once; the character takes it on its next frame. */
+export interface TeleportRequest {
+  id: number;
+  position: Vector3;
+  yawDeg: number;
 }
 
 /** One sentence of what happened in the world. */
@@ -54,6 +85,21 @@ export interface WorldState {
   /** The desk screen the computer opens: the last one the owner had open. */
   lastDesktopPath: string;
   setLastDesktopPath: (path: string) => void;
+  /** The pack of the owner's preference, kept on the device for the world before sign in. */
+  environment: EnvironmentName;
+  setEnvironment: (environment: EnvironmentName) => void;
+  /** True for the moment the camera glides between the world and the seat. */
+  isGliding: boolean;
+  setGliding: (isGliding: boolean) => void;
+  /** True while the screen is dark around a teleport. */
+  isFaded: boolean;
+  /** Darkens the screen, runs `action`, and lightens it again; at once under reduced motion. */
+  fadeThrough: (action: () => void) => void;
+  teleport: TeleportRequest | null;
+  requestTeleport: (position: Vector3, yawDeg: number) => void;
+  /** The frame counter, shown with F3. */
+  isFpsShown: boolean;
+  toggleFps: () => void;
 }
 
 let nextLineId = 1;
@@ -100,4 +146,30 @@ export const useWorldStore = create<WorldState>((set) => ({
   setFps: (fps) => set({ fps }),
   lastDesktopPath: '/agents',
   setLastDesktopPath: (lastDesktopPath) => set({ lastDesktopPath }),
+  environment: loadEnvironment(),
+  setEnvironment: (environment) => {
+    saveEnvironment(environment);
+    set({ environment });
+  },
+  isGliding: false,
+  setGliding: (isGliding) => set({ isGliding }),
+  isFaded: false,
+  fadeThrough: (action) => {
+    if (prefersReducedMotion()) {
+      action();
+      return;
+    }
+    set({ isFaded: true });
+    window.setTimeout(() => {
+      action();
+      set({ isFaded: false });
+    }, FADE_MS);
+  },
+  teleport: null,
+  requestTeleport: (position, yawDeg) =>
+    set((state) => ({
+      teleport: { id: (state.teleport?.id ?? 0) + 1, position, yawDeg },
+    })),
+  isFpsShown: false,
+  toggleFps: () => set((state) => ({ isFpsShown: !state.isFpsShown })),
 }));
