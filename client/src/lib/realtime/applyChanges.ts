@@ -11,6 +11,17 @@ export function upsertRow<Row extends { id: string }>(rows: Row[], row: Row): Ro
   return next;
 }
 
+/**
+ * The prop states with `state` in place of whatever its placement had, so a state saved ahead of
+ * the server's answer never doubles up with the answer.
+ */
+export function withPropState(
+  rows: readonly WorldPropState[] | undefined,
+  state: WorldPropState,
+): WorldPropState[] {
+  return [...(rows ?? []).filter((row) => row.placement_id !== state.placement_id), state];
+}
+
 /** Removes the row with `id`, keeping the same array when it is not there. */
 export function removeRow<Row extends { id: string }>(rows: Row[], id: string): Row[] {
   return rows.some((item) => item.id === id) ? rows.filter((item) => item.id !== id) : rows;
@@ -108,7 +119,7 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
       const state = event.data;
       if (state !== null) {
         writeLoaded<WorldPropState[]>(client, queryKeys.worldProps(state.environment), (rows) =>
-          upsertRow(rows, state),
+          withPropState(rows, state),
         );
       }
       return;
