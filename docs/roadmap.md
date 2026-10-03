@@ -21,8 +21,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 3 | Web app without 3D | Merged |
 | 4 | The 3D world | Merged |
 | 4b | Game feel | Merged |
-| 4c | Living agents | In progress |
-| 4d | Build mode and themes | Planned |
+| 4c | Living agents | Merged |
+| 4d | Build mode and themes | In progress |
 | 4e | Interactive objects | Planned |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |

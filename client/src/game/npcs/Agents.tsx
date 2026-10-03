@@ -5,7 +5,7 @@ import { Vector3, type Group, type Mesh } from 'three';
 import { appearanceOf, resolveAppearance, type ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { forwardOf, radiansOf, vec3, yawTowards } from '@/game/assets/geometry';
-import type { LoadedPack } from '@/game/assets/packs';
+import type { ArrangedPack } from '@/game/props/arrangedPack';
 import { Character } from '@/game/world/Character';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
 import { talkTo } from '@/game/world/talk';
@@ -19,7 +19,8 @@ import { worldEventsOfAll, type WorldEvent } from './worldEvents';
 
 /** Props of `Agents`. */
 export interface AgentsProps {
-  pack: LoadedPack;
+  /** The pack as the owner arranged it: its zones make the seats and its spots the breaks. */
+  arranged: ArrangedPack;
   navigation: Navigation;
   agents: readonly Agent[];
   departments: readonly Department[];
@@ -208,7 +209,13 @@ function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharact
  * walks in from the entry, one that leaves walks out through the exit, and the change feed's
  * world events drive everything in between.
  */
-export function Agents({ pack, navigation, agents, departments, pendingAgentIds }: AgentsProps) {
+export function Agents({
+  arranged,
+  navigation,
+  agents,
+  departments,
+  pendingAgentIds,
+}: AgentsProps) {
   const actors = useRef(new Map<string, AgentActor>());
   const pending = useRef<{ event: WorldEvent; until: number }[]>([]);
   const hasRoster = useRef(false);
@@ -217,10 +224,10 @@ export function Agents({ pack, navigation, agents, departments, pendingAgentIds 
   const setActivity = useWorldStore((state) => state.setActivity);
   const dropActivity = useWorldStore((state) => state.dropActivity);
   const setReady = useWorldStore((state) => state.setReady);
-  const { manifest } = pack;
+  const { manifest, zones, spots } = arranged;
   const seats = useMemo(
-    () => assignSeats(manifest, departments, agents),
-    [manifest, departments, agents],
+    () => assignSeats({ zones, waiting: manifest.waiting }, departments, agents),
+    [zones, manifest.waiting, departments, agents],
   );
   const appearances = useMemo(() => {
     const byId = new Map<string, ResolvedAppearance>();
@@ -263,7 +270,8 @@ export function Agents({ pack, navigation, agents, departments, pendingAgentIds 
         changed = true;
       } else {
         actor.name = agent.name;
-        if (homeKey(actor.home) !== homeKey(home)) actor.moveHome(home);
+        actor.planner = navigation;
+        if (homeKey(actor.home) !== homeKey(home)) actor.relocate(home);
       }
     }
     for (const [id, actor] of actors.current) {
@@ -306,7 +314,7 @@ export function Agents({ pack, navigation, agents, departments, pendingAgentIds 
     return () => actor.endTalk();
   }, [talkingTo]);
 
-  const wander = useMemo(() => new WanderScheduler(manifest.spots, narrate), [manifest, narrate]);
+  const wander = useMemo(() => new WanderScheduler(spots, narrate), [spots, narrate]);
   const lastWanderCheck = useRef(0);
 
   useFrame(({ clock }) => {

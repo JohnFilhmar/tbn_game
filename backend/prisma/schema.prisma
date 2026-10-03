@@ -284,6 +284,7 @@ model Owner {
   skills                  Skill[]
   skill_attachments       SkillAttachment[]
   preferences             Preference[]
+  world_layouts           WorldLayout[]
   tasks                   Task[]
   runs                    Run[]
   transcript_entries      TranscriptEntry[]
@@ -1027,4 +1028,22 @@ model Command {
   @@id([owner_id, key])
   @@index([created_at])
   @@map("commands")
+}
+
+/// An environment as the owner arranged it: its theme and every placed prop, saved whole, with
+/// a revision that grows with each save.
+model WorldLayout {
+  id          String   @id @default(uuid(7))
+  owner_id    String
+  environment String
+  theme       Json     @default("{}")
+  placements  Json     @default("[]")
+  revision    Int
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([owner_id, environment])
+  @@map("world_layouts")
 }

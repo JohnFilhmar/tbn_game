@@ -1,17 +1,21 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import type { Agent, Department } from '@tbn/contracts';
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
-import type { LoadedPack } from '@/game/assets/packs';
+import type { ArrangedPack } from '@/game/props/arrangedPack';
+import { BuildLayer } from '@/game/build/BuildLayer';
+import { useBuildStore } from '@/game/build/buildStore';
+import { Props } from '@/game/props/Props';
 import { Agents } from '@/game/npcs/Agents';
 import { CameraRig } from './CameraRig';
 import { Lighting } from './Lighting';
 import { liveView } from './livePositions';
 import { useMovementKeys, type MoveAction } from './keyboard';
-import type { Navigation } from './navmesh';
+import { gridGeometry, walkGrid } from './navGrid';
+import { Navigation } from './navmesh';
 import { OwnerCharacter } from './OwnerCharacter';
 import { PackScene } from './PackScene';
 import { seatPoseOf } from './seat';
@@ -20,7 +24,8 @@ import { useWorldStore } from './worldStore';
 
 /** Props of `World`. */
 export interface WorldProps {
-  pack: LoadedPack;
+  /** The pack as the owner arranged it: shell, props, theme and what they make. */
+  arranged: ArrangedPack;
   hour: number;
   ownerAppearance: ResolvedAppearance;
   /** The roster; the agents enter the world once both are loaded. */
@@ -34,6 +39,8 @@ export interface WorldProps {
   isGliding: boolean;
   /** The agents with an approval waiting for the owner, who wear a marker. */
   pendingAgentIds: ReadonlySet<string>;
+  /** True while the owner builds: the camera looks down at an angle and props can be picked. */
+  isBuilding: boolean;
 }
 
 function FrameCounter() {
@@ -83,7 +90,7 @@ interface PackWorldProps extends Omit<WorldProps, 'isActive' | 'isGliding'> {
 
 /** Everything that belongs to one pack; a pack switch replaces it whole. */
 function PackWorld({
-  pack,
+  arranged,
   hour,
   ownerAppearance,
   agents,
@@ -91,54 +98,70 @@ function PackWorld({
   keysRef,
   isSeated,
   pendingAgentIds,
+  isBuilding,
 }: PackWorldProps) {
-  const [navigation, setNavigation] = useState<Navigation | null>(null);
+  const { pack, manifest } = arranged;
+  // ponytail: rebuilt whole on every layout change; a grid of a few thousand cells takes
+  // milliseconds, so there is no incremental update.
+  const navigation = useMemo(
+    () => new Navigation(gridGeometry(walkGrid(manifest.bounds, arranged.footprints))),
+    [manifest.bounds, arranged.footprints],
+  );
   const cameraMode = useWorldStore((state) => state.cameraMode);
   const talkingTo = useWorldStore((state) => state.talkingTo);
   const ownerRef = useRef<Group | null>(null);
-  const viewYawRef = useRef(pack.manifest.spawn.yaw_deg);
-  const { manifest } = pack;
-  const pose = useMemo(() => seatPoseOf(manifest.computer), [manifest]);
+  const viewYawRef = useRef(manifest.spawn.yaw_deg);
+  const pose = useMemo(() => seatPoseOf(arranged.computer), [arranged.computer]);
+  const heldId = useBuildStore((state) => state.holding?.id);
   const seatPose = isSeated ? pose : null;
   return (
     <>
       <Ground />
-      <PackScene pack={pack} isLit={lightingAt(hour).interiorOn} onNavigation={setNavigation} />
+      <PackScene pack={pack} isLit={lightingAt(hour).interiorOn} theme={arranged.theme} />
+      <Props
+        placements={
+          heldId === undefined
+            ? arranged.placements
+            : arranged.placements.filter((placement) => placement.id !== heldId)
+        }
+        theme={arranged.theme}
+        onPick={isBuilding ? (id) => useBuildStore.getState().select(id) : undefined}
+      />
+      {isBuilding && <BuildLayer arranged={arranged} keysRef={keysRef} />}
       <Lighting hour={hour} profile={manifest.lighting} bounds={manifest.bounds} />
-      {navigation !== null && (
-        <>
-          <Suspense fallback={null}>
-            <OwnerCharacter
-              navigation={navigation}
-              spawn={manifest.spawn}
-              computer={manifest.computer}
-              appearance={ownerAppearance}
-              keysRef={keysRef}
-              viewYawRef={viewYawRef}
-              groupRef={ownerRef}
-              seatPose={seatPose}
-            />
-          </Suspense>
-          {agents !== undefined && departments !== undefined && (
-            <Agents
-              pack={pack}
-              navigation={navigation}
-              agents={agents}
-              departments={departments}
-              pendingAgentIds={pendingAgentIds}
-            />
-          )}
-          <CameraRig
-            targetRef={ownerRef}
-            mode={cameraMode}
-            ceiling={manifest.ceiling}
-            initialYawDeg={manifest.spawn.yaw_deg}
+      <>
+        <Suspense fallback={null}>
+          <OwnerCharacter
+            navigation={navigation}
+            spawn={manifest.spawn}
+            computer={arranged.computer}
+            appearance={ownerAppearance}
+            keysRef={keysRef}
             viewYawRef={viewYawRef}
+            groupRef={ownerRef}
             seatPose={seatPose}
-            talkingTo={talkingTo}
           />
-        </>
-      )}
+        </Suspense>
+        {agents !== undefined && departments !== undefined && (
+          <Agents
+            arranged={arranged}
+            navigation={navigation}
+            agents={agents}
+            departments={departments}
+            pendingAgentIds={pendingAgentIds}
+          />
+        )}
+        <CameraRig
+          targetRef={ownerRef}
+          mode={cameraMode}
+          ceiling={manifest.ceiling}
+          initialYawDeg={manifest.spawn.yaw_deg}
+          viewYawRef={viewYawRef}
+          seatPose={seatPose}
+          talkingTo={talkingTo}
+          isBuilding={isBuilding}
+        />
+      </>
     </>
   );
 }
@@ -157,7 +180,7 @@ function characterFiles(): string[] {
  * renders only on change once the glide is over, so the desk costs no frames.
  */
 export function World({
-  pack,
+  arranged,
   hour,
   ownerAppearance,
   agents,
@@ -166,6 +189,7 @@ export function World({
   isSeated,
   isGliding,
   pendingAgentIds,
+  isBuilding,
 }: WorldProps) {
   const talkingTo = useWorldStore((state) => state.talkingTo);
   const keysRef = useMovementKeys(isActive && talkingTo === null);
@@ -184,8 +208,8 @@ export function World({
     >
       <Suspense fallback={null}>
         <PackWorld
-          key={pack.manifest.name}
-          pack={pack}
+          key={arranged.manifest.name}
+          arranged={arranged}
           hour={hour}
           ownerAppearance={ownerAppearance}
           agents={agents}
@@ -193,6 +217,7 @@ export function World({
           keysRef={keysRef}
           isSeated={isSeated}
           pendingAgentIds={pendingAgentIds}
+          isBuilding={isBuilding}
         />
       </Suspense>
       <FrameCounter />

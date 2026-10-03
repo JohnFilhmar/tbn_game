@@ -22,6 +22,9 @@ const DESKTOP_ROUTES: Record<string, FakeRoute> = {
   'GET /auth/me': () => ({ id: '00000000-0000-4000-8000-0000000000aa', username: 'owner' }),
   'GET /approvals': () => [],
   'GET /preferences': () => PREFERENCE_DEFAULTS,
+  'GET /world/office': () => ({ layout: null }),
+  'GET /world/home': () => ({ layout: null }),
+  'GET /world/warehouse': () => ({ layout: null }),
 };
 
 /** Builds a fake API; an unknown route answers 404. */

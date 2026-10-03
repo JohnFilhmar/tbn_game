@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { PACKS } from '@/game/assets/packs';
+import { arrangePack } from '@/game/props/arrangedPack';
 import { isSeatedPath, landingBeside, seatPoseOf } from './seat';
 
 describe('the seat', () => {
@@ -24,8 +25,8 @@ describe('the seat', () => {
   });
 
   it('keeps the office chair inside the room', () => {
-    const { manifest } = PACKS.office;
-    expect(seatPoseOf(manifest.computer).chair.z).toBeLessThan(manifest.bounds.max_z);
+    const office = arrangePack(PACKS.office, null);
+    expect(seatPoseOf(office.computer).chair.z).toBeLessThan(office.manifest.bounds.max_z);
   });
 
   it('lands a teleport beside the target, on the side the owner comes from', () => {

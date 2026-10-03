@@ -1,7 +1,6 @@
 import {
   BoxGeometry,
-  BufferAttribute,
-  BufferGeometry,
+  type BufferGeometry,
   CylinderGeometry,
   Group,
   Matrix4,
@@ -13,25 +12,14 @@ import {
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Footprint } from '../world/navGrid.ts';
 
 /** A point in metres: x east, y up, z south. */
 export type Vec3 = [number, number, number];
 
-/** The floor area a piece of furniture or a wall takes, which nobody walks through. */
-export interface Footprint {
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-}
+export type { Footprint } from '../world/navGrid.ts';
 
-/** The floor the navigation mesh covers. */
-export interface Bounds {
-  min_x: number;
-  max_x: number;
-  min_z: number;
-  max_z: number;
-}
+export type { Bounds } from '../world/navGrid.ts';
 
 /** A place in the scene and the direction to face there, as the manifest carries it. */
 export interface Anchor {
@@ -58,7 +46,8 @@ export function ahead(point: Vec3, yawDeg: number, distance: number): Vec3 {
 
 /**
  * Collects geometry per material and the footprints that block walking, then merges each
- * material's geometry into one mesh and lays a navigation mesh over what is left of the floor.
+ * material's geometry into one mesh. The pack generator builds the shell with it, and the world
+ * builds every prop with it at the origin, once per kind and size.
  */
 export class PackBuilder {
   private readonly geometries = new Map<string, BufferGeometry[]>();
@@ -175,107 +164,6 @@ export class PackBuilder {
       group.add(mesh);
     }
     return group;
-  }
-
-  /**
-   * The walkable floor as a grid of cells, each cell's centre at least `radius` from every
-   * footprint, as one indexed geometry whose cells share vertices. Every anchor must land on a
-   * walkable cell and every anchor must be reachable from the first, or this throws.
-   */
-  navmesh(bounds: Bounds, cell: number, radius: number, anchors: Vec3[]): BufferGeometry {
-    const nx = Math.round((bounds.max_x - bounds.min_x) / cell);
-    const nz = Math.round((bounds.max_z - bounds.min_z) / cell);
-    const walkable: boolean[] = new Array<boolean>(nx * nz).fill(false);
-    const at = (i: number, j: number): number => j * nx + i;
-    for (let j = 0; j < nz; j += 1) {
-      for (let i = 0; i < nx; i += 1) {
-        const cx = bounds.min_x + (i + 0.5) * cell;
-        const cz = bounds.min_z + (j + 0.5) * cell;
-        const insideBounds =
-          cx >= bounds.min_x + radius &&
-          cx <= bounds.max_x - radius &&
-          cz >= bounds.min_z + radius &&
-          cz <= bounds.max_z - radius;
-        walkable[at(i, j)] =
-          insideBounds &&
-          !this.footprints.some(
-            (f) =>
-              cx >= f.minX - radius &&
-              cx <= f.maxX + radius &&
-              cz >= f.minZ - radius &&
-              cz <= f.maxZ + radius,
-          );
-      }
-    }
-    const cellOf = (point: Vec3): [number, number] => [
-      Math.floor((point[0] - bounds.min_x) / cell),
-      Math.floor((point[2] - bounds.min_z) / cell),
-    ];
-    for (const anchor of anchors) {
-      const [i, j] = cellOf(anchor);
-      if (i < 0 || j < 0 || i >= nx || j >= nz || !walkable[at(i, j)]) {
-        throw new Error(`Anchor ${anchor.join(',')} is not on walkable floor`);
-      }
-    }
-    const first = anchors[0];
-    if (first !== undefined) {
-      const start = cellOf(first);
-      const reached = new Set<number>([at(start[0], start[1])]);
-      const queue = [start];
-      for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-        const [i, j] = next;
-        for (const [di, dj] of [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ] as const) {
-          const ni = i + di;
-          const nj = j + dj;
-          if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
-          const index = at(ni, nj);
-          if (walkable[index] && !reached.has(index)) {
-            reached.add(index);
-            queue.push([ni, nj]);
-          }
-        }
-      }
-      for (const anchor of anchors) {
-        const [i, j] = cellOf(anchor);
-        if (!reached.has(at(i, j))) {
-          throw new Error(`Anchor ${anchor.join(',')} cannot be reached from ${first.join(',')}`);
-        }
-      }
-    }
-
-    const vertexIndex = new Map<number, number>();
-    const positions: number[] = [];
-    const indices: number[] = [];
-    const vertex = (i: number, j: number): number => {
-      const key = j * (nx + 1) + i;
-      let index = vertexIndex.get(key);
-      if (index === undefined) {
-        index = positions.length / 3;
-        vertexIndex.set(key, index);
-        positions.push(bounds.min_x + i * cell, 0.02, bounds.min_z + j * cell);
-      }
-      return index;
-    };
-    for (let j = 0; j < nz; j += 1) {
-      for (let i = 0; i < nx; i += 1) {
-        if (!walkable[at(i, j)]) continue;
-        const a = vertex(i, j);
-        const b = vertex(i + 1, j);
-        const c = vertex(i, j + 1);
-        const d = vertex(i + 1, j + 1);
-        indices.push(a, c, b, b, c, d);
-      }
-    }
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    return geometry;
   }
 }
 

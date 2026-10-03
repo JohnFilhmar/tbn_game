@@ -1,15 +1,6 @@
-import {
-  BASE_MATERIALS,
-  computerDesk,
-  desk,
-  doorFrame,
-  forklift,
-  lamp,
-  pallet,
-  shelfUnit,
-} from '../furniture.ts';
-import { PackBuilder } from '../kit.ts';
-import { anchorsOf, spot, type PackResult } from '../manifest.ts';
+import { PackBuilder } from '#game/props/builder.ts';
+import { BASE_MATERIALS, doorFrame, lamp } from '#game/props/furniture.ts';
+import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -12, max_x: 12, min_z: -8, max_z: 8 };
 const CEILING = 6;
@@ -25,39 +16,6 @@ export function buildWarehouse(): PackResult {
   b.outerWall('wall', [-6.5, 8], [12, 8], CEILING, 0.3);
   doorFrame(b, [-8, 8], 0, 3);
   b.box('metal', [3.3, 0.45, 0.35], [-8, 3.2, 8], 0, false);
-
-  shelfUnit(b, [0, -2], 90, 10, { depth: 1, height: 2.8 });
-  shelfUnit(b, [0, 2], 90, 10, { depth: 1, height: 2.8 });
-  shelfUnit(b, [-11.3, -1], 0, 10, { depth: 1, height: 2.8 });
-  shelfUnit(b, [11.3, -3], 0, 6, { depth: 1, height: 2.8 });
-
-  const zones = [
-    {
-      name: 'zone_1',
-      label: 'North west benches',
-      desks: [-8, -6, -4, -2].map((x) => desk(b, [x, -7], 180)),
-    },
-    {
-      name: 'zone_2',
-      label: 'North east benches',
-      desks: [2, 4, 6, 8].map((x) => desk(b, [x, -7], 180)),
-    },
-    {
-      name: 'zone_3',
-      label: 'South benches',
-      desks: [0.5, 2.5, 4.5, 6.5].map((x) => desk(b, [x, 7], 0)),
-    },
-    {
-      name: 'zone_4',
-      label: 'East wall benches',
-      desks: [2, 3.5, 5, 6.5].map((z) => desk(b, [11.3, z], 90)),
-    },
-  ];
-  const { desk: ownerDesk, computer } = computerDesk(b, [-2.5, 5.4], 180);
-  pallet(b, [-8.5, 3.5]);
-  pallet(b, [-7.2, 3.5], 15);
-  pallet(b, [-10.3, 5.8], 0);
-  forklift(b, [8.5, -0.5], 90);
   const lights: [number, number][] = [
     [-6, -4.5],
     [6, -4.5],
@@ -67,41 +25,55 @@ export function buildWarehouse(): PackResult {
   ];
   for (const at of lights) lamp(b, at, CEILING);
 
-  const manifest: PackResult['manifest'] = {
-    name: 'warehouse',
-    title: 'Warehouse',
-    scale: 1,
-    bounds: BOUNDS,
-    ceiling: CEILING,
-    spawn: { position: [-5, 0, 6.25], yaw_deg: 180 },
-    entry: { position: [-8, 0, 7.25], yaw_deg: 180 },
-    exit: { position: [-8, 0, 7.25], yaw_deg: 0 },
-    computer,
-    zones,
-    waiting: [
-      { position: [-7.5, 0, 0.25], yaw_deg: 90 },
-      { position: [7, 0, 0.25], yaw_deg: 270 },
-      { position: [0, 0, -0.25], yaw_deg: 0 },
-      { position: [0, 0, 0.25], yaw_deg: 180 },
-    ],
-    spots: [
-      spot('look', [6.8, -0.5], [8.5, -0.5]),
-      spot('look', [-8.5, 2.3], [-8.5, 3.5]),
-      spot('look', [0, -3.2], [0, -2]),
-      spot('stretch', [5, 4.5], [5, 8]),
-      spot('stretch', [-6, -4.5], [-6, -8]),
-    ],
-    lighting: {
-      ambient: '#8a95a3',
-      sun_azimuth_deg: 90,
-      interior: lights.map(([x, z]) => ({
-        position: [x, CEILING - 0.4, z],
-        color: '#f3f7ff',
-        intensity: 16,
-        distance: 16,
-      })),
+  const layout = new LayoutBuilder(3);
+  layout.add('shelf', 0, -2, 90, { width: 10, depth: 1 });
+  layout.add('shelf', 0, 2, 90, { width: 10, depth: 1 });
+  layout.add('shelf', -11.3, -1, 0, { width: 10, depth: 1 });
+  layout.add('shelf', 11.3, -3, 180, { width: 6, depth: 1 });
+  for (const x of [-8, -6, -4, -2]) layout.add('desk', x, -7, 180);
+  layout.add('zone_rug', -5, -6.5, 0, { width: 8, depth: 3, zone: 1 });
+  for (const x of [2, 4, 6, 8]) layout.add('desk', x, -7, 180);
+  layout.add('zone_rug', 5, -6.5, 0, { width: 8, depth: 3, zone: 2 });
+  for (const x of [0.5, 2.5, 4.5, 6.5]) layout.add('desk', x, 7, 0);
+  layout.add('zone_rug', 3.5, 6.5, 0, { width: 8, depth: 3, zone: 3 });
+  for (const z of [2, 3.5, 5, 6.5]) layout.add('desk', 11.3, z, 90);
+  layout.add('zone_rug', 10.5, 4.25, 0, { width: 3, depth: 6.5, zone: 4 });
+  layout.add('computer_desk', -2.5, 5.4, 180);
+  layout.add('pallet', -8.5, 3.5, 180);
+  layout.add('pallet', -7.1, 3.5, 15);
+  layout.add('pallet', -10.3, 5.8, 0);
+  layout.add('forklift', 8.5, -0.5, 90);
+
+  return {
+    manifest: {
+      name: 'warehouse',
+      title: 'Warehouse',
+      scale: 1,
+      bounds: BOUNDS,
+      ceiling: CEILING,
+      spawn: { position: [-5, 0, 6.25], yaw_deg: 180 },
+      entry: { position: [-8, 0, 7.25], yaw_deg: 180 },
+      exit: { position: [-8, 0, 7.25], yaw_deg: 0 },
+      waiting: [
+        { position: [-7.5, 0, 0.25], yaw_deg: 90 },
+        { position: [7, 0, 0.25], yaw_deg: 270 },
+        { position: [0, 0, -0.25], yaw_deg: 0 },
+        { position: [0, 0, 0.25], yaw_deg: 180 },
+      ],
+      spots: [spot('stretch', [5, 4.5], [5, 8]), spot('stretch', [-6, -4.5], [-6, -8])],
+      blocks: b.footprints,
+      lighting: {
+        ambient: '#8a95a3',
+        sun_azimuth_deg: 90,
+        interior: lights.map(([x, z]) => ({
+          position: [x, CEILING - 0.4, z],
+          color: '#f3f7ff',
+          intensity: 16,
+          distance: 16,
+        })),
+      },
+      default_layout: layout.placements,
     },
+    scene: b.build(),
   };
-  const navmesh = b.navmesh(BOUNDS, 0.5, 0.3, anchorsOf(manifest, [ownerDesk.seat]));
-  return { manifest, scene: b.build(), navmesh };
 }

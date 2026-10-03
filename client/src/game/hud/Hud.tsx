@@ -22,6 +22,8 @@ export interface HudProps {
   /** True while the owner is seated at the desk; the HUD then shows nothing and its keys rest. */
   isOverlayOpen: boolean;
   packTitle: string;
+  /** Opens build mode on the environment shown. */
+  onBuild: () => void;
 }
 
 type OpenDialog = 'world' | 'customise' | null;
@@ -43,7 +45,7 @@ function Key({ children }: { children: string }) {
  * a way to go to each agent. The Desk button sits the owner at the computer from anywhere, through
  * a short fade; E does it without one within reach of the computer.
  */
-export function Hud({ isOverlayOpen, packTitle }: HudProps) {
+export function Hud({ isOverlayOpen, packTitle, onBuild }: HudProps) {
   const navigate = useNavigate();
   const { signOut } = useSession();
   const { data: preferences } = usePreferences();
@@ -105,6 +107,7 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
       else if (canUseComputer) sitDown();
     },
     F3: toggleFps,
+    KeyB: onBuild,
   });
 
   if (isOverlayOpen) return null;
@@ -138,6 +141,9 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
             <Button size="sm" onClick={() => setOpenDialog('world')}>
               World
             </Button>
+            <Button size="sm" onClick={onBuild} title="Arrange and paint this place (B)">
+              Build
+            </Button>
             <Button size="sm" onClick={() => setOpenDialog('customise')}>
               Customise
             </Button>
@@ -163,8 +169,8 @@ export function Hud({ isOverlayOpen, packTitle }: HudProps) {
               )}
               <p className="leading-relaxed">
                 <Key>WASD</Key> walk · <Key>Shift</Key> run · drag look · wheel zoom · <Key>C</Key>{' '}
-                camera · <Key>E</Key> talk or sit · <Key>1-9</Key> go to an agent · <Key>F3</Key>{' '}
-                frame rate
+                camera · <Key>E</Key> talk or sit · <Key>1-9</Key> go to an agent · <Key>B</Key>{' '}
+                build · <Key>F3</Key> frame rate
               </p>
               <p role="status" className={isReady ? 'sr-only' : undefined}>
                 {isReady ? 'The world is ready.' : 'Loading the world…'}

@@ -6,7 +6,7 @@ import {
   type DeskAnchor,
   type PackBuilder,
   type Vec3,
-} from './kit.ts';
+} from './builder.ts';
 
 /** Every material a pack may use, with the colours the packs start from. */
 export const BASE_MATERIALS: Record<string, string> = {

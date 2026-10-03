@@ -28,6 +28,28 @@ the next session opens on the same place, on any device.
    150 draw calls and 60,000 triangles on screen.
 6. Every earlier flow still passes on the default layouts.
 
+## As built
+
+Seven things changed while building; the design below is the plan as it was written.
+
+- **Props are code, not files.** The furniture builders take sizes (a 3.5 m partition, a 2.4 by
+  1.2 m table), which a fixed catalog of `.glb` files cannot express. So the client builds every
+  prop from the generator's own builders, once per kind, size and variant, and draws them as
+  instances. The shell stays a `.glb` that a downloaded pack can replace.
+- **One table, not two.** `world_layouts` keeps the placements as JSON beside the theme. A layout
+  is always saved and read whole, one row gives one revision check and one change event per save,
+  and a placements table would have sent an event for every prop of every save.
+- **GET answers `{ layout: null }`** when nothing is saved: the server does not know the pack
+  defaults, which live in the client's generated manifests.
+- **Lamps stay in the shell** with their lights in the manifest; phase 4e turns them into props.
+- **Zone rugs are drawn only in build mode**, so an owner who never builds sees no change. A desk
+  on no rug is left free rather than serving overflow, which keeps the waiting anchors.
+- **Moves are not handles.** A placed prop is picked up and dropped like a new one, a new prop
+  starts at the nearest free spot, and Enter drops what is held, so build mode works from the
+  keyboard. Turning is by quarters only, so footprints stay exact.
+- **A break spot nobody can reach is dropped, not refused.** A plant against a wall is normal.
+  Only seats, the owner's chair, the doorways and the waiting places must be reachable.
+
 ## Design
 
 ### Shell, props and layouts

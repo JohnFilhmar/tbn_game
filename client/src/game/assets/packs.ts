@@ -5,7 +5,6 @@ import { PackManifestSchema, type PackManifest } from './packManifest';
 export interface LoadedPack {
   manifest: PackManifest;
   sceneUrl: string;
-  navmeshUrl: string;
 }
 
 const manifests = import.meta.glob<unknown>('../packs/*/manifest.json', {
@@ -32,7 +31,6 @@ function loadPacks(): Record<EnvironmentName, LoadedPack> {
     packs[manifest.name] = {
       manifest,
       sceneUrl: fileUrl(directory, manifest.scene),
-      navmeshUrl: fileUrl(directory, manifest.navmesh),
     };
   }
   const { office, home, warehouse } = packs;

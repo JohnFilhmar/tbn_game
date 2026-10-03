@@ -1,22 +1,6 @@
-import {
-  BASE_MATERIALS,
-  computerDesk,
-  counter,
-  desk,
-  doorFrame,
-  fence,
-  fridge,
-  lamp,
-  lowTable,
-  plant,
-  rug,
-  sofa,
-  tableSeats,
-  tree,
-  windowPane,
-} from '../furniture.ts';
-import { PackBuilder } from '../kit.ts';
-import { anchorsOf, spot, type PackResult } from '../manifest.ts';
+import { PackBuilder } from '#game/props/builder.ts';
+import { BASE_MATERIALS, doorFrame, fence, lamp, windowPane } from '#game/props/furniture.ts';
+import { LayoutBuilder, spot, type PackResult } from '../manifest.ts';
 
 const BOUNDS = { min_x: -9, max_x: 9, min_z: -7, max_z: 7 };
 const CEILING = 2.8;
@@ -27,7 +11,6 @@ export function buildHome(): PackResult {
   b.floor('floor', 18, 7, [0, 0, -3.5]);
   b.floor('floor', 9, 7, [-4.5, 0, 3.5]);
   b.floor('grass', 9, 7, [4.5, 0, 3.5]);
-  rug(b, [-4.5, 3.6], [3.2, 2.4], 'fabric');
 
   b.outerWall('wall', [-9, -7], [9, -7], CEILING);
   b.outerWall('wall', [-9, -7], [-9, 7], CEILING);
@@ -52,84 +35,75 @@ export function buildHome(): PackResult {
   windowPane(b, [-5, -6.88], 0, 1.8);
   windowPane(b, [4.5, -6.88], 0, 1.8);
   windowPane(b, [-8.88, 3.5], 90, 1.8);
-
-  const study = {
-    name: 'zone_1',
-    label: 'Study',
-    desks: [
-      desk(b, [-8.4, -5.5], 270),
-      desk(b, [-8.4, -3], 270),
-      desk(b, [-5.5, -6.4], 180),
-      desk(b, [-3, -6.4], 180),
-    ],
-  };
-  const kitchen = {
-    name: 'zone_2',
-    label: 'Kitchen table',
-    desks: tableSeats(b, [4.5, -3.3], 0, [2, 1.2]),
-  };
-  counter(b, [4.5, -6.6], 90, 7);
-  fridge(b, [8.5, -6.55], 0);
-  const living = {
-    name: 'zone_3',
-    label: 'Living room',
-    desks: tableSeats(b, [-6, 2.5], 0, [1.8, 1]),
-  };
-  sofa(b, [-2.5, 6.2], 180);
-  lowTable(b, [-2.5, 4.6], 0, [1, 0.5]);
-  const garden = {
-    name: 'zone_4',
-    label: 'Garden',
-    desks: tableSeats(b, [4.5, 3.5], 0, [1.6, 1.6], 'metal'),
-  };
-  tree(b, [8, 6]);
-  tree(b, [1.5, 6.2], 2.2);
-  plant(b, [1, 1]);
-  plant(b, [-8.4, 6.4]);
-  const { desk: ownerDesk, computer } = computerDesk(b, [-8.4, 4.6], 270);
-  const lamps: [number, number][] = [
+  for (const at of [
     [-4.5, -3.5],
     [4.5, -3.5],
     [-4.5, 3.5],
-  ];
-  for (const at of lamps) lamp(b, at, CEILING);
+  ] as const) {
+    lamp(b, [at[0], at[1]], CEILING);
+  }
 
-  const manifest: PackResult['manifest'] = {
-    name: 'home',
-    title: 'Home',
-    scale: 1,
-    bounds: BOUNDS,
-    ceiling: CEILING,
-    spawn: { position: [-4.5, 0, 5.25], yaw_deg: 180 },
-    entry: { position: [-4.5, 0, 6.25], yaw_deg: 180 },
-    exit: { position: [-4.5, 0, 6.25], yaw_deg: 0 },
-    computer,
-    zones: [study, kitchen, living, garden],
-    waiting: [
-      { position: [-2.5, 0, -1.25], yaw_deg: 0 },
-      { position: [-2.5, 0, 1.25], yaw_deg: 180 },
-      { position: [2.5, 0, -1.25], yaw_deg: 0 },
-      { position: [2.5, 0, 1.25], yaw_deg: 180 },
-    ],
-    spots: [
-      spot('water', [8.2, -5.1], [8.5, -6.55]),
-      spot('grass', [7.5, 2], [7.5, 1]),
-      spot('grass', [2, 5], [2, 6]),
-      spot('plant', [7.2, 5.4], [8, 6]),
-      spot('plant', [1.8, 1.6], [1, 1]),
-      spot('stretch', [-4.5, -3], [-4.5, -7]),
-    ],
-    lighting: {
-      ambient: '#b8c4cc',
-      sun_azimuth_deg: 210,
-      interior: [
-        { position: [-4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-        { position: [4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-        { position: [-4.5, CEILING - 0.2, 3.5], color: '#fff1d6', intensity: 6, distance: 8 },
-        { position: [4.5, 2.4, 3.5], color: '#ffd9a0', intensity: 4, distance: 7 },
+  const layout = new LayoutBuilder(2);
+  // The study.
+  layout.add('desk', -8.4, -5.5, 270);
+  layout.add('desk', -8.4, -3, 270);
+  layout.add('desk', -5.5, -6.4, 180);
+  layout.add('desk', -3, -6.4, 180);
+  layout.add('zone_rug', -4.5, -3.5, 0, { width: 9, depth: 7, zone: 1 });
+  // The kitchen.
+  layout.add('table', 4.5, -3.3, 0, { width: 2, depth: 1.2 });
+  layout.add('counter', 4.5, -6.6, 90, { width: 7 });
+  layout.add('fridge', 8.5, -6.55, 0);
+  layout.add('zone_rug', 4.5, -3.5, 0, { width: 9, depth: 7, zone: 2 });
+  // The living room.
+  layout.add('rug', -4.5, 3.6, 0, { width: 3.2, depth: 2.4, variant: 'fabric' });
+  layout.add('table', -6, 2.5, 0, { width: 1.8, depth: 1 });
+  layout.add('sofa', -2.5, 6.2, 180, { width: 2 });
+  layout.add('low_table', -2.5, 4.6, 0, { width: 1, depth: 0.5 });
+  layout.add('plant', -8.4, 6.4, 90);
+  layout.add('computer_desk', -8.4, 4.6, 270);
+  layout.add('zone_rug', -4.5, 3.5, 0, { width: 9, depth: 7, zone: 3 });
+  // The garden.
+  layout.add('table', 4.5, 3.5, 0, { width: 1.6, depth: 1.6, variant: 'metal' });
+  layout.add('tree', 8, 6, 180, { variant: 'tall' });
+  layout.add('tree', 1.5, 6.2, 180, { variant: 'small' });
+  layout.add('plant', 1, 1, 90);
+  layout.add('zone_rug', 4.5, 3.5, 0, { width: 9, depth: 7, zone: 4 });
+
+  return {
+    manifest: {
+      name: 'home',
+      title: 'Home',
+      scale: 1,
+      bounds: BOUNDS,
+      ceiling: CEILING,
+      spawn: { position: [-4.5, 0, 5.25], yaw_deg: 180 },
+      entry: { position: [-4.5, 0, 6.25], yaw_deg: 180 },
+      exit: { position: [-4.5, 0, 6.25], yaw_deg: 0 },
+      waiting: [
+        { position: [-2.5, 0, -1.25], yaw_deg: 0 },
+        { position: [-2.5, 0, 1.25], yaw_deg: 180 },
+        { position: [2.5, 0, -1.25], yaw_deg: 0 },
+        { position: [2.5, 0, 1.25], yaw_deg: 180 },
       ],
+      spots: [
+        spot('grass', [7.5, 2], [7.5, 1]),
+        spot('grass', [2, 5], [2, 6]),
+        spot('stretch', [-4.5, -3], [-4.5, -7]),
+      ],
+      blocks: b.footprints,
+      lighting: {
+        ambient: '#b8c4cc',
+        sun_azimuth_deg: 210,
+        interior: [
+          { position: [-4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
+          { position: [4.5, CEILING - 0.2, -3.5], color: '#fff1d6', intensity: 6, distance: 8 },
+          { position: [-4.5, CEILING - 0.2, 3.5], color: '#fff1d6', intensity: 6, distance: 8 },
+          { position: [4.5, 2.4, 3.5], color: '#ffd9a0', intensity: 4, distance: 7 },
+        ],
+      },
+      default_layout: layout.placements,
     },
+    scene: b.build(),
   };
-  const navmesh = b.navmesh(BOUNDS, 0.5, 0.3, anchorsOf(manifest, [ownerDesk.seat]));
-  return { manifest, scene: b.build(), navmesh };
 }

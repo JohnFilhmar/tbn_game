@@ -1,5 +1,12 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { OwnerSchema, PreferencesSchema, type Preferences } from '@tbn/contracts';
+import {
+  OwnerSchema,
+  PreferencesSchema,
+  WorldLayoutResponseSchema,
+  type EnvironmentName,
+  type Preferences,
+  type WorldLayout,
+} from '@tbn/contracts';
 import { useApi, useSession } from '@/providers/SessionProvider';
 import { queryKeys, type CollectionSpec } from './collections';
 
@@ -23,6 +30,20 @@ export function usePreferences(): UseQueryResult<Preferences> {
   return useQuery({
     queryKey: queryKeys.preferences(),
     queryFn: () => api.get('/preferences', PreferencesSchema),
+    enabled: token !== null,
+  });
+}
+
+/**
+ * An environment as the owner saved it, or null while the pack default applies; kept live by
+ * events, so a save in another tab rearranges this one too.
+ */
+export function useWorldLayout(environment: EnvironmentName): UseQueryResult<WorldLayout | null> {
+  const api = useApi();
+  const { token } = useSession();
+  return useQuery({
+    queryKey: queryKeys.world(environment),
+    queryFn: async () => (await api.get(`/world/${environment}`, WorldLayoutResponseSchema)).layout,
     enabled: token !== null,
   });
 }

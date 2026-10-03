@@ -18,6 +18,7 @@ import {
   SkillSchema,
   TaskSchema,
   type EventEntity,
+  type EnvironmentName,
 } from '@tbn/contracts';
 import type { z } from 'zod';
 
@@ -76,6 +77,7 @@ export const queryKeys = {
   capWindows: (providerId: string) => ['capWindows', providerId] as const,
   agentAttachments: (agentId: string) => ['agentAttachments', agentId] as const,
   preferences: () => ['preferences'] as const,
+  world: (environment: EnvironmentName) => ['world', environment] as const,
   usage: (providerId: string) => ['usage', providerId] as const,
   cacheStats: () => ['cacheStats'] as const,
   notificationEvents: () => ['notificationEvents'] as const,

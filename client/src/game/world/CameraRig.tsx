@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { PerspectiveCamera, Vector3, type Object3D } from 'three';
 import { radiansOf } from '@/game/assets/geometry';
+import { useBuildStore } from '@/game/build/buildStore';
 import { livePositions } from './livePositions';
 import { prefersReducedMotion } from './motion';
 import type { SeatPose } from './seat';
@@ -21,6 +22,8 @@ export interface CameraRigProps {
   seatPose: SeatPose | null;
   /** The agent the owner is talking to: the camera leans in over the shoulder onto it. */
   talkingTo: string | null;
+  /** True while the owner builds: the camera looks down at 55 degrees on build mode's focus. */
+  isBuilding: boolean;
 }
 
 const DEG = Math.PI / 180;
@@ -43,6 +46,8 @@ const LOOK_SHIFT = 0.45;
 const AGENT_HEAD = 1.5;
 const FOV = 50;
 const TALK_FOV = 42;
+/** Build mode's view: how steeply it looks down at its focus. */
+const BUILD_PITCH = (55 * Math.PI) / 180;
 const UP = new Vector3(0, 1, 0);
 const NORTH_UP = new Vector3(0, 0, -1);
 
@@ -65,6 +70,7 @@ export function CameraRig({
   viewYawRef,
   seatPose,
   talkingTo,
+  isBuilding,
 }: CameraRigProps) {
   const camera = useThree((state) => state.camera);
   const element = useThree((state) => state.gl.domElement);
@@ -72,6 +78,7 @@ export function CameraRig({
     yaw: radiansOf(initialYawDeg + 180),
     pitch: 0.2,
     distance: 3.2,
+    buildDistance: 16,
     height: Math.max(ceiling + 10, 18),
   });
   const focus = useMemo(() => new Vector3(), []);
@@ -108,7 +115,8 @@ export function CameraRig({
       event.preventDefault();
       const factor = Math.exp(event.deltaY * 0.0012);
       const state = orbit.current;
-      if (mode === 'third_person') state.distance = clamp(state.distance * factor, 1.4, 7);
+      if (isBuilding) state.buildDistance = clamp(state.buildDistance * factor, 6, 32);
+      else if (mode === 'third_person') state.distance = clamp(state.distance * factor, 1.4, 7);
       else state.height = clamp(state.height * factor, ceiling + 4, 60);
     };
     element.addEventListener('pointerdown', onPointerDown);
@@ -123,11 +131,11 @@ export function CameraRig({
       element.removeEventListener('pointercancel', onPointerUp);
       element.removeEventListener('wheel', onWheel);
     };
-  }, [element, mode, ceiling]);
+  }, [element, mode, ceiling, isBuilding]);
 
   useEffect(() => {
     glide.current.until = performance.now() / 1000 + GLIDE_SECONDS;
-  }, [isSeated, talkingTo]);
+  }, [isSeated, talkingTo, isBuilding]);
 
   useFrame((frame, delta) => {
     const target = targetRef.current;
@@ -138,6 +146,14 @@ export function CameraRig({
     if (seatPose !== null) {
       desired.copy(seatPose.eye);
       focus.copy(seatPose.look);
+    } else if (isBuilding) {
+      const { focus: center } = useBuildStore.getState();
+      focus.copy(center);
+      desired.set(
+        center.x,
+        Math.sin(BUILD_PITCH) * state.buildDistance,
+        center.z + Math.cos(BUILD_PITCH) * state.buildDistance,
+      );
     } else if (target === null) {
       return;
     } else if (partner !== undefined) {

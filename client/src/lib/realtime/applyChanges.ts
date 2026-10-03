@@ -99,6 +99,11 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
     case 'preferences':
       if (event.data !== null) client.setQueryData(queryKeys.preferences(), event.data);
       return;
+    case 'world_layout':
+      // A reset leaves only the id behind, so every environment loads its layout again.
+      if (event.data === null) void client.invalidateQueries({ queryKey: ['world'] });
+      else client.setQueryData(queryKeys.world(event.data.environment), event.data);
+      return;
     default: {
       const key = collectionKeyOf(event.entity);
       if (key === undefined) return;
