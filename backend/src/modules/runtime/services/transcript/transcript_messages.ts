@@ -17,6 +17,26 @@ export interface MessageOptions {
 
 const SHORTENED_NOTE = '\n... shortened to fit the context window; the transcript keeps it whole.';
 
+/** File content a `write_file` call carries is replayed as its size beyond this many characters. */
+const MOST_WRITTEN_CHARS = 500;
+
+/**
+ * An assistant block as it is replayed: a `write_file` call keeps its path but not its content,
+ * which the agent already wrote and can read back, so a long file is not re-sent every turn.
+ */
+function replayed(block: AssistantBlock): AssistantBlock {
+  if (block.type !== 'tool_use' || block.name !== 'write_file') return block;
+  const content = block.input['content'];
+  if (typeof content !== 'string' || content.length <= MOST_WRITTEN_CHARS) return block;
+  return {
+    ...block,
+    input: {
+      ...block.input,
+      content: `(${content.length} characters written; read_file shows them)`,
+    },
+  };
+}
+
 function push_user(messages: ModelMessage[], blocks: UserBlock[]): void {
   const last = messages[messages.length - 1];
   if (last?.role === 'user') {
@@ -138,7 +158,7 @@ export function transcript_to_messages(
     if (entry.kind === 'assistant') {
       const content = TranscriptContentSchemas.assistant.safeParse(entry.content);
       if (content.success && content.data.blocks.length > 0) {
-        push_assistant(messages, content.data.blocks);
+        push_assistant(messages, content.data.blocks.map(replayed));
       }
       continue;
     }

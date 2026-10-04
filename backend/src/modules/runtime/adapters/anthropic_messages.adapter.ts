@@ -46,25 +46,48 @@ const ErrorBodySchema = z.looseObject({
   error: z.looseObject({ type: z.string().optional(), message: z.string().optional() }),
 });
 
-function to_wire_messages(messages: ModelMessage[]): unknown[] {
-  return messages.map((message) => ({
+function to_wire_block(block: ModelMessage['content'][number]): Record<string, unknown> {
+  switch (block.type) {
+    case 'text':
+      return { type: 'text', text: block.text };
+    case 'tool_result':
+      return {
+        type: 'tool_result',
+        tool_use_id: block.tool_use_id,
+        content: block.content,
+        is_error: block.is_error,
+      };
+    case 'tool_use':
+      return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
+  }
+}
+
+/**
+ * The conversation on the wire. Its newest block carries a cache breakpoint, so the next turn
+ * reads everything before it from the cache instead of paying for the whole history again.
+ */
+export function to_wire_messages(messages: ModelMessage[]): unknown[] {
+  return messages.map((message, message_index) => ({
     role: message.role,
-    content: message.content.map((block) => {
-      switch (block.type) {
-        case 'text':
-          return { type: 'text', text: block.text };
-        case 'tool_result':
-          return {
-            type: 'tool_result',
-            tool_use_id: block.tool_use_id,
-            content: block.content,
-            is_error: block.is_error,
-          };
-        case 'tool_use':
-          return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
-      }
+    content: message.content.map((block, block_index) => {
+      const wire = to_wire_block(block);
+      const is_newest =
+        message_index === messages.length - 1 && block_index === message.content.length - 1;
+      return is_newest ? { ...wire, cache_control: CACHE_CONTROL } : wire;
     }),
   }));
+}
+
+/**
+ * Anthropic counts cached input apart from `input_tokens`; usage records count every input
+ * token there, as OpenAI does, and price the cached share from it.
+ */
+export function total_input(usage: {
+  input_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+}): number {
+  return usage.input_tokens + usage.cache_read_tokens + usage.cache_write_tokens;
 }
 
 function classify(status: number, body: unknown, text: string, headers: Headers): ProviderError {
@@ -109,7 +132,10 @@ export class AnthropicMessagesAdapter implements LlmAdapter {
     }));
     const call = {
       url: `${connection.base_url.replace(/\/$/, '')}/v1/messages`,
-      headers: { 'x-api-key': connection.api_key, 'anthropic-version': ANTHROPIC_VERSION },
+      headers: {
+        'anthropic-version': ANTHROPIC_VERSION,
+        ...(connection.api_key !== null && { 'x-api-key': connection.api_key }),
+      },
       body: {
         model: connection.model.model_id,
         max_tokens: connection.model.max_output_tokens,
@@ -141,7 +167,11 @@ export class AnthropicMessagesAdapter implements LlmAdapter {
       content,
       stop_reason: to_stop_reason(parsed.data.stop_reason),
       usage: {
-        input_tokens: parsed.data.usage.input_tokens,
+        input_tokens: total_input({
+          input_tokens: parsed.data.usage.input_tokens,
+          cache_read_tokens: parsed.data.usage.cache_read_input_tokens ?? 0,
+          cache_write_tokens: parsed.data.usage.cache_creation_input_tokens ?? 0,
+        }),
         output_tokens: parsed.data.usage.output_tokens,
         cache_read_tokens: parsed.data.usage.cache_read_input_tokens ?? 0,
         cache_write_tokens: parsed.data.usage.cache_creation_input_tokens ?? 0,

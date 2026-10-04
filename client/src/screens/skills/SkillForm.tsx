@@ -1,4 +1,10 @@
-import { CreateSkillSchema, SkillSchema, UpdateSkillSchema, type Skill } from '@tbn/contracts';
+import {
+  CreateSkillSchema,
+  MOST_SKILL_DESCRIPTION_CHARS,
+  SkillSchema,
+  UpdateSkillSchema,
+  type Skill,
+} from '@tbn/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/Button';
 import { TextAreaField, TextField } from '@/components/fields/TextField';
@@ -51,9 +57,10 @@ export function SkillForm({ skill, onDone }: SkillFormProps) {
         onChange={(value) => setField('name', value)}
         error={errors['name']}
       />
-      <TextField
+      <TextAreaField
         label="Description"
-        hint="One line. Agents see it in their prompt and load the body when it fits the work."
+        rows={3}
+        hint={`One paragraph, ${draft.description.length} of ${MOST_SKILL_DESCRIPTION_CHARS} characters. Agents see it in every prompt and load the body when it fits the work.`}
         value={draft.description}
         onChange={(value) => setField('description', value)}
         error={errors['description']}

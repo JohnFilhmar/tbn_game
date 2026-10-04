@@ -46,6 +46,26 @@ export function select_context(entries: TranscriptEntryRecord[]): TranscriptCont
  * starts with a tool result, which must stay right after the call it answers, and it always holds
  * the last entry.
  */
+/** Earlier tasks this long or longer are folded into a summary when a new task starts. */
+const FOLD_AT_CHARS = 6_000;
+
+/**
+ * Where a new task begins in the live entries, when the tasks before it are long enough to fold
+ * into a summary, so a session carries one task word for word; null when there is nothing to fold.
+ */
+export function task_fold_cut(live: TranscriptEntryRecord[]): number | null {
+  let start = -1;
+  for (let index = live.length - 1; index > 0; index -= 1) {
+    if (live[index]?.kind === 'task_assignment') {
+      start = index;
+      break;
+    }
+  }
+  if (start <= 0) return null;
+  const before = live.slice(0, start).reduce((sum, entry) => sum + entry_chars(entry), 0);
+  return before >= FOLD_AT_CHARS ? start : null;
+}
+
 export function compaction_cut(live: TranscriptEntryRecord[], keep_chars: number): number {
   let start = live.length;
   let kept = 0;

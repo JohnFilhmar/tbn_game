@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   CapLengthUnit,
   CreateProvider,
@@ -9,6 +15,7 @@ import type {
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG } from '@/config/config.tokens';
 import { SecretBoxService } from '@/lib/crypto/secret_box.service';
+import { is_stack_host } from '@/lib/http/stack_hosts';
 import {
   PROVIDER_REPOSITORY,
   ProviderInUseError,
@@ -55,6 +62,17 @@ const EXAMPLE_WINDOWS: CapWindowWrite[] = [
   example_window('Daily', 'day', 5_000_000),
 ];
 
+/**
+ * Refuses a base URL that names one of the stack's own services.
+ *
+ * @throws BadRequestException when it does.
+ */
+function refuse_stack_host(base_url: string): void {
+  if (is_stack_host(base_url)) {
+    throw new BadRequestException("The base URL points at one of the stack's own services");
+  }
+}
+
 function to_model_record(model: CreateProvider['models'][number]): ProviderModelRecord {
   return {
     model_id: model.model_id,
@@ -75,7 +93,7 @@ export function to_provider_view(record: ProviderRecord): Provider {
     name: record.name,
     api_format: record.api_format,
     base_url: record.base_url,
-    api_key_set: true,
+    api_key_set: record.api_key_ciphertext !== null,
     models: record.models.map((model) => ({
       model_id: model.model_id,
       cost_tier: model.cost_tier,
@@ -143,6 +161,7 @@ export class ProviderService {
    * @throws ConflictException when the name is taken.
    */
   async create(owner_id: string, input: CreateProvider): Promise<Provider> {
+    refuse_stack_host(input.base_url);
     if ((await this.providers.find_by_name(owner_id, input.name)) !== null) {
       throw new ConflictException('Provider name is taken');
     }
@@ -150,7 +169,7 @@ export class ProviderService {
       name: input.name,
       api_format: input.api_format,
       base_url: input.base_url,
-      api_key_ciphertext: this.secret_box.seal(input.api_key),
+      api_key_ciphertext: input.api_key === undefined ? null : this.secret_box.seal(input.api_key),
       is_local: input.is_local ?? false,
       max_parallel_requests: input.max_parallel_requests ?? null,
       models: input.models.map(to_model_record),
@@ -164,6 +183,7 @@ export class ProviderService {
    * the key resume.
    */
   async update(owner_id: string, id: string, input: UpdateProvider): Promise<Provider> {
+    if (input.base_url !== undefined) refuse_stack_host(input.base_url);
     if (input.name !== undefined) {
       const same_name = await this.providers.find_by_name(owner_id, input.name);
       if (same_name !== null && same_name.id !== id) {
@@ -260,7 +280,8 @@ export class ProviderService {
       provider_id: record.id,
       api_format: record.api_format,
       base_url: record.base_url,
-      api_key: this.secret_box.open(record.api_key_ciphertext),
+      api_key:
+        record.api_key_ciphertext === null ? null : this.secret_box.open(record.api_key_ciphertext),
       model,
       max_parallel_requests: record.max_parallel_requests,
       state: {

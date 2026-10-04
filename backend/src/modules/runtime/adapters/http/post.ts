@@ -1,3 +1,4 @@
+import { is_stack_host } from '@/lib/http/stack_hosts';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import { error_message, error_name } from '@/utils/error_details';
 
@@ -40,6 +41,12 @@ function parse_json(text: string): unknown {
 }
 
 async function send(options: PostJsonOptions, accept: string): Promise<Response> {
+  if (is_stack_host(options.url)) {
+    throw new ProviderError(
+      'bad_request',
+      "The base URL points at one of the stack's own services",
+    );
+  }
   try {
     return await fetch(options.url, {
       method: 'POST',

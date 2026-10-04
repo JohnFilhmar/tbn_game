@@ -35,4 +35,12 @@ export class PrismaDepartmentRepository implements DepartmentRepository {
     const { _count: counts, ...rest } = row;
     return { ...rest, member_count: counts.members };
   }
+
+  async rename(owner_id: string, id: string, name: string): Promise<DepartmentRecord | null> {
+    const { count } = await this.prisma.department.updateMany({
+      where: { id, owner_id },
+      data: { name },
+    });
+    return count === 0 ? null : this.find(owner_id, id);
+  }
 }

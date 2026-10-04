@@ -60,4 +60,13 @@ export class AgentController {
   ): Promise<Agent> {
     return this.agent_service.dismiss(owner.id, id);
   }
+
+  @Post(':id/rehire')
+  @HttpCode(HttpStatus.OK)
+  rehire(
+    @CurrentOwner() owner: AuthenticatedOwner,
+    @ZodParam('id', IdSchema) id: string,
+  ): Promise<Agent> {
+    return this.agent_service.rehire(owner.id, id);
+  }
 }

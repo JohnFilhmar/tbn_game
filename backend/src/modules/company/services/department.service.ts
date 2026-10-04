@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { Department } from '@tbn/contracts';
+import type { Department, UpdateDepartment } from '@tbn/contracts';
 import {
   DEPARTMENT_REPOSITORY,
   type DepartmentRepository,
@@ -18,7 +18,7 @@ export function to_department_view(record: DepartmentRecord): Department {
   };
 }
 
-/** Departments. Each is created with its manager. */
+/** Departments. Each is created with its manager, and the owner can rename it. */
 @Injectable()
 export class DepartmentService {
   constructor(@Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository) {}
@@ -30,6 +30,17 @@ export class DepartmentService {
   /** @throws NotFoundException when the department is missing. */
   async get(owner_id: string, id: string): Promise<Department> {
     return to_department_view(await this.require(owner_id, id));
+  }
+
+  /**
+   * Renames a department. Its agents read the new name in their prompt from their next turn.
+   *
+   * @throws NotFoundException when it is missing.
+   */
+  async rename(owner_id: string, id: string, input: UpdateDepartment): Promise<Department> {
+    const record = await this.departments.rename(owner_id, id, input.name);
+    if (record === null) throw new NotFoundException('Department not found');
+    return to_department_view(record);
   }
 
   /**

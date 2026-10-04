@@ -177,4 +177,29 @@ describe('transcript messages', () => {
       /^x{10}\n\.\.\. shortened/,
     );
   });
+
+  it('replays a write_file call by its path and size, not the content it wrote', () => {
+    const long = {
+      type: 'tool_use',
+      id: 'w1',
+      name: 'write_file',
+      input: { path: 'r.md', content: 'y'.repeat(5_000) },
+    };
+    const short = {
+      type: 'tool_use',
+      id: 'w2',
+      name: 'write_file',
+      input: { path: 's.md', content: 'tiny' },
+    };
+    const messages = transcript_to_messages([entry(1, 'assistant', { blocks: [long, short] })]);
+    const [first, second] = messages[0]?.content ?? [];
+    expect(first?.type === 'tool_use' ? first.input : {}).toEqual({
+      path: 'r.md',
+      content: '(5000 characters written; read_file shows them)',
+    });
+    expect(second?.type === 'tool_use' ? second.input : {}).toEqual({
+      path: 's.md',
+      content: 'tiny',
+    });
+  });
 });

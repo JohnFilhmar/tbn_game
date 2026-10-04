@@ -129,6 +129,12 @@ export const DepartmentSchema = z.strictObject({
 /** A department as the API returns it. */
 export type Department = z.infer<typeof DepartmentSchema>;
 
+/** Body of `PATCH /departments/:id`: its new name. */
+export const UpdateDepartmentSchema = DepartmentSchema.pick({ name: true });
+
+/** Body of `PATCH /departments/:id`. */
+export type UpdateDepartment = z.infer<typeof UpdateDepartmentSchema>;
+
 /** Where a task is in its life. */
 export const TaskStatusSchema = z.enum([
   'queued',

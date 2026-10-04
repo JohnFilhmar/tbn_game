@@ -77,6 +77,9 @@ services:
   worker:
     <<: *backend
     command: ['dist/worker.js']
+    # A local model on the host, such as Ollama, is reached as host.docker.internal.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - '127.0.0.1:3001:3001'
     volumes:

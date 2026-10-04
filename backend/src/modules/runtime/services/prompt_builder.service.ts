@@ -19,6 +19,11 @@ import type { TranscriptEntryRecord } from '@/modules/runtime/types/run_record';
 /** A tool result may take up to this share of the context window in a request. */
 const TOOL_RESULT_SHARE = 0.25;
 const CHARS_PER_TOKEN = 3;
+/**
+ * And never more than this, the same on every turn: a result is replayed on each turn after it,
+ * and a fixed size keeps the request's start unchanged for the provider's cache.
+ */
+const MOST_TOOL_RESULT_CHARS = 12_000;
 
 /** Where an agent sits in the company. */
 export interface TeamPosition {
@@ -129,8 +134,9 @@ export class PromptBuilderService {
       tools: tools.definitions_for(policies.success ? policies.data : {}, agent.level),
       messages: transcript_to_messages(context.live, {
         summary: context.summary,
-        max_tool_result_chars: Math.floor(
-          context_window_tokens * TOOL_RESULT_SHARE * CHARS_PER_TOKEN,
+        max_tool_result_chars: Math.min(
+          MOST_TOOL_RESULT_CHARS,
+          Math.floor(context_window_tokens * TOOL_RESULT_SHARE * CHARS_PER_TOKEN),
         ),
       }),
     };
