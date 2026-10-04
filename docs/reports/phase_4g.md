@@ -9,7 +9,7 @@ percent of the model's window before they were summarised. Now:
 - Anthropic requests carry a cache breakpoint on the newest message, so each turn reads the
   history before it from the cache, billed at the cache read price.
 - A session is summarised once a request passes the `context_budget_tokens` preference, 60,000
-  by default (Preferences, Run limits), or 60 percent of the window if that is smaller.
+  by default (Preferences, Agents), or 60 percent of the window if that is smaller.
 - A new task starts from its assignment; the tasks before it become a short summary.
 - A tool result is replayed at most 12,000 characters, a `write_file` call replays its path and
   size instead of the file, `read_file` returns 40,000 characters at a time, and a fetched page
