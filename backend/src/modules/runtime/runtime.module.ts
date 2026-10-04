@@ -44,6 +44,7 @@ import { CompactionService } from './services/run_loop/compaction.service';
 import { RunGateService } from './services/run_loop/run_gate.service';
 import { RunLeaseService } from './services/run_loop/run_lease.service';
 import { RunLoopService } from './services/run_loop/run_loop.service';
+import { QuestionReplyService } from './services/run_loop/question_reply.service';
 import { SubtaskDeliveryService } from './services/run_loop/subtask_delivery.service';
 import { TaskCompletionService } from './services/run_loop/task_completion.service';
 import { TurnService } from './services/run_loop/turn.service';
@@ -59,6 +60,7 @@ import { WorkerSweepService } from './services/worker_sweep.service';
 import { DelegateTaskTool } from './tools/delegate_task.tool';
 import { FetchUrlTool } from './tools/fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './tools/file_tools';
+import { DeclineTaskTool } from './tools/decline_task.tool';
 import { FinishTaskTool } from './tools/finish_task.tool';
 import { GitCheckoutTool } from './tools/git/git_checkout.tool';
 import { GitPublishTool } from './tools/git/git_publish.tool';
@@ -129,6 +131,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     SendMessageTool,
     DelegateTaskTool,
     FinishTaskTool,
+    DeclineTaskTool,
     RunCommandTool,
     GitCheckoutTool,
     GitPublishTool,
@@ -149,6 +152,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     TaskCompletionService,
     CompactionService,
     SubtaskDeliveryService,
+    QuestionReplyService,
     TurnService,
     RunLoopService,
     WorkerSweepService,

@@ -13,7 +13,7 @@ import type { Tool, ToolContext, ToolOutcome } from './tool.interface';
 const InputSchema = z.strictObject({
   to: z.string().trim().min(1).max(100).describe('The name of the agent, as list_roster shows it'),
   kind: MessageKindSchema.describe(
-    'handoff: work you pass on; question: something you need answered; finding: something they should know',
+    'handoff: work you pass on; question: something you need answered, whose answer comes back to you; finding: something they should know; answer: a reply to their question',
   ),
   text: z.string().trim().min(1).max(20_000).describe('The message'),
 });
@@ -37,7 +37,7 @@ function refusal(sender: AgentRecord, recipient: AgentRecord): string | null {
 export class SendMessageTool implements Tool<Input> {
   readonly name = 'send_message';
   readonly description =
-    'Send a handoff, a question or a finding to another agent. It reads the message at its next turn, or starts a turn to answer if it is idle. Managers can message every manager and their own interns; interns can message their manager and their own department.';
+    'Send a handoff, a question or a finding to another agent, never to the owner: to answer the owner, reply in plain text. The agent reads the message at its next turn, or starts a turn to answer if it is idle. Managers can message every manager and their own interns; interns can message their manager and their own department.';
   readonly default_policy = 'auto';
   readonly input_schema = InputSchema;
 
@@ -50,7 +50,10 @@ export class SendMessageTool implements Tool<Input> {
   async execute(input: Input, context: ToolContext): Promise<ToolOutcome> {
     const recipient = await this.agents.find_by_name(context.owner_id, input.to);
     if (recipient === null || !is_live(recipient.status)) {
-      return { content: `No live agent is named ${input.to}.`, is_error: true };
+      return {
+        content: `No live agent is named ${input.to}. send_message reaches other agents only; to answer the owner, reply in plain text.`,
+        is_error: true,
+      };
     }
     const refused = refusal(context.agent, recipient);
     if (refused !== null) return { content: refused, is_error: true };

@@ -31,6 +31,7 @@ const TONES: Record<string, Tone> = {
   lost: 'danger',
   at_limit: 'danger',
   request_changes: 'danger',
+  declined: 'warning',
   cancelled: 'neutral',
   closed: 'neutral',
   dismissed: 'neutral',

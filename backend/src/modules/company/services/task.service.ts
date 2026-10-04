@@ -257,6 +257,17 @@ export class TaskService {
     });
   }
 
+  /** Marks a started task as declined by its agent, with the reason. Null when it is not open. */
+  decline(owner_id: string, id: string, reason: string): Promise<TaskRecord | null> {
+    return this.tasks.transition(
+      owner_id,
+      id,
+      ['in_progress', 'blocked', 'awaiting_approval'],
+      'declined',
+      { result: reason, status_reason: null, finished_at: new Date() },
+    );
+  }
+
   /** Marks an open task as failed with the reason. Null when it was cancelled first. */
   fail(owner_id: string, id: string, reason: string): Promise<TaskRecord | null> {
     return this.tasks.transition(

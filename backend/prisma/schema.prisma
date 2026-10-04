@@ -58,6 +58,7 @@ enum TaskStatus {
   done
   failed
   cancelled
+  declined
 
   @@map("task_status")
 }

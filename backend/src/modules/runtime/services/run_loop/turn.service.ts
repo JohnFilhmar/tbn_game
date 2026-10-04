@@ -42,7 +42,8 @@ const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
 export type ModelTurn = { response: ModelResponse } | { pause: PauseDecision } | 'lost';
 
 /** What a tool phase ended with: the report when `finish_task` accepted one, or a pause. */
-export type ToolTurn = { finished: FinishedTask | null } | { pause: PauseDecision };
+export type ToolTurn =
+  { finished: FinishedTask | null; declined: string | null } | { pause: PauseDecision };
 
 /**
  * One step of a run: a model call or the tool calls it asked for. Each step is written to the
@@ -225,7 +226,10 @@ export class TurnService {
         })),
       },
     });
-    return { finished: results.find((item) => item.finished !== undefined)?.finished ?? null };
+    return {
+      finished: results.find((item) => item.finished !== undefined)?.finished ?? null,
+      declined: results.find((item) => item.declined !== undefined)?.declined ?? null,
+    };
   }
 
   /** A key out of credit blocks every open task of every agent on it, not only this run's. */

@@ -88,7 +88,7 @@ function user_blocks(entry: TranscriptEntryRecord, options: MessageOptions): Use
         ? [
             {
               type: 'text',
-              text: `New task: ${content.data.title}\n\n${content.data.instructions}\n\nCall finish_task when it is complete.`,
+              text: `New task: ${content.data.title}\n\n${content.data.instructions}\n\nCall finish_task when it is complete, or decline_task if it is not yours to do.`,
             },
           ]
         : [];
@@ -116,7 +116,7 @@ function user_blocks(entry: TranscriptEntryRecord, options: MessageOptions): Use
         ? [
             {
               type: 'text',
-              text: `Message from ${content.data.from_name} (${content.data.kind}):\n${content.data.text}`,
+              text: `Message from ${content.data.from_name} (${content.data.kind}):\n${content.data.text}${content.data.kind === 'question' ? `\n\n(Answer in plain text: your reply goes back to ${content.data.from_name}.)` : ''}`,
             },
           ]
         : [];

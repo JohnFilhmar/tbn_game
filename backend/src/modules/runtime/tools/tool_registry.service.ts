@@ -12,6 +12,7 @@ import { IntegrationTool } from './dynamic/integration_tool';
 import { PluginTool } from './dynamic/plugin_tool';
 import { FetchUrlTool } from './fetch_url.tool';
 import { ListFilesTool, ReadFileTool, WriteFileTool } from './file_tools';
+import { DeclineTaskTool } from './decline_task.tool';
 import { FinishTaskTool } from './finish_task.tool';
 import { GitCheckoutTool } from './git/git_checkout.tool';
 import { GitPublishTool } from './git/git_publish.tool';
@@ -62,6 +63,7 @@ export class ToolRegistryService {
     send_message: SendMessageTool,
     delegate_task: DelegateTaskTool,
     finish_task: FinishTaskTool,
+    decline_task: DeclineTaskTool,
     run_command: RunCommandTool,
     git_checkout: GitCheckoutTool,
     git_publish: GitPublishTool,
@@ -86,6 +88,7 @@ export class ToolRegistryService {
       send_message,
       delegate_task,
       finish_task,
+      decline_task,
       run_command,
       git_checkout,
       git_publish,

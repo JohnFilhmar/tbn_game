@@ -93,13 +93,18 @@ export const AssistantBlockSchema = z.discriminatedUnion('type', [
 ]);
 
 /** What a message between agents carries: work handed over, a question, or a finding. */
-export const MessageKindSchema = z.enum(['handoff', 'question', 'finding']);
+export const MessageKindSchema = z.enum(['handoff', 'question', 'finding', 'answer']);
 
-/** `handoff`, `question` or `finding`. */
+/** `handoff`, `question`, `finding` or `answer`; only a question asks for an answer back. */
 export type MessageKind = z.infer<typeof MessageKindSchema>;
 
 /** How a delegated task ended. */
-export const SubtaskOutcomeSchema = TaskStatusSchema.extract(['done', 'failed', 'cancelled']);
+export const SubtaskOutcomeSchema = TaskStatusSchema.extract([
+  'done',
+  'failed',
+  'cancelled',
+  'declined',
+]);
 
 /** How a delegated task ended. */
 export type SubtaskOutcome = z.infer<typeof SubtaskOutcomeSchema>;

@@ -202,6 +202,7 @@ describe('run loop', () => {
       'send_message',
       'delegate_task',
       'finish_task',
+      'decline_task',
       'run_command',
       'git_checkout',
       'git_publish',
@@ -238,6 +239,24 @@ describe('run loop', () => {
       'assistant',
     ]);
     expect(fake.requests).toHaveLength(2);
+  });
+
+  it('declines a task outside the job description, when a small model writes the call as text', async () => {
+    const { fake, agent } = await agent_on('openai_chat_completions');
+    fake.enqueue({
+      type: 'text',
+      text: '```json\n{"name": "decline_task", "parameters": {"reason": "Essays are beyond me."}}\n```',
+    });
+
+    const task = await assign(agent, 'An essay on AI');
+    const declined = await wait_for_task(task.id, 'declined');
+
+    expect(declined).toMatchObject({ result: 'Essays are beyond me.', report_id: null });
+    const [, turn] = await transcript_of(agent);
+    expect(turn?.content).toMatchObject({
+      blocks: [{ type: 'tool_use', name: 'decline_task' }],
+    });
+    expect(fake.requests).toHaveLength(1);
   });
 
   it('hides denied tools, asks the owner about ask tools and refuses paths outside the workspace', async () => {

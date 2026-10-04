@@ -22,11 +22,15 @@ export interface FinishedTask {
   open_questions: string;
 }
 
-/** What a tool call produced: text for the model, and for `finish_task`, the finished report. */
+/**
+ * What a tool call produced: text for the model, for `finish_task` the finished report, and for
+ * `decline_task` the reason the agent turned the task down.
+ */
 export interface ToolOutcome {
   content: string;
   is_error?: boolean;
   finished?: FinishedTask;
+  declined?: string;
 }
 
 /**

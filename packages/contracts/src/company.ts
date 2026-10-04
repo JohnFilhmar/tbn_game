@@ -144,9 +144,10 @@ export const TaskStatusSchema = z.enum([
   'done',
   'failed',
   'cancelled',
+  'declined',
 ]);
 
-/** A task status. */
+/** A task status; `declined` means its agent turned it down, with the reason as its result. */
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 /** The statuses of a task that is not finished yet. */

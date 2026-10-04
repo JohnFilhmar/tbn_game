@@ -12,6 +12,7 @@ export interface ExecutedToolCall {
   content: string;
   is_error: boolean;
   finished?: FinishedTask;
+  declined?: string;
 }
 
 /** How a tool phase ended: every call has a result, or some calls wait for the owner. */
@@ -164,6 +165,7 @@ export class ToolExecutorService {
         content: outcome.content,
         is_error: outcome.is_error ?? false,
         ...(outcome.finished !== undefined && { finished: outcome.finished }),
+        ...(outcome.declined !== undefined && { declined: outcome.declined }),
       };
     } catch (error: unknown) {
       this.logger.error(
