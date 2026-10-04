@@ -1,15 +1,16 @@
-import type { Agent, Department, Task } from '@tbn/contracts';
+import type { Agent, Task } from '@tbn/contracts';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { buttonClasses } from '@/components/Button';
+import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
-import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ChipGroup } from '@/components/Tabs';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
+import { RehireButton } from './RehireButton';
 
 type RosterFilter = 'live' | 'working' | 'former';
 
@@ -31,51 +32,39 @@ function currentWork(agent: Agent, tasks: readonly Task[]): string {
   return 'No open task';
 }
 
-function AgentRow({ agent, tasks }: { agent: Agent; tasks: readonly Task[] }) {
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div className="flex min-w-0 flex-col">
+/** The table's columns, with a Rehire button on a former agent. */
+function columnsOf(
+  tasks: readonly Task[],
+  departmentName: (id: string) => string,
+): Column<Agent>[] {
+  return [
+    {
+      header: 'Name',
+      cell: (agent) => (
         <Link
           to={`/agents/${agent.id}`}
           className="font-medium text-teal-800 hover:underline dark:text-teal-300"
         >
           {agent.name}
         </Link>
-        <span className="text-sm text-slate-600 dark:text-slate-400">
-          {agent.level === 1 ? 'Manager' : 'Intern'} · {agent.role} · {agent.primary_model}
-        </span>
-      </div>
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="truncate text-sm text-slate-700 dark:text-slate-300">
-          {currentWork(agent, tasks)}
-        </span>
-        <StatusBadge status={agent.status} />
-      </div>
-    </li>
-  );
+      ),
+    },
+    {
+      header: 'Role',
+      cell: (agent) => `${agent.level === 1 ? 'Manager' : 'Intern'} · ${agent.role}`,
+    },
+    { header: 'Department', cell: (agent) => departmentName(agent.department_id), isWide: true },
+    { header: 'Doing', cell: (agent) => currentWork(agent, tasks), isWide: true },
+    { header: 'Status', cell: (agent) => <StatusBadge status={agent.status} /> },
+    {
+      header: 'Actions',
+      cell: (agent) => (LIVE.has(agent.status) ? null : <RehireButton agent={agent} size="sm" />),
+      className: 'text-right',
+    },
+  ];
 }
 
-function DepartmentRoster(props: {
-  department: Department;
-  agents: Agent[];
-  tasks: readonly Task[];
-}) {
-  const { department, agents, tasks } = props;
-  const sorted = [...agents].sort(
-    (left, right) => left.level - right.level || left.name.localeCompare(right.name),
-  );
-  return (
-    <Panel title={department.name}>
-      <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-        {sorted.map((agent) => (
-          <AgentRow key={agent.id} agent={agent} tasks={tasks} />
-        ))}
-      </ul>
-    </Panel>
-  );
-}
-
-/** Every agent by department, with what each is doing now. */
+/** Every agent in one paged table, by department, with what each is doing now. */
 export function AgentsScreen() {
   const agents = useCollection(COLLECTIONS.agents);
   const departments = useCollection(COLLECTIONS.departments);
@@ -118,14 +107,16 @@ export function AgentsScreen() {
     );
   }
 
-  const shown = agents.data.filter((agent) => matches(agent, filter));
-  const groups = departments.data
-    .map((department) => ({
-      department,
-      members: shown.filter((agent) => agent.department_id === department.id),
-    }))
-    .filter((group) => group.members.length > 0)
-    .sort((left, right) => left.department.name.localeCompare(right.department.name));
+  const departmentById = new Map(departments.data.map((department) => [department.id, department]));
+  const departmentName = (id: string): string => departmentById.get(id)?.name ?? '';
+  const shown = agents.data
+    .filter((agent) => matches(agent, filter))
+    .sort(
+      (left, right) =>
+        departmentName(left.department_id).localeCompare(departmentName(right.department_id)) ||
+        left.level - right.level ||
+        left.name.localeCompare(right.name),
+    );
   const count = (value: RosterFilter): number =>
     agents.data.filter((agent) => matches(agent, value)).length;
 
@@ -142,17 +133,15 @@ export function AgentsScreen() {
           { value: 'former', label: 'Dismissed or ended', count: count('former') },
         ]}
       />
-      {groups.length === 0 ? (
+      {shown.length === 0 ? (
         <EmptyState title="No agent matches" description="Choose another filter above." />
       ) : (
-        groups.map((group) => (
-          <DepartmentRoster
-            key={group.department.id}
-            department={group.department}
-            agents={group.members}
-            tasks={tasks.data}
-          />
-        ))
+        <DataTable
+          caption="Agents"
+          columns={columnsOf(tasks.data, departmentName)}
+          rows={shown}
+          rowKey={(agent) => agent.id}
+        />
       )}
     </>
   );

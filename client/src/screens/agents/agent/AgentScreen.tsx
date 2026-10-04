@@ -13,8 +13,9 @@ import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
 import { useCommand } from '@/lib/data/useCommand';
+import { RehireButton } from '../RehireButton';
 
-/** One agent: its header with dismiss, and the chat, profile, tools, runs and tasks as tabs. */
+/** One agent: its header with dismiss or rehire, and the chat, profile, tools, runs and tasks as tabs. */
 export function AgentScreen() {
   const { agentId = '' } = useParams();
   const agents = useCollection(COLLECTIONS.agents);
@@ -66,10 +67,12 @@ export function AgentScreen() {
           .filter((part) => part !== null)
           .join(' · ')}
         actions={
-          isLive && (
+          isLive ? (
             <Button variant="danger" onClick={() => setIsConfirming(true)}>
               Dismiss
             </Button>
+          ) : (
+            <RehireButton agent={agent} />
           )
         }
       />
