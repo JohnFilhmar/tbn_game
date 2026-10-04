@@ -14,6 +14,11 @@ export const ClipNameSchema = z.enum([
   'stretch',
   'talk',
   'press',
+  'think',
+  'thumbs_up',
+  'bow',
+  'nod',
+  'sigh',
 ]);
 
 /** A clip name. */

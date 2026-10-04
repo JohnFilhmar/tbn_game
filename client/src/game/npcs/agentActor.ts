@@ -15,7 +15,8 @@ export type Activity =
   | 'leaving'
   | 'gone'
   | 'wandering'
-  | 'talking';
+  | 'talking'
+  | 'thinking';
 
 /** Where an agent lives in the pack: where it sits, where it stands when idle, and how it faces. */
 export interface ActorHome {
@@ -96,6 +97,8 @@ export class AgentActor {
   /** Where the agent stood before it sat on a seat, to step back to when the clip ends. */
   private standBackTo: Vector3 | null = null;
   private isTalking = false;
+  /** True while the agent prepares a reply that is no task: it stays where it is and thinks. */
+  private isThinking = false;
 
   constructor(options: {
     id: string;
@@ -146,6 +149,7 @@ export class AgentActor {
       this.activity === 'at_desk' &&
       !this.isWorking &&
       !this.isTalking &&
+      !this.isThinking &&
       !this.hasLeaveQueued &&
       this.queue.length === 0 &&
       this.path.length === 0 &&
@@ -196,6 +200,31 @@ export class AgentActor {
     this.isTalking = false;
   }
 
+  /**
+   * Thinks where it stands while it prepares a reply that is no task, a hand to its chin. A task
+   * already started goes on; only `startWork` sends the agent to its desk.
+   */
+  startThinking(): void {
+    if (this.isWorking || this.hasLeaveQueued || this.isGone) return;
+    this.dropWander();
+    this.isThinking = true;
+  }
+
+  /** Stops thinking: the reply is ready, or the run is over. */
+  stopThinking(): void {
+    this.isThinking = false;
+  }
+
+  /**
+   * Answers a command with a gesture, facing `faceDeg` when given. It is no wander, so the walk
+   * to the desk the task then starts waits for it to end.
+   */
+  gesture(clip: ClipName, seconds: number, faceDeg?: number): void {
+    if (this.hasLeaveQueued || this.isGone) return;
+    this.dropWander();
+    this.queue.push({ kind: 'play', clip, seconds, activity: 'talking', faceDeg });
+  }
+
   /** Drops every wander step, including the one being played. */
   private dropWander(): void {
     this.queue = this.queue.filter((step) => step.isWander !== true);
@@ -210,6 +239,7 @@ export class AgentActor {
   startWork(narration?: string): void {
     this.dropWander();
     this.isTalking = false;
+    this.isThinking = false;
     this.isWorking = true;
     if (narration !== undefined) this.listener.onNarrate(narration);
   }
@@ -383,13 +413,19 @@ export class AgentActor {
     }
     this.isInWander = false;
     if (this.isTalking) {
-      this.clip = 'talk';
+      this.clip = this.isThinking ? 'think' : 'talk';
       this.setActivity('talking');
+      return;
+    }
+    if (this.isThinking) {
+      this.clip = 'think';
+      this.setActivity('thinking');
       return;
     }
     // Nothing queued: the resting state follows the work flag, whenever it changed.
     if (this.hasLeaveQueued) return;
-    if (this.isWorking !== (this.activity === 'working') || this.activity === 'talking') {
+    const isAside = this.activity === 'talking' || this.activity === 'thinking';
+    if (this.isWorking !== (this.activity === 'working') || isAside) {
       this.settle();
     }
   }

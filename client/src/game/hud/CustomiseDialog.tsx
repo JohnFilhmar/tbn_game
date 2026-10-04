@@ -5,12 +5,11 @@ import { Dialog } from '@/components/Dialog';
 import { ColorField } from '@/components/fields/ColorField';
 import { SelectField } from '@/components/fields/SelectField';
 import { FormError } from '@/components/FormError';
-import { ownerAppearanceOf, resolveAppearance } from '@/game/assets/appearance';
+import { resolveAppearance } from '@/game/assets/appearance';
 import { PaletteSlotSchema, type PartKind } from '@/game/assets/characterManifest';
 import { bodyNames, CHARACTER_SET, partNames } from '@/game/assets/characters';
 import { canRenderWorld } from '@/game/world/webgl';
 import { errorMessage } from '@/lib/api/apiError';
-import { useSetPreference } from '@/lib/data/useSetPreference';
 import { humanize } from '@/lib/format/labels';
 
 const LazyPreview = lazy(() =>
@@ -33,11 +32,11 @@ const SLOT_LABELS = {
 
 interface CustomiseFormProps {
   initial: Appearance;
+  onSave: (appearance: Appearance) => Promise<unknown>;
   onSaved: () => void;
 }
 
-function CustomiseForm({ initial, onSaved }: CustomiseFormProps) {
-  const setPreference = useSetPreference();
+function CustomiseForm({ initial, onSave, onSaved }: CustomiseFormProps) {
   const [draft, setDraft] = useState<Appearance>(initial);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,7 +49,7 @@ function CustomiseForm({ initial, onSaved }: CustomiseFormProps) {
   const save = (): void => {
     setIsSaving(true);
     setError(undefined);
-    setPreference('owner_appearance', draft)
+    onSave(draft)
       .then(onSaved)
       .catch((caught: unknown) => setError(errorMessage(caught)))
       .finally(() => setIsSaving(false));
@@ -119,20 +118,26 @@ function CustomiseForm({ initial, onSaved }: CustomiseFormProps) {
 export interface CustomiseDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  /** The owner's saved appearance. */
-  appearance: Appearance | undefined;
+  title: string;
+  /** The look the form starts from: the saved one, or the default the world shows. */
+  initial: Appearance;
+  /** Saves the chosen look: the owner's preference, or an agent's profile. */
+  onSave: (appearance: Appearance) => Promise<unknown>;
 }
 
-/** The owner's character: parts and colours from the set, with a live preview, saved as a preference. */
-export function CustomiseDialog({ isOpen, onClose, appearance }: CustomiseDialogProps) {
+/**
+ * A character's look, the owner's or an agent's: parts and colours from the set, with a live
+ * preview. The world dresses the character in it as soon as it is saved.
+ */
+export function CustomiseDialog({ isOpen, onClose, title, initial, onSave }: CustomiseDialogProps) {
   return (
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Customise your character"
-      description="Parts and colours from the character set. Agents are dressed from their profiles."
+      title={title}
+      description="Parts and colours from the character set."
     >
-      <CustomiseForm initial={ownerAppearanceOf(appearance)} onSaved={onClose} />
+      {isOpen && <CustomiseForm initial={initial} onSave={onSave} onSaved={onClose} />}
     </Dialog>
   );
 }

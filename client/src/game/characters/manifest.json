@@ -18,7 +18,12 @@
     "touch",
     "stretch",
     "talk",
-    "press"
+    "press",
+    "think",
+    "thumbs_up",
+    "bow",
+    "nod",
+    "sigh"
   ],
   "attach": { "hair": "head", "outfit": "spine", "accessory": "head" },
   "parts": {

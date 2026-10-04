@@ -58,6 +58,9 @@ function titleOf(title: string): string {
   return `"${title}"`;
 }
 
+/** How long an agent's gesture lasts: its answer to a command, or a sigh when it declines. */
+const GESTURE_SECONDS = 1.6;
+
 /** Plays one world event on the actors; false when an actor it names is not there yet. */
 function play(event: WorldEvent, actors: Map<string, AgentActor>): boolean {
   switch (event.kind) {
@@ -77,8 +80,15 @@ function play(event: WorldEvent, actors: Map<string, AgentActor>): boolean {
       const actor = actors.get(event.agentId);
       if (actor === undefined) return false;
       const verb =
-        event.status === 'done' ? 'finishes' : event.status === 'failed' ? 'gives up on' : 'drops';
+        event.status === 'done'
+          ? 'finishes'
+          : event.status === 'failed'
+            ? 'gives up on'
+            : event.status === 'declined'
+              ? 'declines'
+              : 'drops';
       actor.stopWork(`${actor.name} ${verb} ${titleOf(event.title)}.`);
+      if (event.status === 'declined') actor.gesture('sigh', GESTURE_SECONDS);
       return true;
     }
     case 'handoff': {
@@ -100,11 +110,14 @@ function play(event: WorldEvent, actors: Map<string, AgentActor>): boolean {
       return true;
     }
     case 'agent_working': {
-      actors.get(event.agentId)?.startWork();
+      // A run that is no task, such as a reply to the owner, keeps the agent where it is.
+      actors.get(event.agentId)?.startThinking();
       return true;
     }
     case 'agent_idle': {
-      actors.get(event.agentId)?.stopWork();
+      const actor = actors.get(event.agentId);
+      actor?.stopThinking();
+      actor?.stopWork();
       return true;
     }
     case 'agent_arrived':
@@ -318,6 +331,20 @@ export function Agents({
     actor.startTalk(owner === undefined ? actor.yawDeg : yawTowards(actor.position, owner));
     return () => actor.endTalk();
   }, [talkingTo]);
+
+  // A command the owner gave: the agent turns to the owner and answers with its gesture.
+  const acknowledgement = useWorldStore((state) => state.acknowledgement);
+  useEffect(() => {
+    if (acknowledgement === null) return;
+    const actor = actors.current.get(acknowledgement.agentId);
+    const owner = livePositions.get(OWNER_KEY);
+    if (actor === undefined) return;
+    actor.gesture(
+      acknowledgement.gesture,
+      GESTURE_SECONDS,
+      owner === undefined ? undefined : yawTowards(actor.position, owner),
+    );
+  }, [acknowledgement]);
 
   const wander = useMemo(() => new WanderScheduler(spots, narrate), [spots, narrate]);
   const lastWanderCheck = useRef(0);

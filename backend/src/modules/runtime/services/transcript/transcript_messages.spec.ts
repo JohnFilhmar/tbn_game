@@ -47,7 +47,7 @@ describe('transcript messages', () => {
         content: [
           {
             type: 'text',
-            text: 'New task: Write\n\nA haiku.\n\nCall finish_task when it is complete.',
+            text: 'New task: Write\n\nA haiku.\n\nCall finish_task when it is complete, or decline_task if it is not yours to do.',
           },
           { type: 'text', text: 'Message from the owner:\nMake it short.' },
         ],
@@ -123,7 +123,10 @@ describe('transcript messages', () => {
       {
         role: 'user',
         content: [
-          { type: 'text', text: 'Message from grace (question):\nWhich sources?' },
+          {
+            type: 'text',
+            text: 'Message from grace (question):\nWhich sources?\n\n(Answer in plain text: your reply goes back to grace.)',
+          },
           {
             type: 'text',
             text: 'Subtask done: "Find sources" by ada intern 1.\n\n# Find sources\n\nThree sources.',

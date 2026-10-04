@@ -13,6 +13,7 @@ const ACTIVITY_LABELS: Record<Activity, string> = {
   leaving: 'leaving',
   gone: 'gone',
   wandering: 'taking a break',
+  thinking: 'thinking',
   talking: 'talking with you',
 };
 

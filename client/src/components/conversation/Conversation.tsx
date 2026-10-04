@@ -1,4 +1,4 @@
-import type { Agent } from '@tbn/contracts';
+import type { Agent, Task } from '@tbn/contracts';
 import { useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
@@ -24,6 +24,8 @@ export interface ConversationProps {
   logClassName?: string;
   /** Puts the focus in the message box when it appears. */
   isAutoFocused?: boolean;
+  /** Called with the task a `/task` command gave the agent. */
+  onTaskGiven?: (task: Task) => void;
 }
 
 /**
@@ -35,6 +37,7 @@ export function Conversation({
   agent,
   logClassName = 'max-h-160 min-h-64',
   isAutoFocused = false,
+  onTaskGiven,
 }: ConversationProps) {
   const transcript = useTranscript(agent.id);
   const reply = useStreamStore((state) => state.replies[agent.id]);
@@ -98,6 +101,7 @@ export function Conversation({
         agentName={agent.name}
         closedReason={closedReason(agent)}
         isAutoFocused={isAutoFocused}
+        onTaskGiven={onTaskGiven}
       />
     </div>
   );

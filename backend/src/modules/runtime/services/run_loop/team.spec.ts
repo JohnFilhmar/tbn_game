@@ -228,7 +228,7 @@ describe('a manager and its team', () => {
     expect(fake.requests).toHaveLength(2);
   });
 
-  it('wakes an idle manager with a question from another one and answers it in a run of its own', async () => {
+  it('wakes an idle manager with a question from another one, and its answer goes back to the asker', async () => {
     const fake = await team.fake('anthropic_messages');
     const key = await team.provider(fake);
     const asker = await team.manager(key, { role: 'Planner' });
@@ -236,6 +236,10 @@ describe('a manager and its team', () => {
     fake.respond((recorded) => {
       const view = read_request(recorded, 'anthropic_messages');
       if (view.agent_name === editor.name) return { type: 'text', text: 'Yes, by Friday.' };
+      // The asker, woken by the answer, passes it on to the owner and asks nothing more.
+      if (view.last.startsWith(`Message from ${editor.name} (answer)`)) {
+        return { type: 'text', text: 'The editor says yes, by Friday.' };
+      }
       if (view.tool_results.some((text) => text.startsWith('Delivered your question'))) {
         return finish_reply('Asked the editor.');
       }
@@ -259,7 +263,25 @@ describe('a manager and its team', () => {
       .map((recorded) => read_request(recorded, 'anthropic_messages'))
       .find((view) => view.agent_name === editor.name);
     expect(asked?.last).toBe(
-      `Message from ${asker.name} (question):\nCan the review be done by Friday?`,
+      `Message from ${asker.name} (question):\nCan the review be done by Friday?\n\n(Answer in plain text: your reply goes back to ${asker.name}.)`,
     );
+
+    const relayed = await wait_for('the asker to hear the answer and pass it on', async () => {
+      const entries = await team.transcript(asker.id);
+      const answered = entries.some(
+        (entry) =>
+          entry.kind === 'agent_message' &&
+          entry.content.kind === 'answer' &&
+          entry.content.text === 'Yes, by Friday.',
+      );
+      const last = entries.at(-1);
+      return answered && last?.kind === 'assistant' ? entries : undefined;
+    });
+    expect(relayed.at(-1)?.content).toEqual({
+      blocks: [{ type: 'text', text: 'The editor says yes, by Friday.' }],
+    });
+    // An answer asks for nothing back: the editor heard once and stays quiet.
+    const editor_entries = await team.transcript(editor.id);
+    expect(editor_entries.filter((entry) => entry.kind === 'agent_message')).toHaveLength(1);
   });
 });

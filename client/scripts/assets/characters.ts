@@ -94,6 +94,11 @@ export const CLIP_NAMES = [
   'stretch',
   'talk',
   'press',
+  'think',
+  'thumbs_up',
+  'bow',
+  'nod',
+  'sigh',
 ];
 
 export const HIP_HEIGHT = 0.78;
@@ -101,7 +106,8 @@ const SEATED_HIP_HEIGHT = 0.47;
 
 /**
  * Builds one body: `hips` at the root with `leg_l` and `leg_r` (each with a `shin_l` or
- * `shin_r`), and `spine` carrying `arm_l`, `arm_r` and `head`. The figure faces +Z.
+ * `shin_r`), and `spine` carrying `arm_l` and `arm_r` (each with a `forearm_l` or `forearm_r`
+ * at the elbow, which carries the hand) and `head`. The figure faces +Z.
  */
 export function buildBody(variant: BodyVariant): Group {
   const w = variant.width;
@@ -125,8 +131,10 @@ export function buildBody(variant: BodyVariant): Group {
   for (const side of ['l', 'r'] as const) {
     const x = side === 'l' ? 0.25 * w : -0.25 * w;
     const arm = node(spine, `arm_${side}`, [x, 0.44 * h, 0]);
-    box(arm, `sleeve_${side}`, 'top', [0.12 * w, 0.46 * h, 0.14 * w], [0, -0.23 * h, 0]);
-    box(arm, `hand_${side}`, 'skin', [0.11 * w, 0.12 * h, 0.12 * w], [0, -0.52 * h, 0]);
+    box(arm, `sleeve_${side}`, 'top', [0.12 * w, 0.25 * h, 0.14 * w], [0, -0.125 * h, 0]);
+    const forearm = node(arm, `forearm_${side}`, [0, -0.25 * h, 0]);
+    box(forearm, `cuff_${side}`, 'top', [0.115 * w, 0.22 * h, 0.13 * w], [0, -0.11 * h, 0]);
+    box(forearm, `hand_${side}`, 'skin', [0.11 * w, 0.12 * h, 0.12 * w], [0, -0.27 * h, 0]);
   }
 
   const head = node(spine, 'head', [0, 0.54 * h, 0]);
@@ -186,6 +194,9 @@ function hipHeight(
 
 const TAU = Math.PI * 2;
 const sin = (phase: number): number => Math.sin(phase * TAU);
+/** How far an elbow bends at rest, so a hanging arm is not straight. */
+const RELAXED_ELBOW = -0.12;
+
 /** Rises from 0 to 1 and back over one phase, smoothly at both ends. */
 const bump = (phase: number): number => Math.sin(phase * Math.PI) ** 2;
 
@@ -195,6 +206,8 @@ const POSED_NODES = [
   'head',
   'arm_l',
   'arm_r',
+  'forearm_l',
+  'forearm_r',
   'leg_l',
   'leg_r',
   'shin_l',
@@ -227,6 +240,8 @@ function clipOf(
     head: {},
     arm_l: { z: () => 0.08 },
     arm_r: { z: () => -0.08 },
+    forearm_l: { x: () => RELAXED_ELBOW },
+    forearm_r: { x: () => RELAXED_ELBOW },
     leg_l: {},
     leg_r: {},
     shin_l: {},
@@ -253,7 +268,8 @@ function spotClips(h: number): AnimationClip[] {
   const standing = (): number => HIP_HEIGHT;
   return [
     clipOf('drink', 2.4, h, standing, {
-      arm_r: { x: (p) => -0.3 - 1.9 * bump(p), z: (p) => -0.08 + 0.45 * bump(p) },
+      arm_r: { x: (p) => -0.2 - 0.6 * bump(p), z: (p) => -0.08 + 0.3 * bump(p) },
+      forearm_r: { x: (p) => RELAXED_ELBOW - 1.9 * bump(p) },
       head: { x: (p) => -0.25 * bump(p) },
     }),
     clipOf('look', 3, h, standing, {
@@ -261,7 +277,8 @@ function spotClips(h: number): AnimationClip[] {
       spine: { y: (p) => 0.15 * sin(p) },
     }),
     clipOf('write', 1.6, h, standing, {
-      arm_r: { x: (p) => -1.6 + 0.15 * sin(p * 2), z: (p) => 0.1 * sin(p) },
+      arm_r: { x: (p) => -1.2 + 0.15 * sin(p * 2), z: (p) => 0.1 * sin(p) },
+      forearm_r: { x: () => -0.6 },
       head: { x: () => 0.05 },
     }),
     clipOf('touch', 2.5, h, () => 0.4, {
@@ -280,13 +297,54 @@ function spotClips(h: number): AnimationClip[] {
       head: { x: (p) => -0.2 * bump(p) },
     }),
     clipOf('talk', 1.6, h, standing, {
-      arm_l: { x: (p) => -0.5 - 0.25 * sin(p), z: () => 0.1 },
-      arm_r: { x: (p) => -0.5 + 0.25 * sin(p), z: () => -0.1 },
+      arm_l: { x: (p) => -0.3 - 0.15 * sin(p), z: () => 0.1 },
+      arm_r: { x: (p) => -0.3 + 0.15 * sin(p), z: () => -0.1 },
+      forearm_l: { x: (p) => -0.8 - 0.3 * sin(p) },
+      forearm_r: { x: (p) => -0.8 + 0.3 * sin(p) },
       head: { x: (p) => 0.06 * sin(p * 2) },
     }),
     clipOf('press', 1, h, standing, {
-      arm_r: { x: (p) => -1.4 - 0.15 * bump(p) },
+      arm_r: { x: (p) => -1.1 - 0.15 * bump(p) },
+      forearm_r: { x: () => -0.4 },
       head: { x: () => 0.05 },
+    }),
+  ];
+}
+
+/**
+ * The conversation clips of phase 4h: thinking while a reply is prepared, and the gestures that
+ * answer a command: a hand to the chin, a thumb up, a bow, a nod and a sigh.
+ */
+function conversationClips(h: number): AnimationClip[] {
+  const standing = (): number => HIP_HEIGHT;
+  return [
+    clipOf('think', 3, h, standing, {
+      arm_r: { x: () => -0.55, z: () => 0.2 },
+      forearm_r: { x: () => -2.3, z: () => 0.25 },
+      arm_l: { x: () => -0.35, z: () => -0.1 },
+      forearm_l: { x: () => -1.5, z: () => -0.7 },
+      head: { x: (p) => 0.14 + 0.04 * sin(p), y: () => -0.12 },
+      spine: { x: () => 0.04 },
+    }),
+    clipOf('thumbs_up', 1.4, h, standing, {
+      arm_r: { x: (p) => -0.6 * bump(p), z: (p) => -0.08 + 0.15 * bump(p) },
+      forearm_r: { x: (p) => RELAXED_ELBOW - 1.5 * bump(p) },
+      head: { x: (p) => -0.1 * bump(p) },
+    }),
+    clipOf('bow', 1.6, h, standing, {
+      spine: { x: (p) => 0.6 * bump(p) },
+      head: { x: (p) => 0.3 * bump(p) },
+      arm_l: { x: (p) => 0.15 * bump(p), z: () => 0.08 },
+      arm_r: { x: (p) => 0.15 * bump(p), z: () => -0.08 },
+    }),
+    clipOf('nod', 1.2, h, standing, {
+      head: { x: (p) => 0.3 * Math.max(0, sin(p * 2)) },
+    }),
+    clipOf('sigh', 2, h, (p) => HIP_HEIGHT - 0.02 * bump(p), {
+      spine: { x: (p) => 0.12 * bump(p) },
+      head: { x: (p) => -0.25 * bump(p) + 0.2 * bump(Math.max(0, p * 2 - 1)) },
+      arm_l: { z: (p) => 0.08 + 0.1 * bump(p) },
+      arm_r: { z: (p) => -0.08 - 0.1 * bump(p) },
     }),
   ];
 }
@@ -314,6 +372,8 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
     rotation('leg_r', 2, 16, () => 0),
     rotation('shin_l', 2, 16, () => 0),
     rotation('shin_r', 2, 16, () => 0),
+    rotation('forearm_l', 2, 16, () => RELAXED_ELBOW),
+    rotation('forearm_r', 2, 16, () => RELAXED_ELBOW),
     rotation('head', 2, 16, (p) => 0.03 * sin(p)),
     rotation('spine', 2, 16, () => 0),
   ]);
@@ -337,6 +397,8 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
       (p) => 0.5 * sin(p),
       () => -0.05,
     ),
+    rotation('forearm_l', 0.8, 16, (p) => -0.35 + 0.15 * sin(p)),
+    rotation('forearm_r', 0.8, 16, (p) => -0.35 - 0.15 * sin(p)),
     rotation('head', 0.8, 16, () => 0),
     rotation('spine', 0.8, 16, () => 0),
   ]);
@@ -365,11 +427,13 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
         (p) => arms(p, -1),
         () => -0.1,
       ),
+      rotation('forearm_l', duration, 8, () => -0.5),
+      rotation('forearm_r', duration, 8, () => -0.5),
       rotation('head', duration, 8, () => 0.12),
       rotation('spine', duration, 8, () => 0),
     ]);
   const sit = seated('sit', 2, () => -0.45);
-  const work = seated('work', 0.6, (p, side) => -1.25 + 0.12 * sin(p + (side === 1 ? 0 : 0.5)));
+  const work = seated('work', 0.6, (p, side) => -0.85 + 0.1 * sin(p + (side === 1 ? 0 : 0.5)));
   const wave = new AnimationClip('wave', 1.2, [
     hipHeight(1.2, 8, () => HIP_HEIGHT, h),
     rotation(
@@ -390,10 +454,12 @@ export function buildClips(variant: BodyVariant): AnimationClip[] {
     rotation('leg_r', 1.2, 12, () => 0),
     rotation('shin_l', 1.2, 12, () => 0),
     rotation('shin_r', 1.2, 12, () => 0),
+    rotation('forearm_r', 1.2, 12, (p) => -0.5 + 0.35 * sin(p * 2)),
+    rotation('forearm_l', 1.2, 12, () => RELAXED_ELBOW),
     rotation('head', 1.2, 12, () => -0.08),
     rotation('spine', 1.2, 12, () => 0),
   ]);
-  return [idle, walk, work, sit, wave, ...spotClips(h)];
+  return [idle, walk, work, sit, wave, ...spotClips(h), ...conversationClips(h)];
 }
 
 /** A part: a group named after the node it attaches to, with its meshes placed relative to it. */

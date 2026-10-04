@@ -101,9 +101,14 @@ describe('send_message', () => {
     const gone = await manager();
     await agents.dismiss(owner.owner_id, gone.id);
     expect(await send(lead, 'Nobody at all')).toEqual({
-      content: 'No live agent is named Nobody at all.',
+      content:
+        'No live agent is named Nobody at all. send_message reaches other agents only; to answer the owner, reply in plain text.',
       is_error: true,
     });
+    // A small model tried to answer the owner this way; the error tells it how to.
+    expect((await send(lead, 'owner')).content).toContain(
+      'to answer the owner, reply in plain text',
+    );
     expect((await send(lead, gone.name)).is_error).toBe(true);
     expect(await transcripts.has_unread(owner.owner_id, gone.id)).toBe(false);
   });

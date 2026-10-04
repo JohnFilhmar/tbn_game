@@ -22,7 +22,7 @@ export type WorldEvent =
   | { kind: 'agent_idle'; agentId: string }
   | { kind: 'agent_left'; agentId: string };
 
-const FINISHED: readonly TaskStatus[] = ['done', 'failed', 'cancelled'];
+const FINISHED: readonly TaskStatus[] = ['done', 'failed', 'cancelled', 'declined'];
 const WAITING: readonly TaskStatus[] = ['blocked', 'awaiting_approval'];
 
 /** The world events one change stands for, in the order they happen. */

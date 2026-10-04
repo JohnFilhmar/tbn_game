@@ -65,6 +65,15 @@ export interface Acting {
   seat: Vector3 | null;
 }
 
+/** How an agent took the owner's latest command: its gesture and line, and when. */
+export interface AgentAcknowledgement {
+  agentId: string;
+  gesture: ClipName;
+  line: string;
+  /** Milliseconds on `Date.now()`'s clock. */
+  at: number;
+}
+
 /** A panel a prop opens over the world. */
 export type PropPanel = 'lights' | 'cork' | 'trophies' | 'travel';
 
@@ -147,6 +156,9 @@ export interface WorldState {
   setHasSat: (hasSat: boolean) => void;
   toast: Toast | null;
   showToast: (text: string) => void;
+  /** The latest command an agent took, which its actor answers with a gesture. */
+  acknowledgement: AgentAcknowledgement | null;
+  acknowledge: (agentId: string, gesture: ClipName, line: string) => void;
 }
 
 let nextLineId = 1;
@@ -238,4 +250,7 @@ export const useWorldStore = create<WorldState>((set) => ({
   setHasSat: (hasSat) => set({ hasSat }),
   toast: null,
   showToast: (text) => set((state) => ({ toast: { id: (state.toast?.id ?? 0) + 1, text } })),
+  acknowledgement: null,
+  acknowledge: (agentId, gesture, line) =>
+    set({ acknowledgement: { agentId, gesture, line, at: Date.now() } }),
 }));

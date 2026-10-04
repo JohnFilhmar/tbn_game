@@ -20,12 +20,14 @@ import type { FinishedTask } from '@/modules/runtime/tools/tool.interface';
 import type { RunRecord, TranscriptEntryRecord } from '@/modules/runtime/types/run_record';
 import { RunGateService } from './run_gate.service';
 import { RunLeaseService } from './run_lease.service';
+import { QuestionReplyService } from './question_reply.service';
 import { SubtaskDeliveryService } from './subtask_delivery.service';
 import { TaskCompletionService } from './task_completion.service';
 import { TurnService } from './turn.service';
 import { NotificationService } from '@/modules/integrations/services/notification.service';
 
-const NUDGE_TEXT = 'The task is still open. Call finish_task with the report when it is complete.';
+const NUDGE_TEXT =
+  'The task is still open. Call finish_task with the report when it is complete, or decline_task with the reason if it is outside your job description or you cannot do it.';
 const CONTINUE_TEXT = 'Your reply was cut off at the output limit. Continue where you stopped.';
 
 type Outcome = 'finished' | 'stopped' | 'lost' | 'paused';
@@ -59,6 +61,7 @@ export class RunLoopService {
     private readonly completion: TaskCompletionService,
     private readonly deliveries: SubtaskDeliveryService,
     private readonly notifications: NotificationService,
+    private readonly replies: QuestionReplyService,
   ) {}
 
   /** Drives a running run until it finishes, pauses, or the worker stops. */
@@ -150,6 +153,11 @@ export class RunLoopService {
           await this.gate.pause(run, task, outcome.pause);
           return 'paused';
         }
+        if (outcome.declined !== null && task !== null) {
+          await this.tasks.decline(run.owner_id, task.id, outcome.declined);
+          await this.finish(run, 'done', null);
+          return 'finished';
+        }
         if (outcome.finished !== null && task !== null) {
           await this.completion.complete(run, agent, task, outcome.finished);
           await this.finish(run, 'done', null);
@@ -161,6 +169,8 @@ export class RunLoopService {
       const last = entries[entries.length - 1];
       if (last !== undefined && last.kind === 'assistant') {
         if (task === null) {
+          // A run with no task answers whoever asked it something.
+          await this.replies.answer(run, agent, entries);
           await this.finish(run, 'done', null);
           return 'finished';
         }

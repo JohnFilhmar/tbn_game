@@ -172,7 +172,9 @@ hips
   spine
     torso
     arm_l, arm_r
-      sleeve_<side>, hand_<side>
+      sleeve_<side>
+      forearm_<side>
+        cuff_<side>, hand_<side>
     head
       skull, eye_l, eye_r
 ```
@@ -182,9 +184,11 @@ Each mesh carries one material named after its palette slot: `skin`, `hair`, `to
 on the body and on its parts.
 
 The clips are `idle`, `walk`, `work`, `sit`, `wave`, `drink`, `look`, `write`, `touch`, `stretch`,
-`talk` and `press`, as quaternion and position tracks on the named nodes, so one clip plays on
-every body variant. Every clip sets every node of `spine`, `head`, both arms, both legs and both
-shins, so a crossfade never leaves a node posed by the clip before. `touch` crouches; the runtime
+`talk`, `press`, `think`, `thumbs_up`, `bow`, `nod` and `sigh`, as quaternion and position tracks
+on the named nodes, so one clip plays on every body variant. Every clip sets every node of
+`spine`, `head`, both arms, both forearms, both legs and both shins, so a crossfade never leaves a
+node posed by the clip before. The arm bends at `forearm_<side>`, the elbow, which rests slightly
+bent. `touch` crouches; the runtime
 puts a cup in `hand_r` while `drink` plays. `walk` is a cycle of 0.8 seconds at a
 walking speed of 1.4 metres per second; the runtime scales its speed when the character runs.
 `work` and `sit` lower `hips` to a seated height; `work` types.

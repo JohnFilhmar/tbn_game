@@ -17,6 +17,7 @@ import { error_excerpt, retry_after_ms, stream_failure } from './http/failures';
 import { post_json, post_stream, type PostJsonOptions } from './http/post';
 import { assemble_openai_stream, parse_arguments, to_stop_reason } from './openai_stream';
 import { read_sse } from './sse';
+import { recover_text_tool_call } from './text_tool_call';
 
 const ResponseSchema = z.looseObject({
   choices: z
@@ -143,7 +144,10 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
       },
       timeout_ms: options.timeout_ms,
     };
-    if (options.on_text !== undefined) return this.stream(call, options.on_text);
+    const tool_names = request.tools.map((tool) => tool.name);
+    if (options.on_text !== undefined) {
+      return recover_text_tool_call(await this.stream(call, options.on_text), tool_names);
+    }
 
     const result = await post_json(call);
     if (result.status !== 200)
@@ -168,19 +172,22 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
       });
     }
     const usage = parsed.data.usage;
-    return {
-      content,
-      stop_reason: to_stop_reason(
-        choice.finish_reason,
-        (choice.message.tool_calls ?? []).length > 0,
-      ),
-      usage: {
-        input_tokens: usage?.prompt_tokens ?? 0,
-        output_tokens: usage?.completion_tokens ?? 0,
-        cache_read_tokens: usage?.prompt_tokens_details?.cached_tokens ?? 0,
-        cache_write_tokens: 0,
+    return recover_text_tool_call(
+      {
+        content,
+        stop_reason: to_stop_reason(
+          choice.finish_reason,
+          (choice.message.tool_calls ?? []).length > 0,
+        ),
+        usage: {
+          input_tokens: usage?.prompt_tokens ?? 0,
+          output_tokens: usage?.completion_tokens ?? 0,
+          cache_read_tokens: usage?.prompt_tokens_details?.cached_tokens ?? 0,
+          cache_write_tokens: 0,
+        },
       },
-    };
+      tool_names,
+    );
   }
 
   private async stream(

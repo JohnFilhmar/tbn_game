@@ -238,6 +238,17 @@ test('the owner talks to an agent in the world', async ({ page }) => {
   });
   await expect(page.getByRole('list', { name: 'Agents in the world' })).toBeHidden();
 
+  // Commands never reach the model: /help answers in place and /task creates the task.
+  await box.fill('/help');
+  await panel.getByRole('button', { name: 'Send' }).click();
+  await expect(panel.getByRole('status').filter({ hasText: '/task' })).toBeVisible();
+  await box.fill('/task Tidy the shelf');
+  await panel.getByRole('button', { name: 'Send' }).click();
+  await expect(
+    panel.getByRole('status').filter({ hasText: `${MANAGER} has a new task: Tidy the shelf` }),
+  ).toBeVisible();
+  await expect(log).not.toContainText('/task Tidy the shelf');
+
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
   await expect(page.getByRole('list', { name: 'Agents in the world' })).toBeVisible();

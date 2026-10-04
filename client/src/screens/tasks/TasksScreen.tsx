@@ -16,7 +16,7 @@ import { useCollection } from '@/lib/data/queries';
 import { newestFirst } from '@/lib/data/rows';
 import { AssignTaskForm } from './AssignTaskForm';
 
-type TaskFilter = 'open' | 'done' | 'failed' | 'cancelled' | 'all';
+type TaskFilter = 'open' | 'done' | 'failed' | 'cancelled' | 'declined' | 'all';
 
 function matches(task: Task, filter: TaskFilter): boolean {
   if (filter === 'all') return true;
@@ -85,6 +85,7 @@ export function TasksScreen() {
           { value: 'done', label: 'Done', count: count('done') },
           { value: 'failed', label: 'Failed', count: count('failed') },
           { value: 'cancelled', label: 'Cancelled', count: count('cancelled') },
+          { value: 'declined', label: 'Declined', count: count('declined') },
           { value: 'all', label: 'All', count: count('all') },
         ]}
       />

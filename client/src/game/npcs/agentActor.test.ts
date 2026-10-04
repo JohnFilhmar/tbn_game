@@ -145,3 +145,57 @@ describe('an agent actor', () => {
     expect(actor.clip).toBe('idle');
   });
 });
+
+describe('an agent in conversation', () => {
+  it('thinks where it stands for a reply that is no task, then rests again', () => {
+    const { actor } = actorAt(2, 2);
+    run(actor, 0.1);
+    const where = actor.position.clone();
+    actor.startThinking();
+    run(actor, 1);
+    expect(actor.activity).toBe('thinking');
+    expect(actor.clip).toBe('think');
+    expect(actor.position).toEqual(where);
+    actor.stopThinking();
+    run(actor, 0.5);
+    expect(actor.activity).toBe('at_desk');
+    expect(actor.clip).toBe('idle');
+  });
+
+  it('thinks facing the owner while talking, and talks once the reply is ready', () => {
+    const { actor } = actorAt(2, 2);
+    run(actor, 0.1);
+    actor.startTalk(180);
+    run(actor, 1.5);
+    actor.startThinking();
+    run(actor, 0.2);
+    expect(actor.clip).toBe('think');
+    expect(actor.activity).toBe('talking');
+    actor.stopThinking();
+    run(actor, 0.2);
+    expect(actor.clip).toBe('talk');
+  });
+
+  it('answers a command with its gesture before walking to the desk for the task', () => {
+    const { actor } = actorAt(2, 2);
+    run(actor, 0.1);
+    actor.gesture('thumbs_up', 1, 90);
+    run(actor, 0.2);
+    expect(actor.clip).toBe('thumbs_up');
+    expect(actor.yawDeg).toBe(90);
+    actor.startWork();
+    run(actor, 0.2);
+    expect(actor.clip).toBe('thumbs_up');
+    run(actor, 3);
+    expect(actor.activity).toBe('working');
+  });
+
+  it('never lets a thought override a task already started', () => {
+    const { actor } = actorAt(2, 2);
+    actor.startWork();
+    actor.startThinking();
+    run(actor, 3);
+    expect(actor.activity).toBe('working');
+    expect(actor.clip).toBe('work');
+  });
+});
