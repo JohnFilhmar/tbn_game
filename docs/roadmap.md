@@ -24,7 +24,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 4c | Living agents | Merged |
 | 4d | Build mode and themes | Merged |
 | 4e | Interactive objects | Merged |
-| 4f | The suggested objects | In progress |
+| 4f | The suggested objects | Merged |
+| 4g | Costs and the desk | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -218,6 +219,13 @@ and a patch of grass, usable by the owner and the agents, each placeable in buil
 The nine objects phase 4e suggested: an inbox tray, a cork board, a server rack, a wall clock, a
 sofa and a beanbag to sit on, an exit sign to travel by, plants that need watering, a trophy
 shelf and a radio. Plan: `docs/plans/phase_4f.md`.
+
+## Phase 4g, costs and the desk
+
+Fewer tokens per task (caching the history, a fixed context budget, smaller tool replays, one
+task's context), local models such as Ollama and vLLM, tables with pages on the desk, longer
+skill descriptions, rehiring former agents and renaming departments. Plan:
+`docs/plans/phase_4g.md`.
 
 ## Phase 5, mobile
 
