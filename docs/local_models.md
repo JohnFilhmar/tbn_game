@@ -21,7 +21,9 @@ The worker runs in a container, so `127.0.0.1` there is the container itself.
 
 - **Tool calling.** Agents work through tools, so the model and the server must support them.
   Prefer models trained for it, such as the Qwen, Llama 3.1 or later, and Mistral instruct
-  families.
+  families. A small model sometimes writes a call as its whole reply, a JSON object with `name`
+  and `parameters`; when it names a tool the agent has, the server runs it as that call. A
+  model that writes its calls inside other text still cannot work as an agent.
 - **A large context window.** Set the model's context window on the desk to what the server
   really gives it; the session is summarised at the context budget preference (60,000 tokens by
   default) or 60 percent of that window, whichever is smaller. A window under 16,000 tokens

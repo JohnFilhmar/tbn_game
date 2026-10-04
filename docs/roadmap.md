@@ -25,7 +25,8 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 4d | Build mode and themes | Merged |
 | 4e | Interactive objects | Merged |
 | 4f | The suggested objects | Merged |
-| 4g | Costs and the desk | In progress |
+| 4g | Costs and the desk | Merged |
+| 4h | Conversations and commands | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -226,6 +227,13 @@ Fewer tokens per task (caching the history, a fixed context budget, smaller tool
 task's context), local models such as Ollama and vLLM, tables with pages on the desk, longer
 skill descriptions, rehiring former agents and renaming departments. Plan:
 `docs/plans/phase_4g.md`.
+
+## Phase 4h, conversations and commands
+
+An agent in conversation stays with the owner, thinks and talks instead of walking to its desk;
+`/task` and `/help` in the chat, with a gesture that acknowledges a task; elbows; customising an
+agent's look; agents that answer each other's questions; and an agent that can decline a task
+outside its job description. Plan: `docs/plans/phase_4h.md`.
 
 ## Phase 5, mobile
 

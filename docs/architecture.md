@@ -879,3 +879,15 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | Replay caps apply from the first turn, never as results age | Shortening a result once it is old changes the start of every later request and breaks the provider's cache. A tool result replays at most 12,000 characters and a `write_file` call its path and size. |
 | A provider's key is optional and its base URL never names a stack service | Local models take no key; a base URL naming `postgres` or `prometheus` would hand them the key and reach them from the worker. Loopback, LAN and VPN stay allowed, where local models live. |
 | Desk tables page in the client | Collections are cached whole and kept live by events; paging on the server can follow when one reaches thousands of rows. |
+
+## Decisions made in phase 4h
+
+| Decision | Why |
+| --- | --- |
+| A working agent with no task thinks where it stands | `agent_working` without a task is a conversation; only `task_started` sends an agent to its desk. |
+| The acknowledgement of `/task` is the client's | A fixed line and a random gesture come at once and cost no model call; the task's report is still the agent's own work. |
+| Commands are parsed in the shared message box and never reach the model | The desk chat and the world's panel take the same commands, and a command spends no tokens. |
+| An agent's plain reply to another agent's question goes back as an `answer` | Agents answer in plain text, as they answer the owner; without the relay the asker never heard back. An answer asks for nothing, so two agents cannot answer each other in a loop. |
+| `declined` is a task status of its own, set only by `decline_task` | A task outside an agent's job description ended `done` with a made-up report; declined with a reason says what happened, and the delegator hears it like any other outcome. |
+| A reply that is only a JSON tool call naming an offered tool runs as that call | Small local models served over the OpenAI format sometimes write the call as text. Only the whole reply is read, so prose that mentions a tool stays prose. |
+| The speech bubble draws above the conversation panel's backdrop | The panel blurs what is behind it, and the bubble is read while the panel is open. |
