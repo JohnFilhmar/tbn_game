@@ -12,6 +12,8 @@ import { talkTo } from '@/game/world/talk';
 import { landingBeside } from '@/game/world/seat';
 import { useWorldStore } from '@/game/world/worldStore';
 import { usePreferences } from '@/lib/data/queries';
+import { useSetPreference } from '@/lib/data/useSetPreference';
+import { ownerAppearanceOf } from '@/game/assets/appearance';
 import { useSession } from '@/providers/SessionProvider';
 import { ControlsHelp } from './ControlsHelp';
 import { ConversationPanel } from './ConversationPanel';
@@ -55,6 +57,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
   const navigate = useNavigate();
   const { signOut } = useSession();
   const { data: preferences } = usePreferences();
+  const setPreference = useSetPreference();
   const cameraMode = useWorldStore((state) => state.cameraMode);
   const toggleCamera = useWorldStore((state) => state.toggleCamera);
   const canUseComputer = useWorldStore((state) => state.canUseComputer);
@@ -238,7 +241,9 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
           <CustomiseDialog
             isOpen={openDialog === 'customise'}
             onClose={() => setOpenDialog(null)}
-            appearance={preferences.owner_appearance}
+            title="Customise your character"
+            initial={ownerAppearanceOf(preferences.owner_appearance)}
+            onSave={(appearance) => setPreference('owner_appearance', appearance)}
           />
         </>
       )}

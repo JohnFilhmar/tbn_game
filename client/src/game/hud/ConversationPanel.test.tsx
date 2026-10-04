@@ -12,6 +12,7 @@ import {
   chunkFixture,
   fixtureId,
   ownerMessage,
+  taskFixture,
 } from '@/testing/fixtures';
 import { renderApp } from '@/testing/renderApp';
 
@@ -19,7 +20,13 @@ const ADA = agentFixture({ name: 'Ada' });
 
 afterEach(() => {
   livePositions.clear();
-  useWorldStore.setState({ activities: {}, narration: [], talkingTo: null, teleport: null });
+  useWorldStore.setState({
+    activities: {},
+    narration: [],
+    talkingTo: null,
+    teleport: null,
+    acknowledgement: null,
+  });
 });
 
 describe('talking to an agent in the world', () => {
@@ -73,5 +80,46 @@ describe('talking to an agent in the world', () => {
     await waitFor(() => expect(useWorldStore.getState().talkingTo).toBeNull());
     expect(screen.queryByRole('complementary', { name: 'Conversation with Ada' })).toBeNull();
     expect(screen.getByRole('region', { name: 'What is happening' })).toBeDefined();
+  });
+
+  it('gives a task with /task, which the agent takes with a line and a gesture', async () => {
+    const task = taskFixture({ title: 'Write a haiku', assignee_agent_id: ADA.id });
+    const api = fakeApi({
+      'GET /agents': () => [ADA],
+      'GET /departments': () => [],
+      'GET /tasks': () => [],
+      'GET /runs': () => [],
+      [`GET /agents/${ADA.id}/transcript`]: () => [],
+      'POST /tasks': () => task,
+    });
+    renderApp({ api, path: '/' });
+    await screen.findByRole('button', { name: 'Desk' });
+    act(() => {
+      livePositions.set(OWNER_KEY, new Vector3(0, 0, 0));
+      livePositions.set(ADA.id, new Vector3(0, 0, 1.5));
+      useWorldStore.getState().setActivity(ADA.id, 'at_desk');
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Talk to Ada' }));
+    const box = await screen.findByLabelText('Message to Ada');
+
+    await userEvent.type(box, '/help');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText(/\/task <what to do> gives this agent a task/)).toBeDefined();
+
+    await userEvent.type(box, '/task Write a haiku');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(
+        api.calls.find((call) => call.method === 'POST' && call.path === '/tasks')?.body,
+      ).toEqual({
+        title: 'Write a haiku',
+        instructions: 'Write a haiku',
+        assignee_agent_id: ADA.id,
+      }),
+    );
+    expect(api.calls.some((call) => call.path === `/agents/${ADA.id}/messages`)).toBe(false);
+    const taken = useWorldStore.getState().acknowledgement;
+    expect(taken?.agentId).toBe(ADA.id);
+    expect(useWorldStore.getState().narration.at(-1)?.text).toBe(`Ada: "${taken?.line}"`);
   });
 });

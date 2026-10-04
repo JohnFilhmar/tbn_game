@@ -1,9 +1,19 @@
-import { OPEN_TASK_STATUSES } from '@tbn/contracts';
+import { AgentSchema, OPEN_TASK_STATUSES } from '@tbn/contracts';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { appearanceOf } from '@/game/assets/appearance';
+import { CHARACTER_SET } from '@/game/assets/characters';
+import { newCommandId } from '@/lib/api/apiClient';
+import { putRow } from '@/lib/data/cacheWrites';
+import { useApi } from '@/providers/SessionProvider';
+import { CustomiseDialog } from './CustomiseDialog';
 import { Button } from '@/components/Button';
 import { Conversation } from '@/components/conversation/Conversation';
 import { StatusBadge } from '@/components/StatusBadge';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
+import { pickAcknowledgement } from '@/game/npcs/acknowledgement';
+import { useWorldStore } from '@/game/world/worldStore';
 
 /** Props of `ConversationPanel`. */
 export interface ConversationPanelProps {
@@ -29,6 +39,11 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
       ? undefined
       : runs?.find((one) => one.id === agent.active_run_id);
   const name = agent?.name ?? 'An agent';
+  const acknowledge = useWorldStore((state) => state.acknowledge);
+  const [isCustomising, setIsCustomising] = useState(false);
+  const api = useApi();
+  const client = useQueryClient();
+  const narrate = useWorldStore((state) => state.narrate);
 
   return (
     <aside
@@ -52,10 +67,32 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
             </p>
           )}
         </div>
-        <Button size="sm" onClick={onClose} title="Close the conversation (Escape)">
-          Close
-        </Button>
+        <span className="flex shrink-0 gap-2">
+          {agent !== undefined && (
+            <Button size="sm" onClick={() => setIsCustomising(true)}>
+              Customise
+            </Button>
+          )}
+          <Button size="sm" onClick={onClose} title="Close the conversation (Escape)">
+            Close
+          </Button>
+        </span>
       </header>
+      {agent !== undefined && (
+        <CustomiseDialog
+          isOpen={isCustomising}
+          onClose={() => setIsCustomising(false)}
+          title={`Customise ${agent.name}`}
+          initial={appearanceOf(CHARACTER_SET, agent.id, agent.appearance)}
+          onSave={async (appearance) => {
+            const saved = await api.send('PATCH', `/agents/${agent.id}`, AgentSchema, {
+              body: { appearance },
+              commandId: newCommandId(),
+            });
+            putRow(client, COLLECTIONS.agents, saved);
+          }}
+        />
+      )}
       <p className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
         {task === undefined ? (
           'No open task.'
@@ -76,7 +113,16 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
       {agent === undefined ? (
         <p className="text-sm text-slate-300">This agent is no longer in the company.</p>
       ) : (
-        <Conversation agent={agent} logClassName="min-h-0 flex-1" isAutoFocused />
+        <Conversation
+          agent={agent}
+          logClassName="min-h-0 flex-1"
+          isAutoFocused
+          onTaskGiven={() => {
+            const taken = pickAcknowledgement(Math.random());
+            acknowledge(agentId, taken.gesture, taken.line);
+            narrate(`${name}: "${taken.line}"`);
+          }}
+        />
       )}
     </aside>
   );
