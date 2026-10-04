@@ -47,6 +47,20 @@ Usage also counts Anthropic's cache tokens twice when it prices a call, so costs
    under their filter.
 9. **Departments.** A department can be renamed from the desk.
 
+## As built
+
+- **Instructions and approval cards page as lists**, ten to a page, rather than turning into
+  tables: an instruction keeps its order and its move controls, and an approval card its tool
+  input and its buttons. Every other list on the desk that grows is a paged table.
+- **`read_file` reads up to 5 MB of a file** and returns 40,000 characters at a time, with a note
+  of how much is left and the offset that reads on, instead of refusing past 200 KB.
+- **A skill description's line breaks fold into spaces**, so a pasted paragraph is taken rather
+  than refused for not being one line.
+- **A new task folds the earlier ones only once they pass 6,000 characters**, so a short earlier
+  task costs no extra summary call.
+- **Local models are entered by hand.** There is no button that lists a server's models; the
+  guide in `docs/local_models.md` says what to type.
+
 ## Contracts that change
 
 - Providers: `api_key` optional on save, `api_key_set` a boolean.
