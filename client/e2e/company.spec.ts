@@ -88,7 +88,8 @@ test('recruit', async ({ page }) => {
   await expect(writing).toBeHidden();
 
   await openScreen(page, 'Departments');
-  await expect(page.getByRole('heading', { name: ROLE })).toBeVisible();
+  const departments = page.getByRole('table', { name: 'Departments' });
+  await expect(departments.getByText(ROLE, { exact: true })).toBeVisible();
 });
 
 test('assign', async ({ page }) => {
