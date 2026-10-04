@@ -333,7 +333,7 @@ model Provider {
   name                  String
   api_format            ApiFormat
   base_url              String
-  api_key_ciphertext    String
+  api_key_ciphertext    String?
   is_local              Boolean   @default(false)
   max_parallel_requests Int?
   breaker_failures      Int       @default(0)

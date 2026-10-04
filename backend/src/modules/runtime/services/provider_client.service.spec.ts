@@ -65,7 +65,10 @@ const AnthropicWireSchema = z.looseObject({
   ),
   tools: z.array(z.looseObject({ name: z.string(), cache_control: z.unknown().optional() })),
   messages: z.array(
-    z.looseObject({ role: z.string(), content: z.array(z.looseObject({ type: z.string() })) }),
+    z.looseObject({
+      role: z.string(),
+      content: z.array(z.looseObject({ type: z.string(), cache_control: z.unknown().optional() })),
+    }),
   ),
 });
 
@@ -182,8 +185,9 @@ describe('ProviderClientService', () => {
     ]);
     const call = response.content[1];
     expect(call?.type === 'tool_use' ? call.id : '').toMatch(/^toolu_/);
+    // Anthropic counts cache writes apart from input_tokens; the record counts every input token.
     expect(response.usage).toEqual({
-      input_tokens: 120,
+      input_tokens: 220,
       output_tokens: 30,
       cache_read_tokens: 0,
       cache_write_tokens: 100,
@@ -200,6 +204,12 @@ describe('ProviderClientService', () => {
     expect(wire.tools.map((tool) => tool.cache_control !== undefined)).toEqual([false, true]);
     expect(wire.messages.map((message) => message.role)).toEqual(['user', 'assistant', 'user']);
     expect(wire.messages[2]?.content[0]?.type).toBe('tool_result');
+    // Only the newest block carries a breakpoint, so the next turn reads the history from cache.
+    const marks = wire.messages.flatMap((message) =>
+      message.content.map((block) => block.cache_control !== undefined),
+    );
+    expect(marks.at(-1)).toBe(true);
+    expect(marks.filter(Boolean)).toHaveLength(1);
   });
 
   it('maps the OpenAI chat completions format both ways', async () => {
@@ -247,13 +257,13 @@ describe('ProviderClientService', () => {
     const summary = await providers.usage_summary(owner.owner_id, context.provider_id);
     expect(summary).toMatchObject({
       requests: 2,
-      input_tokens: 240,
+      input_tokens: 440,
       output_tokens: 60,
       cache_read_tokens: 100,
       cache_write_tokens: 100,
     });
     const first_cost = cost_of(
-      { input_tokens: 120, output_tokens: 30, cache_read_tokens: 0, cache_write_tokens: 100 },
+      { input_tokens: 220, output_tokens: 30, cache_read_tokens: 0, cache_write_tokens: 100 },
       {
         model_id: 'm',
         cost_tier: 'standard',
@@ -265,7 +275,7 @@ describe('ProviderClientService', () => {
         context_window_tokens: 128_000,
       },
     );
-    expect(first_cost).toBeCloseTo((20 * 1 + 100 * 1.25 + 30 * 2) / 1_000_000, 12);
+    expect(first_cost).toBeCloseTo((120 * 1 + 100 * 1.25 + 30 * 2) / 1_000_000, 12);
     expect(summary.cost).toBeGreaterThan(0);
   });
 
@@ -438,7 +448,8 @@ describe('ProviderClientService', () => {
             input: { path: 'notes/a long path.md', lines: [1, 2] },
           },
         ]);
-        expect(response.usage.input_tokens).toBe(120);
+        // Anthropic's cache write of 100 counts as input; OpenAI's prompt tokens already include it.
+        expect(response.usage.input_tokens).toBe(api_format === 'anthropic_messages' ? 220 : 120);
         expect(response.usage.output_tokens).toBe(30);
         const flags = StreamFlagSchema.parse(server.requests[0]?.body);
         expect(flags.stream_options !== undefined).toBe(api_format === 'openai_chat_completions');

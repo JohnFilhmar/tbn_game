@@ -26,7 +26,12 @@ import { CapNotifierService } from '@/modules/runtime/services/caps/cap_notifier
 import type { ModelResponse, ToolUseBlock } from '@/modules/runtime/types/model_request';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { RunRecord, TranscriptEntryRecord } from '@/modules/runtime/types/run_record';
-import { CompactionService } from './compaction.service';
+import { PreferenceService } from '@/modules/knowledge/services/preference.service';
+import {
+  select_context,
+  task_fold_cut,
+} from '@/modules/runtime/services/transcript/transcript_context';
+import { CompactionService, working_window } from './compaction.service';
 import { RunGateService, type PauseDecision } from './run_gate.service';
 import { RunLeaseService } from './run_lease.service';
 
@@ -63,6 +68,7 @@ export class TurnService {
     private readonly registry: ToolRegistryService,
     private readonly cap_notifier: CapNotifierService,
     private readonly streams: StreamPublisherService,
+    private readonly preferences: PreferenceService,
   ) {}
 
   /** Plugin notes already written to a run's transcript, so each is written once. */
@@ -125,6 +131,8 @@ export class TurnService {
     context_window: number,
   ): Promise<ModelResponse | PauseDecision> {
     const tool_set = await this.registry.for_agent(agent);
+    const { context_budget_tokens } = await this.preferences.get(run.owner_id);
+    const session_window = working_window(context_window, context_budget_tokens);
     let current = entries;
     for (const note of tool_set.notes) {
       const key = `${run.id}:${note}`;
@@ -136,13 +144,15 @@ export class TurnService {
       });
       current = await this.transcripts.list_all(run.owner_id, agent.id);
     }
-    let request = await this.prompt_builder.build(agent, current, context_window, tool_set);
-    if (this.compaction.needs_compaction(request, context_window)) {
+    let request = await this.prompt_builder.build(agent, current, session_window, tool_set);
+    // A new task starts from its assignment: the tasks before it go into the summary.
+    const folds_tasks = task_fold_cut(select_context(current).live) !== null;
+    if (folds_tasks || this.compaction.needs_compaction(request, session_window)) {
       const blocked = await this.gate.check_model(agent, agent.intern_model);
       if (blocked !== null) return blocked;
-      if (await this.compaction.compact(run, agent, current, context_window)) {
+      if (await this.compaction.compact(run, agent, current, session_window, folds_tasks)) {
         current = await this.transcripts.list_all(run.owner_id, agent.id);
-        request = await this.prompt_builder.build(agent, current, context_window, tool_set);
+        request = await this.prompt_builder.build(agent, current, session_window, tool_set);
       }
     }
     const stream = this.streams.open({

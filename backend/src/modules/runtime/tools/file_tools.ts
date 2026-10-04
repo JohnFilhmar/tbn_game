@@ -5,8 +5,17 @@ import { z } from 'zod';
 import { WorkspacePathError, resolve_workspace_path } from '@/lib/workspace/resolve_workspace_path';
 import type { Tool, ToolContext, ToolOutcome } from './tool.interface';
 
-const MAX_READ_BYTES = 200_000;
+const MAX_READ_BYTES = 5_000_000;
+/** The most characters one read returns; an offset reads on from there. */
+const MOST_READ_CHARS = 40_000;
 const MAX_WRITE_BYTES = 1_000_000;
+
+/** What read_file takes: a path, and optionally where to start and how much to read. */
+interface ReadFileInput {
+  path: string;
+  offset?: number;
+  length?: number;
+}
 const MAX_LIST_ENTRIES = 200;
 
 const PathSchema = z
@@ -51,27 +60,39 @@ export class ListFilesTool implements Tool<{ path?: string }> {
   }
 }
 
+/**
+ * The part of a file's text from `offset`, at most `length` characters, with a note of how much
+ * is left and where reading on starts.
+ */
+export function text_window(text: string, offset: number, length: number): string {
+  const end = Math.min(text.length, offset + length);
+  const part = text.slice(offset, end);
+  const rest = text.length - end;
+  return rest > 0
+    ? `${part}\n... ${rest} more characters; read_file with offset ${end} reads on`
+    : part;
+}
+
 /** Reads a text file from the workspace. */
 @Injectable()
-export class ReadFileTool implements Tool<{ path: string }> {
+export class ReadFileTool implements Tool<ReadFileInput> {
   readonly name = 'read_file';
-  readonly description = 'Read a text file from the company workspace.';
+  readonly description = `Read a text file from the company workspace, at most ${MOST_READ_CHARS} characters at a time; pass offset and length for a part of a longer file.`;
   readonly default_policy = 'auto';
-  readonly input_schema = z.strictObject({ path: PathSchema });
+  readonly input_schema = z.strictObject({
+    path: PathSchema,
+    offset: z.int().min(0).optional(),
+    length: z.int().min(1).max(MOST_READ_CHARS).optional(),
+  });
 
-  async execute(input: { path: string }, context: ToolContext): Promise<ToolOutcome> {
+  async execute(input: ReadFileInput, context: ToolContext): Promise<ToolOutcome> {
     try {
       const target = await resolve_workspace_path(context.workspace_dir, input.path);
       const info = await stat(target);
       if (info.isDirectory()) return { content: 'Path is a directory', is_error: true };
       const buffer = await readFile(target);
       const text = buffer.subarray(0, MAX_READ_BYTES).toString('utf8');
-      return {
-        content:
-          buffer.length > MAX_READ_BYTES
-            ? `${text}\n... truncated at ${MAX_READ_BYTES} bytes`
-            : text,
-      };
+      return { content: text_window(text, input.offset ?? 0, input.length ?? MOST_READ_CHARS) };
     } catch (error: unknown) {
       return error_outcome(error);
     }

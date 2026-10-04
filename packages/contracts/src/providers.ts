@@ -58,7 +58,7 @@ const UNIQUE_MODEL_IDS = { message: 'model_id must be unique within a provider' 
 
 /**
  * An LLM connection. The API key is write-only: it is encrypted at rest and never returned,
- * which `api_key_set` makes visible. `is_local` marks the one provider new interns fall back to
+ * and `api_key_set` says whether there is one; a local model such as Ollama may take none. `is_local` marks the one provider new interns fall back to
  * when a key passes its cap threshold. `breaker_open_until` and `out_of_credit_since` are the
  * runtime's own state and read-only.
  */
@@ -67,7 +67,7 @@ export const ProviderSchema = z.strictObject({
   name: z.string().trim().min(1).max(100),
   api_format: ApiFormatSchema,
   base_url: z.url({ protocol: /^https?$/ }),
-  api_key_set: z.literal(true),
+  api_key_set: z.boolean(),
   models: z
     .array(ProviderModelSchema)
     .min(1)
@@ -94,7 +94,7 @@ export const CreateProviderSchema = ProviderSchema.pick({
 })
   .partial({ is_local: true, max_parallel_requests: true })
   .extend({
-    api_key: z.string().min(1).max(4_096),
+    api_key: z.string().min(1).max(4_096).optional(),
     models: z
       .array(ProviderModelWriteSchema)
       .min(1)

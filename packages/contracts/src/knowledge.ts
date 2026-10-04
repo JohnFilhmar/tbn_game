@@ -98,16 +98,18 @@ export const SkillNameSchema = z
   .max(100)
   .regex(/^[a-z0-9][a-z0-9_-]*$/, 'lowercase letters, digits, underscores and dashes');
 
-/** A skill: a name, a one-line description shown in prompts, and a body loaded on demand. */
+/** The most characters a skill's description takes. */
+export const MOST_SKILL_DESCRIPTION_CHARS = 1_000;
+
+/** A skill: a name, a one-paragraph description shown in prompts, and a body loaded on demand. */
 export const SkillSchema = z.strictObject({
   id: IdSchema,
   name: SkillNameSchema,
+  /** One paragraph in every attached agent's prompt; line breaks fold into spaces. */
   description: z
     .string()
-    .trim()
-    .min(1)
-    .max(300)
-    .refine((value) => !value.includes('\n'), 'one line'),
+    .transform((value) => value.replace(/\s*\n\s*/g, ' ').trim())
+    .pipe(z.string().min(1).max(MOST_SKILL_DESCRIPTION_CHARS)),
   body: z.string().trim().min(1).max(100_000),
   attachments: z.array(SkillAttachmentSchema).max(100),
   created_at: DateTimeSchema,
@@ -174,6 +176,8 @@ export const PreferencesSchema = z.strictObject({
   grass_touched: z.int().min(0),
   intern_idle_ttl_minutes: z.number().min(0.01).max(10_080),
   runaway_guard_turns: z.number().int().min(3).max(1_000),
+  /** A session is summarised once a request passes this many tokens, or 60% of the window. */
+  context_budget_tokens: z.number().int().min(8_000).max(2_000_000),
   cap_threshold_longest_percent: z.number().int().min(1).max(100),
   cap_threshold_shorter_percent: z.number().int().min(1).max(100),
   max_interns_per_manager: z.number().int().min(1).max(1_000).nullable(),
@@ -208,6 +212,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   grass_touched: 0,
   intern_idle_ttl_minutes: 30,
   runaway_guard_turns: 50,
+  context_budget_tokens: 60_000,
   cap_threshold_longest_percent: 75,
   cap_threshold_shorter_percent: 85,
   max_interns_per_manager: null,
@@ -218,7 +223,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   sandbox_scratch_mb: 512,
   search_cache_ttl_minutes: 1440,
   fetch_cache_ttl_minutes: 1440,
-  fetch_max_chars: 40_000,
+  fetch_max_chars: 15_000,
   disk_alert_percent: 90,
 };
 

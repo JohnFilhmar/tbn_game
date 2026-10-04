@@ -40,6 +40,7 @@ describe('preference routes', () => {
       grass_touched: 0,
       intern_idle_ttl_minutes: 30,
       runaway_guard_turns: 50,
+      context_budget_tokens: 60_000,
       cap_threshold_longest_percent: 75,
       cap_threshold_shorter_percent: 85,
       max_interns_per_manager: null,
@@ -50,7 +51,7 @@ describe('preference routes', () => {
       sandbox_scratch_mb: 512,
       search_cache_ttl_minutes: 1440,
       fetch_cache_ttl_minutes: 1440,
-      fetch_max_chars: 40_000,
+      fetch_max_chars: 15_000,
       disk_alert_percent: 90,
     });
 

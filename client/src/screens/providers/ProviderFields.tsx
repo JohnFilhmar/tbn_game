@@ -46,7 +46,8 @@ export function ProviderFields({ form, hasSavedKey }: ProviderFieldsProps) {
         <TextField
           label="Base URL"
           type="url"
-          placeholder="https://api.anthropic.com"
+          placeholder="https://api.anthropic.com or http://host.docker.internal:11434/v1"
+          hint="A local model such as Ollama, vLLM or LM Studio uses the OpenAI format and its /v1 address."
           value={draft.base_url}
           onChange={(value) => setField('base_url', value)}
           error={errors['base_url']}
@@ -58,7 +59,7 @@ export function ProviderFields({ form, hasSavedKey }: ProviderFieldsProps) {
           hint={
             hasSavedKey
               ? 'A key is saved. Leave this empty to keep it; it is never shown again.'
-              : 'Encrypted on the server and never shown again.'
+              : 'Encrypted on the server and never shown again. A local model may need none.'
           }
           value={draft.api_key}
           onChange={(value) => setField('api_key', value)}
@@ -73,8 +74,8 @@ export function ProviderFields({ form, hasSavedKey }: ProviderFieldsProps) {
           error={errors['max_parallel_requests']}
         />
         <CheckboxField
-          label="Local model"
-          hint="New interns fall back to it when a key passes its cap threshold."
+          label="Fallback for interns"
+          hint="New interns fall back to this provider when a key passes its cap threshold."
           checked={draft.is_local}
           onChange={(value) => setField('is_local', value)}
         />

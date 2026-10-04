@@ -182,6 +182,32 @@ describe('provider routes', () => {
       .expect(409);
   });
 
+  it('takes a local model without a key, and refuses a base URL naming a stack service', async () => {
+    const local = await api()
+      .post('/providers')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        ...create_body,
+        api_key: undefined,
+        name: 'ollama',
+        api_format: 'openai_chat_completions',
+        base_url: 'http://host.docker.internal:11434/v1',
+      })
+      .expect(201);
+    expect(ProviderSchema.parse(local.body)).toMatchObject({ name: 'ollama', api_key_set: false });
+
+    await api()
+      .post('/providers')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ ...create_body, name: 'sneaky', base_url: 'http://postgres:5432' })
+      .expect(400);
+    await api()
+      .patch(`/providers/${ProviderSchema.parse(local.body).id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ base_url: 'http://prometheus:9090/v1' })
+      .expect(400);
+  });
+
   it("hides another owner's provider", async () => {
     const other = await create_test_owner(app);
     const created = await api()

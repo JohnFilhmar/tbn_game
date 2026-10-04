@@ -5,6 +5,7 @@ import { Button } from '@/components/Button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Dialog } from '@/components/Dialog';
 import { PageHeader } from '@/components/PageHeader';
+import { Pager } from '@/components/Pager';
 import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
@@ -14,7 +15,44 @@ import { dropRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
 import { useCommand } from '@/lib/data/useCommand';
+import { usePage } from '@/lib/ui/usePage';
 import { InstructionForm } from './InstructionForm';
+
+/** Instructions a page in each scope. */
+const PAGE_SIZE = 10;
+
+function ScopeList(props: {
+  title: string;
+  rows: readonly Instruction[];
+  onEdit: (instruction: Instruction) => void;
+  onDelete: (instruction: Instruction) => void;
+}) {
+  const paged = usePage(props.rows, PAGE_SIZE);
+  return (
+    <>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-800">
+        {paged.rows.map((instruction) => (
+          <InstructionRow
+            key={instruction.id}
+            instruction={instruction}
+            onEdit={() => props.onEdit(instruction)}
+            onDelete={() => props.onDelete(instruction)}
+          />
+        ))}
+      </ul>
+      <Pager
+        label={`${props.title} pages`}
+        start={paged.start}
+        end={paged.end}
+        total={paged.total}
+        page={paged.page}
+        pages={paged.pages}
+        onPrevious={paged.previous}
+        onNext={paged.next}
+      />
+    </>
+  );
+}
 
 function InstructionRow(props: {
   instruction: Instruction;
@@ -138,16 +176,7 @@ export function InstructionsScreen() {
           if (rows.length === 0) return null;
           return (
             <Panel key={scope} title={title}>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                {rows.map((instruction) => (
-                  <InstructionRow
-                    key={instruction.id}
-                    instruction={instruction}
-                    onEdit={() => setEditing(instruction)}
-                    onDelete={() => setDeleting(instruction)}
-                  />
-                ))}
-              </ul>
+              <ScopeList title={title} rows={rows} onEdit={setEditing} onDelete={setDeleting} />
             </Panel>
           );
         })

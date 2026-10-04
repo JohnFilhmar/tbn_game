@@ -128,7 +128,9 @@ export class OpenAiChatCompletionsAdapter implements LlmAdapter {
     }));
     const call = {
       url: `${connection.base_url.replace(/\/$/, '')}/chat/completions`,
-      headers: { authorization: `Bearer ${connection.api_key}` },
+      headers: {
+        ...(connection.api_key !== null && { authorization: `Bearer ${connection.api_key}` }),
+      },
       body: {
         model: connection.model.model_id,
         max_tokens: connection.model.max_output_tokens,

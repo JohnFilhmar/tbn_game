@@ -1,22 +1,34 @@
+import type { Agent, Department } from '@tbn/contracts';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { AgentName } from '@/components/AgentName';
-import { buttonClasses } from '@/components/Button';
+import { Button, buttonClasses } from '@/components/Button';
+import { DataTable, type Column } from '@/components/DataTable';
 import { PageHeader } from '@/components/PageHeader';
-import { Panel } from '@/components/Panel';
 import { EmptyState } from '@/components/states/EmptyState';
 import { QueryStatus } from '@/components/states/QueryStatus';
-import { StatusBadge } from '@/components/StatusBadge';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection } from '@/lib/data/queries';
+import { RenameDepartmentDialog } from './RenameDepartmentDialog';
 
-/** Each department with its manager and the interns working under it. */
+function workingInterns(department: Department, agents: readonly Agent[]): Agent[] {
+  return agents.filter(
+    (agent) =>
+      agent.department_id === department.id &&
+      agent.level === 2 &&
+      (agent.status === 'idle' || agent.status === 'working'),
+  );
+}
+
+/** Each department in a paged table: its manager, its members and its interns, to rename. */
 export function DepartmentsScreen() {
   const departments = useCollection(COLLECTIONS.departments);
   const agents = useCollection(COLLECTIONS.agents);
+  const [renaming, setRenaming] = useState<Department | null>(null);
   const header = (
     <PageHeader
       title="Departments"
-      description="A manager heads the department named after its role and hires interns into it."
+      description="A manager heads a department and hires interns into it. Rename one to fit how you work."
     />
   );
   if (departments.data === undefined || agents.data === undefined) {
@@ -43,50 +55,58 @@ export function DepartmentsScreen() {
       </>
     );
   }
+  const roster = agents.data;
+  const columns: Column<Department>[] = [
+    {
+      header: 'Name',
+      cell: (department) => <span className="font-medium">{department.name}</span>,
+    },
+    {
+      header: 'Manager',
+      cell: (department) =>
+        department.manager_agent_id === null ? (
+          'None'
+        ) : (
+          <AgentName agentId={department.manager_agent_id} />
+        ),
+    },
+    { header: 'Members', cell: (department) => department.member_count },
+    {
+      header: 'Interns working',
+      isWide: true,
+      cell: (department) => {
+        const interns = workingInterns(department, roster);
+        return interns.length === 0 ? (
+          'None'
+        ) : (
+          <span className="flex flex-wrap gap-x-3">
+            {interns.map((intern) => (
+              <AgentName key={intern.id} agentId={intern.id} />
+            ))}
+          </span>
+        );
+      },
+    },
+    {
+      header: 'Actions',
+      className: 'text-right',
+      cell: (department) => (
+        <Button
+          size="sm"
+          onClick={() => setRenaming(department)}
+          aria-label={`Rename ${department.name}`}
+        >
+          Rename
+        </Button>
+      ),
+    },
+  ];
   const sorted = [...departments.data].sort((left, right) => left.name.localeCompare(right.name));
   return (
     <>
       {header}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {sorted.map((department) => {
-          const interns = agents.data.filter(
-            (agent) =>
-              agent.department_id === department.id &&
-              agent.level === 2 &&
-              (agent.status === 'idle' || agent.status === 'working'),
-          );
-          return (
-            <Panel
-              key={department.id}
-              title={department.name}
-              description={`${department.member_count} member${department.member_count === 1 ? '' : 's'}`}
-            >
-              <p className="text-sm">
-                <span className="text-slate-600 dark:text-slate-400">Manager: </span>
-                {department.manager_agent_id === null ? (
-                  'None'
-                ) : (
-                  <AgentName agentId={department.manager_agent_id} />
-                )}
-              </p>
-              {interns.length === 0 ? (
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  No interns working now.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {interns.map((intern) => (
-                    <li key={intern.id} className="flex items-center justify-between gap-2 text-sm">
-                      <AgentName agentId={intern.id} />
-                      <StatusBadge status={intern.status} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
-          );
-        })}
-      </div>
+      <DataTable caption="Departments" columns={columns} rows={sorted} rowKey={(row) => row.id} />
+      <RenameDepartmentDialog department={renaming} onClose={() => setRenaming(null)} />
     </>
   );
 }

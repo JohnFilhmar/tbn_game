@@ -867,3 +867,15 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | The e2e run keeps its database and owner | It applies migrations and never wipes a database; a run's rows carry its own id, and CI starts from an empty one. |
 | A restore goes into a fresh database that is then renamed | `pg_restore --clean` cannot drop pg-boss's partitions, and a swap leaves the old database for the owner to check. |
 | Backup failures go through `dist/admin.js` in the web container | The host script needs no database settings of its own, and the notice uses the owner's channels like every other alert. |
+
+## Decisions made in phase 4g
+
+| Decision | Why |
+| --- | --- |
+| Anthropic requests put a cache breakpoint on the newest message | Each turn re-sends the session; with the breakpoint the next turn reads everything before it from the cache at a tenth of the price, instead of paying for the whole history again. |
+| Usage records count every input token, cached or not | Anthropic reports cached input apart from `input_tokens` and OpenAI inside it; counting both the same way lets one formula price cache reads and writes. |
+| A context budget compacts a session before the window does | Compaction at 60 percent of a 200,000 token window let requests reach 120,000 tokens; the `context_budget_tokens` preference, 60,000 by default, bounds every request, so total input grows with the turns, not their square. |
+| A new task folds the tasks before it into a summary | A reused agent no longer carries every earlier task word for word into the next one. |
+| Replay caps apply from the first turn, never as results age | Shortening a result once it is old changes the start of every later request and breaks the provider's cache. A tool result replays at most 12,000 characters and a `write_file` call its path and size. |
+| A provider's key is optional and its base URL never names a stack service | Local models take no key; a base URL naming `postgres` or `prometheus` would hand them the key and reach them from the worker. Loopback, LAN and VPN stay allowed, where local models live. |
+| Desk tables page in the client | Collections are cached whole and kept live by events; paging on the server can follow when one reaches thousands of rows. |

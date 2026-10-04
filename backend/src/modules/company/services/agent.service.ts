@@ -14,6 +14,10 @@ import {
   type LiveAgentFilter,
 } from '@/modules/company/repositories/interface/agent_repository.interface';
 import {
+  DEPARTMENT_REPOSITORY,
+  type DepartmentRepository,
+} from '@/modules/company/repositories/interface/department_repository.interface';
+import {
   TASK_REPOSITORY,
   type TaskRepository,
 } from '@/modules/company/repositories/interface/task_repository.interface';
@@ -65,6 +69,7 @@ export class AgentService {
   constructor(
     @Inject(AGENT_REPOSITORY) private readonly agents: AgentRepository,
     @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
+    @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
     private readonly providers: ProviderService,
   ) {}
 
@@ -228,6 +233,30 @@ export class AgentService {
     if (current.status === 'dismissed') return to_agent_view(current);
     await this.tasks.cancel_queued_for_agent(owner_id, id);
     const record = await this.agents.set_status(owner_id, id, 'dismissed');
+    if (record === null) throw new NotFoundException('Agent not found');
+    return to_agent_view(record);
+  }
+
+  /**
+   * Brings a dismissed or ended agent back to work, idle in its department as before. An intern
+   * comes back only under a live manager. A live agent is answered as it is.
+   *
+   * @throws ConflictException when an intern's manager is not live.
+   */
+  async rehire(owner_id: string, id: string): Promise<Agent> {
+    const current = await this.require(owner_id, id);
+    if (is_live(current.status)) return to_agent_view(current);
+    if (current.level === INTERN_LEVEL) {
+      const department = await this.departments.find(owner_id, current.department_id);
+      const manager =
+        department?.manager_agent_id == null
+          ? null
+          : await this.agents.find(owner_id, department.manager_agent_id);
+      if (manager === null || !is_live(manager.status)) {
+        throw new ConflictException('Rehire their manager first');
+      }
+    }
+    const record = await this.agents.set_status(owner_id, id, 'idle');
     if (record === null) throw new NotFoundException('Agent not found');
     return to_agent_view(record);
   }

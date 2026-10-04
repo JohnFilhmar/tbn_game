@@ -27,7 +27,7 @@ export interface ProviderRecord extends ProviderState {
   name: string;
   api_format: ApiFormat;
   base_url: string;
-  api_key_ciphertext: string;
+  api_key_ciphertext: string | null;
   is_local: boolean;
   max_parallel_requests: number | null;
   models: ProviderModelRecord[];
@@ -40,7 +40,7 @@ export interface ProviderWrite {
   name: string;
   api_format: ApiFormat;
   base_url: string;
-  api_key_ciphertext: string;
+  api_key_ciphertext: string | null;
   is_local: boolean;
   max_parallel_requests: number | null;
   models: ProviderModelRecord[];
@@ -56,7 +56,8 @@ export interface ProviderConnection {
   provider_id: string;
   api_format: ApiFormat;
   base_url: string;
-  api_key: string;
+  /** Null for a provider that takes no key, such as a local model. */
+  api_key: string | null;
   model: ProviderModelRecord;
   max_parallel_requests: number | null;
   state: ProviderState;

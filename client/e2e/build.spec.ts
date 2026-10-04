@@ -35,6 +35,8 @@ async function openBuild(page: Page): Promise<ReturnType<Page['getByRole']>> {
 test('the owner places a plant, paints the floor, saves, and resets to the default', async ({
   page,
 }) => {
+  // The office's props load and redraw several times, which outlasts the default time in CI.
+  test.slow();
   await signIn(page);
   const before = await savedOffice(page);
   let panel = await openBuild(page);

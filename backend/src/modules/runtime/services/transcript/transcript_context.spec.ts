@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { TranscriptEntryRecord } from '@/modules/runtime/types/run_record';
-import { compaction_cut, render_for_summary, select_context } from './transcript_context';
+import {
+  compaction_cut,
+  render_for_summary,
+  select_context,
+  task_fold_cut,
+} from './transcript_context';
 
 function entry(
   seq: number,
@@ -22,6 +27,31 @@ function entry(
 const call = (id: string) => ({ type: 'tool_use', id, name: 'read_file', input: { path: 'a.md' } });
 const result = (id: string, content: string) => ({
   results: [{ tool_use_id: id, name: 'read_file', content, is_error: false }],
+});
+
+describe('a new task', () => {
+  const assignment = (title: string) => ({
+    task_id: randomUUID(),
+    title,
+    instructions: 'Do it.',
+  });
+
+  it('folds the tasks before it once they are long, and leaves a first or short one alone', () => {
+    const long_session = [
+      entry(1, 'task_assignment', assignment('First')),
+      entry(2, 'assistant', { blocks: [call('c1')] }),
+      entry(3, 'tool_result', result('c1', 'z'.repeat(7_000))),
+      entry(4, 'task_assignment', assignment('Second')),
+    ];
+    expect(task_fold_cut(long_session)).toBe(3);
+    expect(task_fold_cut(long_session.slice(0, 3))).toBeNull();
+    const short_session = [
+      entry(1, 'task_assignment', assignment('First')),
+      entry(2, 'tool_result', result('c1', 'short')),
+      entry(3, 'task_assignment', assignment('Second')),
+    ];
+    expect(task_fold_cut(short_session)).toBeNull();
+  });
 });
 
 describe('transcript context', () => {

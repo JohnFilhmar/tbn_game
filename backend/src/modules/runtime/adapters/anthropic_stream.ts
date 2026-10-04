@@ -189,5 +189,13 @@ export async function assemble_anthropic_stream(
         ? { type: 'text', text: block.text }
         : { type: 'tool_use', id: block.id, name: block.name, input: tool_input(block.json) },
     );
-  return { content, stop_reason: to_stop_reason(stop_reason), usage };
+  // Anthropic counts cached input apart; usage records count every input token.
+  return {
+    content,
+    stop_reason: to_stop_reason(stop_reason),
+    usage: {
+      ...usage,
+      input_tokens: usage.input_tokens + usage.cache_read_tokens + usage.cache_write_tokens,
+    },
+  };
 }

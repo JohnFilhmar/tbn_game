@@ -226,6 +226,77 @@ describe('agent and department routes', () => {
       .expect(409);
   });
 
+  it('rehires a dismissed manager, and an ended intern only under a live manager', async () => {
+    await api().post(`/agents/${provider.id}/rehire`).expect(401);
+    const created = await api()
+      .post('/agents')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send(recruit_body('rehired_lead'))
+      .expect(201);
+    const lead = AgentSchema.parse(created.body);
+    const agents = app.get(AgentService);
+    const intern = await agents.spawn_intern(
+      owner.owner_id,
+      await agents.require(owner.owner_id, lead.id),
+      {
+        role: 'Helper',
+        job_description: 'Helps.',
+        provider_id: lead.provider_id,
+        primary_model: lead.intern_model,
+      },
+    );
+    await agents.terminate_idle_intern(owner.owner_id, intern.id, null);
+    await api()
+      .post(`/agents/${lead.id}/dismiss`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    await api()
+      .post(`/agents/${intern.id}/rehire`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(409);
+    const back = await api()
+      .post(`/agents/${lead.id}/rehire`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(AgentSchema.parse(back.body)).toMatchObject({ id: lead.id, status: 'idle' });
+    const intern_back = await api()
+      .post(`/agents/${intern.id}/rehire`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+    expect(AgentSchema.parse(intern_back.body).status).toBe('idle');
+    await api()
+      .patch(`/agents/${lead.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ job_description: 'Back at work.' })
+      .expect(200);
+  });
+
+  it('renames a department, refuses an empty name and hides another owner’s', async () => {
+    const agent = await recruit_test_agent(app, owner.owner_id, provider.id);
+    await api().patch(`/departments/${agent.department_id}`).send({ name: 'Ops' }).expect(401);
+    const renamed = await api()
+      .patch(`/departments/${agent.department_id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Research and ops' })
+      .expect(200);
+    expect(DepartmentSchema.parse(renamed.body)).toMatchObject({
+      id: agent.department_id,
+      name: 'Research and ops',
+    });
+    await api()
+      .patch(`/departments/${agent.department_id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: '' })
+      .expect(400);
+    const other = await create_test_owner(app);
+    await api()
+      .patch(`/departments/${agent.department_id}`)
+      .set('Authorization', `Bearer ${other.token}`)
+      .send({ name: 'Mine now' })
+      .expect(404);
+  });
+
   it("hides another owner's agent", async () => {
     const other = await create_test_owner(app);
     const other_provider = await create_test_provider(

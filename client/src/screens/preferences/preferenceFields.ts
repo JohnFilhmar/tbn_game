@@ -122,6 +122,12 @@ export const PREFERENCE_GROUPS: readonly PreferenceGroup[] = [
         hint: 'A run pauses and asks you after this many turns.',
         kind: { type: 'number', isOptional: false, unit: 'turns' },
       },
+      {
+        key: 'context_budget_tokens',
+        label: 'Context budget',
+        hint: 'A session is summarised once a request passes this, so every turn stays cheap.',
+        kind: { type: 'number', isOptional: false, unit: 'tokens' },
+      },
     ],
   },
   {
