@@ -7,16 +7,8 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import {
-  REALTIME_MESSAGES,
-  RealtimeAuthSchema,
-  type ChangeEvent,
-  type ProcessType,
-  type RealtimeHello,
-  type ResyncRequired,
-  type StreamChunk,
-} from '@tbn/contracts';
-import { Server, type Socket } from 'socket.io';
+import { PlayerPoseSchema, REALTIME_MESSAGES, type ProcessType } from '@tbn/contracts';
+import { Server } from 'socket.io';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 import { is_allowed_origin } from '@/lib/http/allowed_origin';
@@ -24,7 +16,19 @@ import { MetricsService } from '@/lib/metrics/metrics.service';
 import { CHANGES_CHANNEL, STREAM_CHANNEL, StreamNoticeSchema } from '@/lib/realtime/channels';
 import { PgListenerService } from '@/lib/realtime/pg_listener.service';
 import { AuthService } from '@/modules/identity/services/auth.service';
+import { GuestSessionService } from '@/modules/identity/services/guest_session.service';
 import { cursor_kept, EventFeedService } from './event_feed.service';
+import { is_visible } from './event_visibility';
+import { PresenceRegistry } from './presence_registry';
+import {
+  authenticate_handshake,
+  is_session_alive,
+  UNNAMED_GUEST,
+  type ClientToServer,
+  type RealtimeSocket,
+  type ServerToClient,
+  type SocketData,
+} from './realtime_socket';
 import { SocketFeed } from './socket_feed';
 
 /** The path Socket.IO answers on, on the web port. */
@@ -33,34 +37,21 @@ export const REALTIME_PATH = '/socket.io';
 /** How often every socket's session is checked, so a logout or an expiry closes it. */
 const SESSION_CHECK_MS = 60_000;
 
-/** The largest message a client may send. Clients send none; this bounds the handshake. */
+/** The largest message a client may send: its pose, and the handshake. */
 const MAX_CLIENT_MESSAGE_BYTES = 16_384;
 
-interface ServerToClient {
-  hello: (hello: RealtimeHello) => void;
-  changes: (events: ChangeEvent[]) => void;
-  stream: (chunk: StreamChunk) => void;
-  resync_required: (resync: ResyncRequired) => void;
-}
-
-type ClientToServer = Record<never, never>;
-
-interface SocketData {
-  owner_id: string;
-  token: string;
-  cursor: number | null;
-}
-
-type RealtimeSocket = Socket<ClientToServer, ServerToClient, Record<never, never>, SocketData>;
+/** The shortest gap between two poses a socket may send; faster ones are dropped. */
+const MIN_POSE_INTERVAL_MS = 50;
 
 /**
- * The Socket.IO gateway on the web port. A client connects with its session token and, to resume,
- * the last sequence it applied; it receives every event after that in order, then the live ones,
- * and the stream of its agents' output while it is generated. Clients send nothing: commands are
- * HTTP routes. Runs in the web process only.
+ * The Socket.IO gateway on the web port. The owner connects with a session token, a guest with the
+ * guest cookie, and either may send the last sequence it applied to resume; it receives every event
+ * after that in order that it may see, then the live ones, and the stream of the agents' output
+ * while it is generated. Every player sends their pose and hears the others'. Commands are HTTP
+ * routes. Runs in the web process only.
  *
  * Ceiling: each socket reads the log on every change of its owner, which suits one owner with a
- * few devices.
+ * few devices and a handful of guests.
  */
 @Injectable()
 export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -70,6 +61,18 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
   private io: Server<ClientToServer, ServerToClient, Record<never, never>, SocketData> | null =
     null;
   private session_check: NodeJS.Timeout | null = null;
+  private readonly presence = new PresenceRegistry({
+    changed: (owner_id, player) => {
+      for (const socket of this.sockets_of(owner_id)) {
+        if (socket.data.player.id !== player.id) socket.emit(REALTIME_MESSAGES.player, player);
+      }
+    },
+    gone: (owner_id, id) => {
+      for (const socket of this.sockets_of(owner_id)) {
+        socket.emit(REALTIME_MESSAGES.player_gone, { id });
+      }
+    },
+  });
   private readonly connections;
   private readonly changes_sent;
   private readonly stream_chunks;
@@ -82,6 +85,7 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
     private readonly listener: PgListenerService,
     private readonly feed: EventFeedService,
     private readonly auth: AuthService,
+    private readonly guest_sessions: GuestSessionService,
     metrics: MetricsService,
   ) {
     this.connections = metrics.gauge('tbn_realtime_connections', 'Open Socket.IO connections.', []);
@@ -140,6 +144,7 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
 
   async onApplicationShutdown(): Promise<void> {
     if (this.session_check !== null) clearInterval(this.session_check);
+    this.presence.clear();
     const io = this.io;
     this.io = null;
     if (io === null) return;
@@ -154,16 +159,24 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
     return this.feeds.get(owner_id)?.size ?? 0;
   }
 
+  private *sockets_of(owner_id: string): Generator<RealtimeSocket> {
+    for (const feed of this.feeds.get(owner_id) ?? []) {
+      const socket = this.sockets.get(feed);
+      if (socket !== undefined) yield socket;
+    }
+  }
+
   private async authenticate(socket: RealtimeSocket): Promise<boolean> {
-    const handshake = RealtimeAuthSchema.safeParse(socket.handshake.auth);
-    if (!handshake.success) return false;
-    const owner = await this.auth.authenticate(handshake.data.token);
-    if (owner === null) return false;
-    socket.data = {
-      owner_id: owner.id,
-      token: handshake.data.token,
-      cursor: handshake.data.cursor ?? null,
-    };
+    const data = await authenticate_handshake(
+      socket.handshake.auth,
+      socket.handshake.headers.cookie,
+      {
+        auth: this.auth,
+        guest_sessions: this.guest_sessions,
+      },
+    );
+    if (data === null) return false;
+    socket.data = data;
     return true;
   }
 
@@ -181,11 +194,14 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
     }
     if (!socket.connected) return;
     socket.emit(REALTIME_MESSAGES.hello, { head_seq: bounds.head_seq, cursor: start });
+    const viewer = { id: socket.data.player.id, kind: socket.data.player.kind };
     const feed = new SocketFeed(owner_id, start, {
       read: (owner, after, limit) => this.feed.read(owner, after, limit),
       send: (events) => {
-        socket.emit(REALTIME_MESSAGES.changes, events);
-        this.changes_sent.inc(events.length);
+        const visible = events.filter((event) => is_visible(event, viewer));
+        if (visible.length === 0) return;
+        socket.emit(REALTIME_MESSAGES.changes, visible);
+        this.changes_sent.inc(visible.length);
       },
       connected: () => socket.connected,
     });
@@ -194,13 +210,37 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
     this.feeds.set(owner_id, owned);
     this.sockets.set(feed, socket);
     this.connections.inc();
+    socket.emit(
+      REALTIME_MESSAGES.players,
+      this.presence.join(owner_id, socket.data.player, socket.id),
+    );
+    socket.on(REALTIME_MESSAGES.presence, (pose: unknown) => void this.move(socket, pose));
     socket.on('disconnect', () => {
       owned.delete(feed);
       if (owned.size === 0) this.feeds.delete(owner_id);
       this.sockets.delete(feed);
       this.connections.dec();
+      this.presence.leave(owner_id, socket.data.player.id, socket.id);
     });
     await feed.wake();
+  }
+
+  /** Relays a player's pose, at most every `MIN_POSE_INTERVAL_MS`; a guest's new name rides along. */
+  private async move(socket: RealtimeSocket, pose: unknown): Promise<void> {
+    const now = Date.now();
+    if (now - socket.data.last_pose_at < MIN_POSE_INTERVAL_MS) return;
+    const parsed = PlayerPoseSchema.safeParse(pose);
+    if (!parsed.success) return;
+    socket.data.last_pose_at = now;
+    const { owner_id, player, guest_token } = socket.data;
+    if (guest_token !== null && player.name === UNNAMED_GUEST) {
+      const guest = await this.guest_sessions.authenticate(guest_token);
+      if (guest?.name !== null && guest?.name !== undefined) {
+        player.name = guest.name;
+        this.presence.rename(owner_id, player.id, guest.name);
+      }
+    }
+    this.presence.move(owner_id, player.id, parsed.data);
   }
 
   private wake(owner_id: string): void {
@@ -226,7 +266,8 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
   async check_sessions(): Promise<void> {
     for (const socket of this.sockets.values()) {
       try {
-        if ((await this.auth.authenticate(socket.data.token)) === null) socket.disconnect(true);
+        const checkers = { auth: this.auth, guest_sessions: this.guest_sessions };
+        if (!(await is_session_alive(socket.data, checkers))) socket.disconnect(true);
       } catch (error: unknown) {
         this.logger.warn(
           `Session check failed: ${error instanceof Error ? error.message : 'unknown'}`,
