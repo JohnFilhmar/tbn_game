@@ -15,9 +15,11 @@ import { IntegrationService } from '@/modules/integrations/services/integration.
 import { NotificationService } from '@/modules/integrations/services/notification.service';
 import { PluginService } from '@/modules/integrations/services/plugin.service';
 import { InstructionService } from '@/modules/knowledge/services/instruction.service';
+import { PlayerMessageService } from '@/modules/identity/services/player_message.service';
 import { PreferenceService } from '@/modules/knowledge/services/preference.service';
 import { SkillService } from '@/modules/knowledge/services/skill.service';
 import { ApprovalService } from '@/modules/runtime/services/approvals/approval.service';
+import { GuestChatService } from '@/modules/runtime/services/guest_chat/guest_chat.service';
 import { CapWindowService } from '@/modules/runtime/services/caps/cap_window.service';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
 import { RunService } from '@/modules/runtime/services/run.service';
@@ -84,6 +86,8 @@ export class EventHydratorService {
     preferences: PreferenceService,
     world_layouts: WorldLayoutService,
     prop_states: WorldPropStateService,
+    guest_chats: GuestChatService,
+    player_messages: PlayerMessageService,
   ) {
     this.loaders = {
       agent: each((owner_id, id) => agents.get(owner_id, id)),
@@ -117,6 +121,8 @@ export class EventHydratorService {
       preferences: each((owner_id) => preferences.get(owner_id)),
       world_layout: each((owner_id, id) => world_layouts.get_by_id(owner_id, id)),
       world_prop_state: each((owner_id, id) => prop_states.get_by_id(owner_id, id)),
+      guest_chat_message: many((owner_id, ids) => guest_chats.views_by_ids(owner_id, ids)),
+      player_message: many((owner_id, ids) => player_messages.views_by_ids(owner_id, ids)),
     };
   }
 

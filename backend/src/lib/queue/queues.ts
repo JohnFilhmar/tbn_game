@@ -24,3 +24,13 @@ export interface NotifyJob {
   owner_id: string;
   notification_id: string;
 }
+
+/** Queue of guest messages the worker answers on the guest model. */
+export const GUEST_REPLY_QUEUE = 'guest_reply';
+
+/** Payload of a `guest_reply` job: the conversation of one guest with one agent. */
+export interface GuestReplyJob {
+  owner_id: string;
+  guest_id: string;
+  agent_id: string;
+}

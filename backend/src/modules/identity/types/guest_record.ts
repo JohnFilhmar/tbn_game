@@ -36,6 +36,12 @@ export interface GuestSessionRecord {
   owner_username: string;
 }
 
+/** A guest's name and the username of the owner who invited them. */
+export interface GuestProfile {
+  name: string | null;
+  owner_username: string;
+}
+
 /** The session a redeemed invite opens. */
 export interface GuestSessionWrite {
   token_hash: string;

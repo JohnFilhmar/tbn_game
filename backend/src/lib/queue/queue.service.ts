@@ -11,9 +11,11 @@ import { require_database_url, type AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
 import {
   AGENT_WAKE_QUEUE,
+  GUEST_REPLY_QUEUE,
   NOTIFY_QUEUE,
   SANDBOX_JOB_QUEUE,
   type AgentWakeJob,
+  type GuestReplyJob,
   type NotifyJob,
   type SandboxJobJob,
 } from './queues';
@@ -193,6 +195,15 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
         notify: true,
       });
     }
+    if ((await this.boss.getQueue(GUEST_REPLY_QUEUE)) === null) {
+      // A guest asks again rather than waiting on a retry.
+      await this.boss.createQueue(GUEST_REPLY_QUEUE, {
+        policy: 'standard',
+        expireInSeconds: WAKE_EXPIRE_SECONDS,
+        retryLimit: 0,
+        notify: true,
+      });
+    }
     if ((await this.boss.getQueue(NOTIFY_QUEUE)) === null) {
       await this.boss.createQueue(NOTIFY_QUEUE, {
         policy: 'standard',
@@ -295,7 +306,7 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
   async depths(): Promise<QueueDepth[]> {
     await this.ensure_started();
     const depths: QueueDepth[] = [];
-    for (const name of [AGENT_WAKE_QUEUE, SANDBOX_JOB_QUEUE, NOTIFY_QUEUE]) {
+    for (const name of [AGENT_WAKE_QUEUE, SANDBOX_JOB_QUEUE, NOTIFY_QUEUE, GUEST_REPLY_QUEUE]) {
       const queue = await this.boss.getQueue(name);
       if (queue === null) continue;
       depths.push({
@@ -313,6 +324,37 @@ export class QueueService implements OnApplicationBootstrap, BeforeApplicationSh
   async send_notify(job: NotifyJob): Promise<void> {
     await this.ensure_started();
     await this.boss.send(NOTIFY_QUEUE, job);
+  }
+
+  /**
+   * Asks the worker to answer a guest. The conversation is the job's group, so one guest's messages
+   * to one agent are answered one at a time, in order.
+   */
+  async send_guest_reply(job: GuestReplyJob): Promise<void> {
+    await this.ensure_started();
+    await this.boss.send(GUEST_REPLY_QUEUE, job, {
+      group: { id: `${job.guest_id}:${job.agent_id}` },
+    });
+  }
+
+  /** Registers the worker's handler for guest messages, `concurrency` at a time. */
+  async work_guest_reply(
+    handler: (job: GuestReplyJob) => Promise<void>,
+    concurrency: number,
+  ): Promise<void> {
+    await this.ensure_started();
+    await this.boss.work<GuestReplyJob>(
+      GUEST_REPLY_QUEUE,
+      {
+        localConcurrency: concurrency,
+        localGroupConcurrency: 1,
+        pollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+        notifyPollingIntervalSeconds: POLLING_INTERVAL_SECONDS,
+      },
+      async ([job]) => {
+        if (job !== undefined) await handler(job.data);
+      },
+    );
   }
 
   /** Registers the worker's handler for notifications. */

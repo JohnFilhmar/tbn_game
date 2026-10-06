@@ -10,6 +10,7 @@ export * from './health';
 export * from './identity';
 export * from './integrations';
 export * from './knowledge';
+export * from './players';
 export * from './plugins';
 export * from './providers';
 export * from './runs';

@@ -6,7 +6,11 @@ import {
   GUEST_REPOSITORY,
   type GuestRepository,
 } from '@/modules/identity/repositories/interface/guest_repository.interface';
-import type { GuestInviteRecord, GuestRecord } from '@/modules/identity/types/guest_record';
+import type {
+  GuestInviteRecord,
+  GuestProfile,
+  GuestRecord,
+} from '@/modules/identity/types/guest_record';
 import {
   GuestSessionService,
   INVITE_TOKEN_PREFIX,
@@ -84,6 +88,17 @@ export class GuestService {
   /** The owner's guests, newest first. */
   async list(owner_id: string): Promise<Guest[]> {
     return (await this.guests.list_guests(owner_id)).map(to_guest_view);
+  }
+
+  /**
+   * A guest's name and their host's username.
+   *
+   * @throws NotFoundException when the guest is unknown.
+   */
+  async profile(owner_id: string, id: string): Promise<GuestProfile> {
+    const profile = await this.guests.find_profile(owner_id, id);
+    if (profile === null) throw new NotFoundException('Guest not found');
+    return profile;
   }
 
   /** @throws NotFoundException when the guest is unknown. */

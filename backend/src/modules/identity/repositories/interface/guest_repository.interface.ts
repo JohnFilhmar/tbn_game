@@ -1,6 +1,7 @@
 import type {
   GuestInviteRecord,
   GuestInviteWrite,
+  GuestProfile,
   GuestRecord,
   GuestSessionRecord,
   GuestSessionWrite,
@@ -31,6 +32,7 @@ export interface GuestRepository {
   touch_guest(id: string, now: Date): Promise<void>;
   list_guests(owner_id: string): Promise<GuestRecord[]>;
   find_guest(owner_id: string, id: string): Promise<GuestRecord | null>;
+  find_profile(owner_id: string, id: string): Promise<GuestProfile | null>;
   /** True when another of the owner's guests has `name`, ignoring case. */
   is_name_taken(owner_id: string, name: string, except_id: string): Promise<boolean>;
   set_name(owner_id: string, id: string, name: string): Promise<GuestRecord>;

@@ -4,6 +4,7 @@ import { PrismaService } from '@/lib/database/prisma.service';
 import type {
   GuestInviteRecord,
   GuestInviteWrite,
+  GuestProfile,
   GuestRecord,
   GuestSessionRecord,
   GuestSessionWrite,
@@ -124,6 +125,14 @@ export class PrismaGuestRepository implements GuestRepository {
 
   find_guest(owner_id: string, id: string): Promise<GuestRecord | null> {
     return this.prisma.guest.findFirst({ where: { id, owner_id }, select: guest_columns });
+  }
+
+  async find_profile(owner_id: string, id: string): Promise<GuestProfile | null> {
+    const guest = await this.prisma.guest.findFirst({
+      where: { id, owner_id },
+      select: { name: true, owner: { select: { username: true } } },
+    });
+    return guest === null ? null : { name: guest.name, owner_username: guest.owner.username };
   }
 
   async is_name_taken(owner_id: string, name: string, except_id: string): Promise<boolean> {

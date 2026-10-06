@@ -12,6 +12,7 @@ import {
 import { BranchReviewSchema, MergeRequestSchema, RepositorySchema } from './git';
 import { IntegrationSchema, NotificationChannelSchema, NotificationSchema } from './integrations';
 import { InstructionSchema, PreferencesSchema, SkillSchema } from './knowledge';
+import { GuestChatMessageSchema, PlayerMessageSchema } from './players';
 import { PluginSchema } from './plugins';
 import { ProviderSchema } from './providers';
 import { RunSchema, RunSourceSchema, TranscriptEntrySchema } from './runs';
@@ -53,6 +54,8 @@ export const EventEntitySchema = z.enum([
   'preferences',
   'world_layout',
   'world_prop_state',
+  'guest_chat_message',
+  'player_message',
 ]);
 
 /** An entity kind in the event log. */
@@ -110,6 +113,8 @@ export const ChangeEventSchema = z.discriminatedUnion('entity', [
   change_event('preferences', PreferencesSchema),
   change_event('world_layout', WorldLayoutSchema),
   change_event('world_prop_state', WorldPropStateSchema),
+  change_event('guest_chat_message', GuestChatMessageSchema),
+  change_event('player_message', PlayerMessageSchema),
 ]);
 
 /** One change from the event log. */
