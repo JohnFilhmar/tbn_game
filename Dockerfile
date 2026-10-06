@@ -3,7 +3,7 @@
 # proposes updates.
 
 # Compile with every dependency installed. The `npm ci` layer is cached until a manifest changes.
-FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS build
+FROM node:26.10.0-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS build
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY packages/contracts/package.json packages/contracts/
@@ -20,7 +20,7 @@ RUN npm run build \
 # Production dependencies only. Prisma's approved install script fetches the schema engine that
 # `prisma migrate deploy` runs in the release step. The client's packages are all dev
 # dependencies, so none of them is installed here.
-FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS prod_deps
+FROM node:26.10.0-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS prod_deps
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY packages/contracts/package.json packages/contracts/
