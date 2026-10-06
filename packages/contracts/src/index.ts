@@ -5,6 +5,7 @@ export * from './common';
 export * from './company';
 export * from './events';
 export * from './git';
+export * from './guests';
 export * from './health';
 export * from './identity';
 export * from './integrations';

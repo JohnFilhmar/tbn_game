@@ -11,8 +11,10 @@ import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { SearchProviderService } from '@/modules/runtime/services/search/search_provider.service';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** Search services. Keys are written here and never read back. */
+@OwnerOnly()
 @Controller('search_providers')
 export class SearchProviderController {
   constructor(private readonly providers: SearchProviderService) {}

@@ -11,8 +11,10 @@ import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { CapWindowService } from '@/modules/runtime/services/caps/cap_window.service';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** Usage caps on one provider key, with their live usage. */
+@OwnerOnly()
 @Controller('providers/:id/cap_windows')
 export class CapWindowController {
   constructor(private readonly cap_window_service: CapWindowService) {}

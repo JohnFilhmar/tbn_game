@@ -1,5 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { OwnerSchema, SessionSchema } from '@tbn/contracts';
+import { PrincipalSchema, SessionSchema } from '@tbn/contracts';
 import request from 'supertest';
 import { ValidationErrorBodySchema } from '@/testing/http';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
@@ -66,7 +66,8 @@ describe('auth routes', () => {
         .set('Authorization', `Bearer ${owner.token}`)
         .expect(200);
 
-      expect(OwnerSchema.pick({ id: true, username: true }).parse(response.body)).toEqual({
+      expect(PrincipalSchema.parse(response.body)).toEqual({
+        kind: 'owner',
         id: owner.owner_id,
         username: owner.username,
       });
