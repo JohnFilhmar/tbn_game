@@ -14,11 +14,15 @@ import {
 } from '@tbn/contracts';
 import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
+import { GuestAllowed } from '@/lib/auth/guest_policy.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { WorldLayoutService } from '@/modules/world/services/world_layout.service';
 import { WorldPropStateService } from '@/modules/world/services/world_prop_state.service';
 
-/** Each environment as the owner arranged and painted it, and the state of its props. */
+/**
+ * Each environment as the owner arranged and painted it, and the state of its props. Guests use
+ * the props too: blinds, lamps, boards, plants and radios; only the owner changes the layout.
+ */
 @Controller('world')
 export class WorldController {
   constructor(
@@ -60,6 +64,7 @@ export class WorldController {
     return { states: await this.prop_states.list(owner.id, environment) };
   }
 
+  @GuestAllowed()
   @Put(':environment/props/:placement_id')
   save_prop(
     @CurrentOwner() owner: AuthenticatedOwner,

@@ -11,6 +11,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { create_test_web_app, load_test_config } from '@/testing/test_app';
+import { create_test_guest } from '@/testing/test_guest';
 import { create_test_owner, type TestOwner } from '@/testing/test_owner';
 
 function placement(overrides: Partial<WorldPlacement> = {}): WorldPlacement {
@@ -162,6 +163,24 @@ describe('world routes', () => {
       );
       const home = await api().get('/world/home/props').set(auth()).expect(200);
       expect(WorldPropStatesResponseSchema.parse(home.body).states).toEqual([]);
+    });
+
+    it('lets a guest use a prop but never change the layout', async () => {
+      const guest = await create_test_guest(app, owner, 'prop guest');
+      await api()
+        .put(`/world/office/props/${blinds}`)
+        .set('Cookie', guest.cookie)
+        .set(IDEMPOTENCY_KEY_HEADER, randomUUID())
+        .send({ kind: 'blinds', state: { open: true } })
+        .expect(200);
+      const read = await api().get('/world/office/props').set(auth()).expect(200);
+      const { states } = WorldPropStatesResponseSchema.parse(read.body);
+      expect(states.find((state) => state.placement_id === blinds)?.state).toEqual({ open: true });
+      await api()
+        .put('/world/office')
+        .set('Cookie', guest.cookie)
+        .send({ revision: 0, theme: null, placements: [placement()] })
+        .expect(403);
     });
 
     it('refuses a state that does not fit its kind with 400', async () => {

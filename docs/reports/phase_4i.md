@@ -25,8 +25,11 @@ invite links, which are rate limited.
   unread threads to come back to.
 - Press U to get back to the entrance when stuck.
 
-A guest cannot build, change the room or the world menu, customise anyone, or use the props that
-keep a state (blinds, lamps, radio, plants, the whiteboard, the grass counter).
+- Use the room's props like you do: the blinds, the lights, the radio, the whiteboard, the plants,
+  the sofa and the coffee. Everyone sees them sit, drink or press where they are.
+
+A guest cannot build, change the room or the world menu (the clock included), travel to another
+place, customise anyone, or add to your grass counter.
 
 **Leaving.** A player who closes the page stays in the world for 20 minutes, wandering like an idle
 agent and shown offline, then walks out of the building.
