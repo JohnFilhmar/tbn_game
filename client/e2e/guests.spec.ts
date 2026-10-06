@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PrincipalSchema } from '@tbn/contracts';
+import { z } from 'zod';
 import { openScreen, signIn } from './session';
 import { RUN_ID } from './stack';
 
@@ -37,11 +37,14 @@ test('a guest follows an invite, reads the desk, and messages the owner', async 
   expect((await guest.request.get(new URL(link).pathname)).status()).toBe(410);
 
   const token = await page.evaluate(() => sessionStorage.getItem('tbn.session'));
-  const me = PrincipalSchema.parse(
-    await (
-      await page.request.get('/auth/me', { headers: { Authorization: `Bearer ${token ?? ''}` } })
-    ).json(),
-  );
+  // The flows read answers with zod alone, as the contracts package loads as CommonJS here.
+  const me = z
+    .object({ id: z.string() })
+    .parse(
+      await (
+        await page.request.get('/auth/me', { headers: { Authorization: `Bearer ${token ?? ''}` } })
+      ).json(),
+    );
   const sent = await guest.request.post('/player_messages', {
     data: { to_id: me.id, text: `Hello from ${GUEST_NAME}` },
   });
