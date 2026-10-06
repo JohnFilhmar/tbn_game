@@ -30,7 +30,21 @@ export interface InteractHost {
   openDesk: (path: string) => void;
   /** Opens the world menu, with its time of day. */
   openWorldMenu: () => void;
+  /** The owner's name for a guest, who may look but not change anything; null for the owner. */
+  guestOf: string | null;
 }
+
+/** What a guest may not do to a prop: anything that changes it, the room or the owner's world. */
+const OWNER_ACTIONS: ReadonlySet<string> = new Set([
+  'draw',
+  'lights',
+  'travel',
+  'clock',
+  'blinds',
+  'radio',
+  'water',
+  'grass',
+]);
 
 /**
  * Uses a placed prop as the owner: they turn to it and play its clip where they stand, or sit on
@@ -46,7 +60,7 @@ export function useInteract(
   const savePropState = useSavePropState(environment);
   const setPreference = useSetPreference();
   const client = useQueryClient();
-  const { openDesk, openWorldMenu } = host;
+  const { openDesk, openWorldMenu, guestOf } = host;
   return useCallback(
     (placementId: string) => {
       const placement = placements.find((one) => one.id === placementId);
@@ -54,6 +68,10 @@ export function useInteract(
       const verb = placement === undefined ? null : propVerb(placement, states);
       if (placement === undefined || interaction === undefined || verb === null) return;
       const store = useWorldStore.getState();
+      if (guestOf !== null && OWNER_ACTIONS.has(interaction.action)) {
+        store.showToast(`Only ${guestOf} can ${verb} here.`);
+        return;
+      }
       const fail = (error: unknown): void => store.showToast(errorMessage(error));
       const seatSpot = interaction.action === 'sit' ? interaction.spots[0] : undefined;
       if (seatSpot?.seat !== undefined) {
@@ -128,6 +146,6 @@ export function useInteract(
           return;
       }
     },
-    [placements, states, savePropState, setPreference, client, openDesk, openWorldMenu],
+    [placements, states, savePropState, setPreference, client, openDesk, openWorldMenu, guestOf],
   );
 }

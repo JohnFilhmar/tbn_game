@@ -16,6 +16,9 @@ function connect() {
     onResync: vi.fn(),
     onStatus: (status) => statuses.push(status),
     onUnauthorized: vi.fn(),
+    onPlayers: vi.fn(),
+    onPlayer: vi.fn(),
+    onPlayerGone: vi.fn(),
   };
   const connection = connectRealtime({ baseUrl: 'http://server', token: 'tbn_token', handlers });
   const socket: FakeSocket | undefined = openedSockets.at(-1);

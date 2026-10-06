@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { ownerAppearanceOf, resolveAppearance } from '@/game/assets/appearance';
+import { appearanceOf, ownerAppearanceOf, resolveAppearance } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { PACKS } from '@/game/assets/packs';
 import { Hud } from '@/game/hud/Hud';
+import { PlayersHud } from '@/game/hud/PlayersHud';
 import { isSeatedPath } from '@/game/world/seat';
 import { useNow, useWorldHour } from '@/game/world/useWorldHour';
 import { canRenderWorld } from '@/game/world/webgl';
@@ -11,10 +12,12 @@ import { useWorldStore } from '@/game/world/worldStore';
 import { COLLECTIONS } from '@/lib/data/collections';
 import {
   useCollection,
+  useMe,
   usePreferences,
   useWorldLayout,
   useWorldPropStates,
 } from '@/lib/data/queries';
+import { usePresenceSender } from '@/game/players/usePresenceSender';
 import { milestonesOf, pinnedReports, type LiveData } from '@/game/objects/liveData';
 import { isThirsty, propStatesOf, stateOf } from '@/game/objects/propStates';
 import { RadioPlayer } from '@/game/objects/RadioPlayer';
@@ -63,7 +66,9 @@ function useGlide(isSeated: boolean): void {
  */
 export function WorldLayout() {
   const location = useLocation();
-  const { isSignedIn } = useSession();
+  const { isSignedIn, guest } = useSession();
+  const { data: me } = useMe();
+  const myPlayerId = guest?.id ?? me?.id ?? null;
   const isSeated = isSeatedPath(location.pathname);
   const { data: preferences } = usePreferences();
   const { data: agents } = useCollection(COLLECTIONS.agents);
@@ -104,7 +109,11 @@ export function WorldLayout() {
   const buildEnvironment = useBuildStore((state) => state.environment);
   const draft = useBuildStore((state) => state.history?.present ?? null);
   const isBuilding =
-    isSignedIn && !isSeated && buildEnvironment === shownEnvironment && draft !== null;
+    isSignedIn &&
+    guest === null &&
+    !isSeated &&
+    buildEnvironment === shownEnvironment &&
+    draft !== null;
   // While building, the world shows the draft; the saved layout stays what the agents sit by.
   const arranged = useMemo(
     () =>
@@ -141,10 +150,20 @@ export function WorldLayout() {
     preferences?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
   const ownerLook = preferences?.owner_appearance;
-  const ownerAppearance = useMemo(
+  const hostAppearance = useMemo(
     () => resolveAppearance(CHARACTER_SET, ownerAppearanceOf(ownerLook)),
     [ownerLook],
   );
+  // A guest walks as themselves, looking the way their id picks; the owner looks as they chose.
+  const guestId = guest?.id ?? null;
+  const ownerAppearance = useMemo(
+    () =>
+      guestId === null
+        ? hostAppearance
+        : resolveAppearance(CHARACTER_SET, appearanceOf(CHARACTER_SET, guestId, {})),
+    [guestId, hostAppearance],
+  );
+  usePresenceSender(shownEnvironment, isSeated, isSignedIn);
   const pendingAgentIds = useMemo(
     () =>
       new Set(
@@ -198,6 +217,8 @@ export function WorldLayout() {
             propStates={propStates}
             live={live}
             thirstyIds={thirstyIds}
+            hostAppearance={hostAppearance}
+            myPlayerId={myPlayerId}
           />
         </Suspense>
       ) : (
@@ -213,6 +234,7 @@ export function WorldLayout() {
           live={live}
         />
       )}
+      {isSignedIn && <PlayersHud myId={myPlayerId} isOverlayOpen={isSeated || isBuilding} />}
       {isBuilding && <BuildPanel arranged={saved} defaults={pack.manifest.default_layout} />}
       <RadioPlayer isOn={isSignedIn && isRadioOn} />
       <Outlet />

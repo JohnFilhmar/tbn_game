@@ -12,5 +12,22 @@ export const OWNER_KEY = 'owner';
 // second canvas ever appears.
 export const livePositions = new Map<string, Vector3>();
 
+/** Where each other player is drawn right now, by player id, kept apart from the agents. */
+export const playerPositions = new Map<string, Vector3>();
+
+/**
+ * Where your own character stands and what it does, written every frame, for the pose this client
+ * sends the other players.
+ */
+export const localPose = {
+  x: 0,
+  y: 0,
+  z: 0,
+  yawDeg: 0,
+  isMoving: false,
+  isRunning: false,
+  isPlaced: false,
+};
+
 /** The camera the world draws with, for DOM overlays that follow something in the scene. */
 export const liveView: { camera: Camera | null } = { camera: null };

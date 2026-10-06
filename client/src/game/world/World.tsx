@@ -27,6 +27,8 @@ import { useMovementKeys, type MoveAction } from './keyboard';
 import { gridGeometry, walkGrid } from './navGrid';
 import { Navigation } from './navmesh';
 import { OwnerCharacter } from './OwnerCharacter';
+import { usePlayerUiStore } from '@/game/players/playerUiStore';
+import { RemotePlayers } from '@/game/players/RemotePlayers';
 import { PackScene } from './PackScene';
 import { seatPoseOf } from './seat';
 import { lightingAt } from './timeOfDay';
@@ -57,6 +59,10 @@ export interface WorldProps {
   live: LiveData;
   /** The plants and trees that droop for want of water. */
   thirstyIds: ReadonlySet<string>;
+  /** How the owner looks, for the owner's body in a guest's world. */
+  hostAppearance: ResolvedAppearance;
+  /** This client's own player id, which the other players' bodies leave out. */
+  myPlayerId: string | null;
 }
 
 /** The yellow of a plant that wants water. */
@@ -121,6 +127,8 @@ function PackWorld({
   propStates,
   live,
   thirstyIds,
+  hostAppearance,
+  myPlayerId,
 }: PackWorldProps) {
   const { pack, manifest } = arranged;
   // ponytail: rebuilt whole on every layout change; a grid of a few thousand cells takes
@@ -216,6 +224,13 @@ function PackWorld({
             usableProps={isBuilding ? [] : usableProps}
           />
         </Suspense>
+        <RemotePlayers
+          navigation={navigation}
+          arranged={arranged}
+          environment={arranged.manifest.name}
+          hostAppearance={hostAppearance}
+          myId={myPlayerId}
+        />
         {agents !== undefined && departments !== undefined && (
           <Agents
             arranged={arranged}
@@ -268,12 +283,15 @@ export function World({
   propStates,
   live,
   thirstyIds,
+  hostAppearance,
+  myPlayerId,
 }: WorldProps) {
   const talkingTo = useWorldStore((state) => state.talkingTo);
   const drawingOn = useWorldStore((state) => state.drawingOn);
   const panel = useWorldStore((state) => state.panel);
+  const chatWith = usePlayerUiStore((state) => state.chatWith);
   const keysRef = useMovementKeys(
-    isActive && talkingTo === null && drawingOn === null && panel === null,
+    isActive && talkingTo === null && drawingOn === null && panel === null && chatWith === null,
   );
   useEffect(() => {
     useLoader.preload(GLTFLoader, characterFiles());
@@ -303,6 +321,8 @@ export function World({
           propStates={propStates}
           live={live}
           thirstyIds={thirstyIds}
+          hostAppearance={hostAppearance}
+          myPlayerId={myPlayerId}
         />
       </Suspense>
       <FrameCounter />

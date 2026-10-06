@@ -1,10 +1,14 @@
 import {
   ChangeEventSchema,
+  PlayerGoneSchema,
+  PlayerSchema,
   REALTIME_MESSAGES,
   RealtimeHelloSchema,
   ResyncRequiredSchema,
   StreamChunkSchema,
   type ChangeEvent,
+  type Player,
+  type PlayerPose,
   type ResyncRequired,
   type StreamChunk,
 } from '@tbn/contracts';
@@ -23,11 +27,19 @@ export interface RealtimeHandlers {
   onStatus: (status: ConnectionStatus) => void;
   /** The server refused the token. */
   onUnauthorized: () => void;
+  /** Everyone already in the world, on each connect. */
+  onPlayers: (players: Player[]) => void;
+  /** A player moved, came online or went offline. */
+  onPlayer: (player: Player) => void;
+  /** A player who left long enough ago is gone. */
+  onPlayerGone: (id: string) => void;
 }
 
 /** A live connection to the gateway. */
 export interface RealtimeConnection {
   close: () => void;
+  /** Sends this player's pose; dropped while disconnected. */
+  sendPresence: (pose: PlayerPose) => void;
 }
 
 const ChangesSchema = ChangeEventSchema.array();
@@ -77,6 +89,18 @@ export function connectRealtime(options: {
     const resync = ResyncRequiredSchema.safeParse(payload);
     if (resync.success) handlers.onResync(resync.data);
   });
+  socket.on(REALTIME_MESSAGES.players, (payload: unknown) => {
+    const players = PlayerSchema.array().safeParse(payload);
+    if (players.success) handlers.onPlayers(players.data);
+  });
+  socket.on(REALTIME_MESSAGES.player, (payload: unknown) => {
+    const player = PlayerSchema.safeParse(payload);
+    if (player.success) handlers.onPlayer(player.data);
+  });
+  socket.on(REALTIME_MESSAGES.player_gone, (payload: unknown) => {
+    const gone = PlayerGoneSchema.safeParse(payload);
+    if (gone.success) handlers.onPlayerGone(gone.data.id);
+  });
   socket.on('connect_error', (error: Error) => {
     if (closed) return;
     if (error.message === 'unauthorized') {
@@ -101,6 +125,9 @@ export function connectRealtime(options: {
       socket.removeAllListeners();
       socket.close();
       handlers.onStatus('offline');
+    },
+    sendPresence: (pose) => {
+      if (socket.connected) socket.volatile.emit(REALTIME_MESSAGES.presence, pose);
     },
   };
 }
