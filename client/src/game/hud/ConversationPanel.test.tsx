@@ -30,6 +30,47 @@ afterEach(() => {
 });
 
 describe('talking to an agent in the world', () => {
+  it("lays out an agent's reply to a guest as Markdown", async () => {
+    const at = '2026-10-07T00:00:00.000Z';
+    const api = fakeApi({
+      'GET /auth/me': () => ({
+        kind: 'guest',
+        id: fixtureId(),
+        name: 'Mika',
+        owner_username: 'john',
+      }),
+      'GET /player_messages': () => [],
+      'GET /agents': () => [ADA],
+      'GET /departments': () => [],
+      'GET /tasks': () => [],
+      'GET /runs': () => [],
+      [`GET /agents/${ADA.id}/guest_chat`]: () => [
+        {
+          id: fixtureId(),
+          guest_id: fixtureId(),
+          agent_id: ADA.id,
+          role: 'agent',
+          text: 'Two things:\n\n- **Coffee** is fine\n- Water too',
+          is_error: false,
+          created_at: at,
+        },
+      ],
+    });
+    renderApp({ api, path: '/', isSignedIn: false });
+    await screen.findByRole('button', { name: 'Desk' });
+    act(() => {
+      livePositions.set(OWNER_KEY, new Vector3(0, 0, 0));
+      livePositions.set(ADA.id, new Vector3(0, 0, 1.5));
+      useWorldStore.getState().setActivity(ADA.id, 'at_desk');
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Talk to Ada' }));
+    const chat = await screen.findByRole('list', { name: 'Chat with Ada' });
+    const coffee = await within(chat).findByText('Coffee');
+    expect(coffee.tagName).toBe('STRONG');
+    expect(coffee.closest('li')?.textContent).toBe('Coffee is fine');
+    expect(chat.textContent).not.toContain('**');
+  });
+
   it('opens its session beside the world, sends a message, shows the reply and closes', async () => {
     const api = fakeApi({
       'GET /agents': () => [ADA],
@@ -48,6 +89,12 @@ describe('talking to an agent in the world', () => {
     });
 
     await userEvent.click(await screen.findByRole('button', { name: 'Talk to Ada' }));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log(
+      'BODY',
+      document.body.textContent?.slice(0, 600),
+      useWorldStore.getState().talkingTo,
+    );
     const panel = await screen.findByRole('complementary', { name: 'Conversation with Ada' });
     expect(useWorldStore.getState().talkingTo).toBe(ADA.id);
     expect(await within(panel).findByText('Morning, boss.')).toBeDefined();

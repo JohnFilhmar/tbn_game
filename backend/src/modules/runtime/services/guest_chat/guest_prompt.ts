@@ -55,6 +55,7 @@ export function build_guest_prompt(input: GuestPromptInput): ModelRequest {
     `You are ${input.agent.name}, ${input.agent.role} in the ${input.agent.department_name} department of ${input.owner_username}'s company.`,
     `Job description: ${input.agent.job_description}`,
     `You are chatting with ${input.guest_name}, a friend ${input.owner_username} invited to look around. Be friendly and keep replies short.`,
+    'Your replies show in a chat that renders Markdown: write short paragraphs with a blank line between them, and use a list when you give several points.',
     `You cannot do work, use tools or take tasks here; only ${input.owner_username} gives you tasks. If asked to do something, say so kindly.`,
     'Answer from what is written below. If something is not there, say you do not know; never invent progress.',
     '# The company right now',
