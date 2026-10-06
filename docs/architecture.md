@@ -18,15 +18,16 @@ separate simulation with made-up activity.
 
 The system is online only. It runs as one monolith on one private server that only the owner can
 reach through a VPN. Nothing is exposed to the public internet. It scales vertically with the
-workload the owner gives the agents.
+workload the owner gives the agents. For now it also runs on a shared VPS at a public domain,
+behind the host's nginx and a credential gate; `docs/vps_setup.md` covers that deployment.
 
 ## Current state (phase 3)
 
 ```mermaid
 flowchart LR
   owner["Owner: the browser desktop, curl and the scripted client"] -->|"HTTPS and WebSocket inside the tailnet"| serve["tailscale serve on the host"]
-  serve -->|"127.0.0.1:3000"| web
-  serve -->|"127.0.0.1:3005"| grafana
+  serve -->|"127.0.0.1:3100"| web
+  serve -->|"127.0.0.1:3105"| grafana
   subgraph backend_network["backend network"]
     web["web: the client under /app, REST routes, GET /events, the Socket.IO gateway, idempotent commands"]
     prometheus["Prometheus: scrapes the four processes, 30 days"]
@@ -169,7 +170,7 @@ output as it is generated.
 - **Monitoring.** Prometheus scrapes `web`, `worker`, `sandbox` and `egress_proxy` and keeps 30
   days. The worker refreshes gauges of queue depth, runs by status, spend, tokens and requests by
   provider, cache hits and misses, and the workspace volume every 30 seconds. Grafana, on
-  `127.0.0.1:3005`, shows them with proxy refusals on one provisioned dashboard; it has no
+  `127.0.0.1:3105` in production, shows them with proxy refusals on one provisioned dashboard; it has no
   alerting, as alerts go through the notification channels.
 - **Backups.** `deploy/backup/tbn_backup.sh`, run weekly by a systemd timer, writes a `pg_dump`
   custom-format dump and a tarball of the workspace volume with their checksums, keeps the newest

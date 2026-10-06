@@ -17,7 +17,10 @@ RUN apt-get update \
   && groupadd --gid 65532 agent \
   && useradd --uid 65532 --gid 65532 --create-home --home-dir /home/agent --shell /bin/bash agent \
   && install -d -m 0755 /opt/tbn /work /files
-COPY --chmod=0755 deploy/sandbox/git_job.sh /opt/tbn/git_job.sh
+# COPY and chmod rather than COPY --chmod, so a Docker without BuildKit, such as the shared VPS's,
+# builds the image too.
+COPY deploy/sandbox/git_job.sh /opt/tbn/git_job.sh
+RUN chmod 0755 /opt/tbn/git_job.sh
 ENV HOME=/home/agent \
     GIT_TERMINAL_PROMPT=0 \
     npm_config_update_notifier=false \

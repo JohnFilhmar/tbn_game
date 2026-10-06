@@ -48,6 +48,7 @@ Node and npm versions are pinned in `.node-version` and the root `package.json`.
 | `scripts/demo_phase_2.sh`                                          | The phase 2 demo: a scripted client drops and resumes mid-run while the owner chats with the agent. |
 | `scripts/demo_phase_3.sh`                                          | The phase 3 demo: the stack with the desktop, Grafana and a backup, and the steps to follow in the browser. |
 | `scripts/demo_phase_4.sh`                                          | The phase 4 demo: the stack serving the world's packs and characters, the world preferences, and the steps to walk the company in the browser. |
+| `scripts/vps_up.sh`                                                | On the shared VPS: build the images from the clone and start the production stack. See `docs/vps_setup.md`. |
 | `npm run build:assets --workspace @tbn/client`                     | Remakes the three environment packs and the character set from `client/scripts/assets/`; the files are committed. |
 
 Tests use a real PostgreSQL. With the development stack up:
@@ -113,7 +114,8 @@ desktop/            phase 6: Tauri v2 shell
 mobile/             phase 5: Capacitor shell
 packages/contracts/ Zod schemas and inferred types for every API and event payload
 deploy/             host files: runner job guard, systemd units, backup and restore scripts, Prometheus
-                    and Grafana configuration, SearXNG settings, the sandbox git script
+                    and Grafana configuration, SearXNG settings, the sandbox git script, and the
+                    VPS's nginx site with its credential gate
 Dockerfile.sandbox  the sandbox image: the toolchain agent code runs in, with the git script
 scripts/            CI and local helper scripts
 docs/               architecture, roadmap, plans, reports, runbook
@@ -181,6 +183,7 @@ docs/               architecture, roadmap, plans, reports, runbook
 - Sandbox containers reach nothing but the egress proxy, which refuses every private, loopback,
   link-local, metadata and VPN address, resolved names included, and wants the run's identity.
 - Compose publishes ports on `127.0.0.1` only. `scripts/check_compose_ports.sh` enforces it in CI.
+  Production's host ports are in the 3100 block, clear of the other apps on the shared VPS.
 - The web process serves the built client under `/app` from `CLIENT_DIR`; the API keeps its paths.
   The client talks to the API only through `lib/api` and the gateway, and writes every change into
   the TanStack Query cache. The gateway accepts the CORS origins and the page's own origin.

@@ -3,8 +3,9 @@
 #
 # Values come from the SOPS-encrypted environment file the deploy job decrypts, plus
 # BACKEND_IMAGE, which the deploy job sets to the signed digest it verified. Required values fail
-# fast when missing. The web port and Grafana's are published on 127.0.0.1 for `tailscale serve`,
-# and the ops ports of the launcher and the proxy on 127.0.0.1 for their health checks.
+# fast when missing. The web port and Grafana's are published on 127.0.0.1 for the host's reverse
+# proxy, and the ops ports of the launcher and the proxy on 127.0.0.1 for their health checks. The
+# host ports sit in the 3100 block because the server already runs other apps on 3000 to 3003.
 name: tbn
 
 x-logging: &logging
@@ -29,6 +30,9 @@ x-backend: &backend
   logging: *logging
   environment: &backend_environment
     NODE_ENV: production
+    # The owner's clock. The code keeps time in UTC (timestamptz columns, utc_day), so this only
+    # changes how a container shows local time; the databases stay on UTC.
+    TZ: ${TZ:-Asia/Manila}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     DATABASE_URL: postgresql://tbn:${POSTGRES_PASSWORD:?missing from the secrets file}@postgres:5432/tbn
     DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
@@ -58,7 +62,7 @@ services:
     volumes:
       - workspace:/workspace
     ports:
-      - '127.0.0.1:${WEB_HOST_PORT:-3000}:3000'
+      - '127.0.0.1:${WEB_HOST_PORT:-3100}:3000'
     healthcheck:
       test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'web']
       interval: 10s
@@ -146,7 +150,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - '127.0.0.1:3002:3002'
+      - '127.0.0.1:3102:3002'
     healthcheck:
       test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'sandbox']
       interval: 10s
@@ -173,6 +177,7 @@ services:
     logging: *logging
     environment:
       NODE_ENV: production
+      TZ: ${TZ:-Asia/Manila}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       EGRESS_PROXY_PORT: '3128'
       EGRESS_PROXY_OPS_PORT: '3003'
@@ -180,7 +185,7 @@ services:
       EGRESS_MAX_RESPONSE_BYTES: ${EGRESS_MAX_RESPONSE_BYTES:-10485760}
       EGRESS_MAX_REQUESTS_PER_MINUTE: ${EGRESS_MAX_REQUESTS_PER_MINUTE:-120}
     ports:
-      - '127.0.0.1:3003:3003'
+      - '127.0.0.1:3103:3003'
     networks: [backend, sandbox]
     healthcheck:
       test: ['CMD', '/nodejs/bin/node', 'dist/healthcheck.js', 'egress_proxy']
@@ -291,7 +296,7 @@ services:
       - ./deploy/grafana/dashboards:/etc/tbn/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - '127.0.0.1:3005:3000'
+      - '127.0.0.1:3105:3000'
     networks: [backend]
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:3000/api/health']
