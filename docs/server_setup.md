@@ -7,6 +7,9 @@ time.
 
 Commands marked `server$` run on the server, `you$` on your workstation. Replace `<...>` values.
 
+Until this is set up, `docs/vps_setup.md` runs the stack on the shared VPS from a clone, behind
+nginx and a credential gate.
+
 ## What you need
 
 - A spare x86_64 machine with Debian 13 or Ubuntu 24.04 LTS, wired networking, and room for Docker
@@ -64,7 +67,7 @@ container run without it.
    renderer. The setting persists across reboots.
 
    ```
-   server$ sudo tailscale serve --bg --https=443 http://127.0.0.1:3000
+   server$ sudo tailscale serve --bg --https=443 http://127.0.0.1:3100
    server$ tailscale serve status
    ```
 
@@ -72,7 +75,7 @@ container run without it.
    `/app/`. Give Grafana its own HTTPS port the same way:
 
    ```
-   server$ sudo tailscale serve --bg --https=8443 http://127.0.0.1:3005
+   server$ sudo tailscale serve --bg --https=8443 http://127.0.0.1:3105
    ```
 
    The dashboards then answer at `https://<machine>.<tailnet>.ts.net:8443`.
