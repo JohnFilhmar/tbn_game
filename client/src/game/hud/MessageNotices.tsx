@@ -11,12 +11,19 @@ import { useApi } from '@/providers/SessionProvider';
 /** How much of a message a pop up quotes. */
 const QUOTE_CHARACTERS = 60;
 
+/** Props of `MessageNotices`. */
+export interface MessageNoticesProps {
+  myId: string;
+  /** True while seated at the desk: messages still arrive, and pop up once you stand. */
+  isHidden: boolean;
+}
+
 /**
  * Messages from other players: a pop up for each that arrives outside its conversation, which
  * takes you beside the sender with the conversation open, and the list of conversations with
  * unread messages, to come back to any time.
  */
-export function MessageNotices({ myId }: { myId: string }) {
+export function MessageNotices({ myId, isHidden }: MessageNoticesProps) {
   const api = useApi();
   const notices = usePlayerUiStore((state) => state.notices);
   const notify = usePlayerUiStore((state) => state.notify);
@@ -54,6 +61,7 @@ export function MessageNotices({ myId }: { myId: string }) {
     chatWith(fromId, fromName);
   };
 
+  if (isHidden) return null;
   return (
     <div className="dark pointer-events-none fixed top-16 left-1/2 z-30 flex w-80 -translate-x-1/2 flex-col items-center gap-2">
       {notices.map((notice) => (

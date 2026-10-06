@@ -21,17 +21,24 @@ export class InviteController {
 
   /** Follows an invite link: sets the guest cookie and opens the world, once per link. */
   @Get('invite/:token')
-  async redeem(@Param('token') token: string, @Res() response: Response): Promise<void> {
+  async redeem(
+    @Param('token') token: string,
+    @Req() request: Request,
+    @Res() response: Response,
+  ): Promise<void> {
     const session = await this.sessions.redeem(token);
     if (session === null) {
       response.status(410).type('text/plain').send(EXPIRED_LINK);
       return;
     }
     // Lax, not Strict: the link is opened from a chat app, and the redirect that follows must
-    // carry the cookie.
+    // carry the cookie. Secure whenever the visit came over HTTPS, as it does through the proxy;
+    // a browser on plain HTTP, such as the local end-to-end run, keeps it without.
+    const is_https =
+      request.protocol === 'https' || request.headers['x-forwarded-proto'] === 'https';
     response.cookie(GUEST_COOKIE, session.token, {
       httpOnly: true,
-      secure: true,
+      secure: is_https,
       sameSite: 'lax',
       path: '/',
       expires: session.expires_at,

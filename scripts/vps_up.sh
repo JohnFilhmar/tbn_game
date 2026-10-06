@@ -24,6 +24,10 @@ docker build --build-arg GIT_COMMIT_SHA="$commit" --tag "$BACKEND_IMAGE" .
 docker build --file Dockerfile.sandbox --tag "$SANDBOX_IMAGE" .
 
 compose=(docker compose --env-file "$env_file" -f docker-compose.production.yml)
+# On a box with the shared model network, the worker joins it to reach the guest model.
+if docker network inspect llm_gateway > /dev/null 2>&1; then
+  compose+=(-f docker-compose.vps.yml)
+fi
 "${compose[@]}" up --detach --wait postgres
 # The release step: migrations run once here, never on application boot.
 "${compose[@]}" run --rm --no-deps web /app/node_modules/prisma/build/index.js migrate deploy

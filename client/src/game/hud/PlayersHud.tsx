@@ -42,7 +42,7 @@ export function PlayersHud({ myId, isOverlayOpen }: PlayersHudProps) {
     <>
       <GuestNameDialog />
       {!isOverlayOpen && <PlayerNames />}
-      {myId !== null && !isOverlayOpen && <MessageNotices myId={myId} />}
+      {myId !== null && <MessageNotices myId={myId} isHidden={isOverlayOpen} />}
       {myId !== null && chatWith !== null && !isOverlayOpen && (
         <PlayerChatPanel playerId={chatWith} myId={myId} onClose={() => setChatWith(null)} />
       )}

@@ -110,3 +110,20 @@ The owner's asks, as decided after the council of 2026-10-06:
   Connection settings stay owner-only, since a webhook address or a plugin header works as a secret.
 - **Presence lives in one web process.** A second web process would split the players in two;
   the comment at the presence store names that ceiling.
+
+## As built
+
+- **The gate** became two locations instead of one basic-auth realm: `/gate/owner` sets the owner
+  cookie after the password, and every other request goes through `auth_request`. A test caught
+  that `return` in that location ran before the password check and handed the cookie to anyone;
+  it answers from the content phase now.
+- **The guest cookie** is `Secure` whenever the visit came over HTTPS, as it always does through
+  nginx; a plain HTTP visit, such as the end-to-end run, keeps it without.
+- **Player messages and presence** live in the identity and events modules: identity owns the
+  players (the owner, the guests and their messages), events owns the gateway.
+- **An offline player** is walked by an agent actor, so they wander the same spots as idle agents
+  until the server says they are gone, then leave through the exit.
+- **A guest's own character** looks the way their id picks; the owner's look stays a preference.
+- **The model** is served by llama.cpp in `/opt/llama_cpp`, reached by the worker through
+  `docker-compose.vps.yml` on the box's `llm_gateway` network.
+

@@ -892,3 +892,17 @@ every row carries `owner_id`, and the repository layer applies that scope on eve
 | `declined` is a task status of its own, set only by `decline_task` | A task outside an agent's job description ended `done` with a made-up report; declined with a reason says what happened, and the delegator hears it like any other outcome. |
 | A reply that is only a JSON tool call naming an offered tool runs as that call | Small local models served over the OpenAI format sometimes write the call as text. Only the whole reply is read, so prose that mentions a tool stays prose. |
 | The speech bubble draws above the conversation panel's backdrop | The panel blurs what is behind it, and the bubble is read while the panel is open. |
+
+## Decisions made in phase 4i
+
+| Decision | Why |
+| --- | --- |
+| A guest is a principal of its own, signed in by the `tbn_guest` cookie an invite link sets | The owner keeps the Bearer session; a friend gets a one-time link, never a password, and the owner can revoke them. Tokens are stored only as hashes. |
+| Guests read through a default and write through an exception | A guest may call any `GET` that is not `@OwnerOnly()` and no other method unless the route is `@GuestAllowed()`, so a new write route is safe for guests until someone opts it in. Connection settings stay owner-only, since a webhook address or a plugin header works as a secret. |
+| nginx asks the web process about every guest request (`auth_request` to `/gate`) | A revoked guest is shut out within seconds; the owner's gate cookie passes in nginx alone, and only a right password at `/gate/owner` sets it. |
+| A guest talks to an agent's persona, not to the agent | Guest text is untrusted and agents hold real tools. The conversation has its own table, runs on the guest model with no tools and no run, and reads a digest of the company, never the agent's transcript. |
+| Guests talk only to idle agents | While an agent works on a task it is the owner's; guests watch. |
+| Presence lives in the web process's memory | Poses arrive a few times a second and matter for a moment; writing them would load the database for nothing. A second web process would split the players, and a comment names that ceiling. |
+| Player messages are rows in the event log, delivered to their two players only | They survive a reload and reach a player who was away, and the gateway filters each socket's changes, which also keeps provider spend and settings from guests. |
+| The guest model is a local llama.cpp on the box | Guests cost nothing per message, so there is no cap; a 0.8B model on three cores answers a short digest in seconds. |
+

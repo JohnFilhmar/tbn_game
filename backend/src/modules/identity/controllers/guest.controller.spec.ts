@@ -37,7 +37,7 @@ describe('guests', () => {
 
   /** Follows an invite link and returns the guest cookie it set. */
   async function follow(path: string): Promise<string> {
-    const response = await api().get(path).expect(302);
+    const response = await api().get(path).set('X-Forwarded-Proto', 'https').expect(302);
     expect(response.headers['location']).toBe('/app/');
     const header: unknown = response.headers['set-cookie'];
     const cookie =
