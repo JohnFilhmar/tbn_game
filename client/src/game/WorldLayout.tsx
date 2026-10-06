@@ -63,8 +63,7 @@ function useGlide(isSeated: boolean): void {
  */
 export function WorldLayout() {
   const location = useLocation();
-  const { token } = useSession();
-  const isSignedIn = token !== null;
+  const { isSignedIn } = useSession();
   const isSeated = isSeatedPath(location.pathname);
   const { data: preferences } = usePreferences();
   const { data: agents } = useCollection(COLLECTIONS.agents);

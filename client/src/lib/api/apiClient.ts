@@ -34,6 +34,11 @@ export interface ApiClient {
   sendNoContent(method: CommandMethod, path: string, init: CommandInit): Promise<void>;
   /** A file the server sends, such as a report's Markdown. */
   getBlob(path: string): Promise<Blob>;
+  /**
+   * A read that may be refused without ending the session: null on a 401 or an answer in another
+   * shape. For asking whether a guest cookie signs this browser in.
+   */
+  probe<T>(path: string, schema: z.ZodType<T>): Promise<T | null>;
 }
 
 function withQuery(path: string, query: Record<string, QueryValue> = {}): string {
@@ -63,7 +68,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   async function call(
     method: string,
     path: string,
-    init: { body?: unknown; commandId?: string } = {},
+    init: { body?: unknown; commandId?: string; quiet?: boolean } = {},
   ): Promise<Response> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     const token = options.getToken();
@@ -82,7 +87,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     }
     if (response.ok) return response;
     const error = apiErrorFrom(response.status, await readBody(response));
-    if (response.status === 401) options.onUnauthorized(error.message);
+    if (response.status === 401 && init.quiet !== true) options.onUnauthorized(error.message);
     throw error;
   }
 
@@ -105,6 +110,15 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     async getBlob(path) {
       return (await call('GET', path)).blob();
+    },
+    async probe(path, schema) {
+      try {
+        return (
+          schema.safeParse(await readBody(await call('GET', path, { quiet: true }))).data ?? null
+        );
+      } catch {
+        return null;
+      }
     },
   };
 }

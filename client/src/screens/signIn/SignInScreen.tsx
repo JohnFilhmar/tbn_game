@@ -26,7 +26,7 @@ function returnPath(state: unknown, deskPath: string): string {
 
 /** The owner signs in with the account made on the server. */
 export function SignInScreen() {
-  const { token, notice, signIn } = useSession();
+  const { isSignedIn, notice, signIn } = useSession();
   const location = useLocation();
   const lastDesktopPath = useWorldStore((state) => state.lastDesktopPath);
   const target = returnPath(location.state, lastDesktopPath);
@@ -38,7 +38,7 @@ export function SignInScreen() {
     onSubmit: (body) => signIn(body.username, body.password),
   });
 
-  if (token !== null) return <Navigate to={target} replace />;
+  if (isSignedIn) return <Navigate to={target} replace />;
 
   return (
     <MonitorFrame>

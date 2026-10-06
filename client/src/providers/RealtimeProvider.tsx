@@ -9,19 +9,19 @@ import { API_BASE_URL, useSession } from './SessionProvider';
 const RealtimeContext = createContext<ConnectionStatus>('offline');
 
 /**
- * Keeps the desktop and the world live while the owner is signed in: every change from the
+ * Keeps the desktop and the world live while the owner or a guest is signed in: every change from the
  * gateway is written into the query cache and then published to the change feed the world watches,
  * streamed output goes to the stream store, and a resync reloads what is loaded. Nothing polls.
  */
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const { token, signOut } = useSession();
+  const { token, isSignedIn, signOut } = useSession();
   const queryClient = useQueryClient();
   const receive = useStreamStore((state) => state.receive);
   const settle = useStreamStore((state) => state.settle);
   const [status, setStatus] = useState<ConnectionStatus>('offline');
 
   useEffect(() => {
-    if (token === null) return undefined;
+    if (!isSignedIn) return undefined;
     const connection = connectRealtime({
       baseUrl: API_BASE_URL,
       token,
@@ -40,7 +40,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       },
     });
     return () => connection.close();
-  }, [token, queryClient, receive, settle, signOut]);
+  }, [token, isSignedIn, queryClient, receive, settle, signOut]);
 
   return <RealtimeContext value={status}>{children}</RealtimeContext>;
 }

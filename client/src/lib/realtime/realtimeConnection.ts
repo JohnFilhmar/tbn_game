@@ -33,13 +33,13 @@ export interface RealtimeConnection {
 const ChangesSchema = ChangeEventSchema.array();
 
 /**
- * Connects to the gateway with the session token and keeps the last sequence applied, so every
- * reconnect, automatic or not, resumes exactly after it. A change at or before the cursor is a
- * repeat and is dropped.
+ * Connects to the gateway with the owner's session token, or with none for a guest, whose cookie
+ * signs them in, and keeps the last sequence applied, so every reconnect, automatic or not, resumes
+ * exactly after it. A change at or before the cursor is a repeat and is dropped.
  */
 export function connectRealtime(options: {
   baseUrl: string;
-  token: string;
+  token: string | null;
   handlers: RealtimeHandlers;
 }): RealtimeConnection {
   const { handlers } = options;
@@ -49,7 +49,8 @@ export function connectRealtime(options: {
     path: '/socket.io',
     transports: ['websocket'],
     reconnectionDelayMax: 10_000,
-    auth: (callback) => callback({ token: options.token, cursor }),
+    auth: (callback) =>
+      callback(options.token === null ? { cursor } : { token: options.token, cursor }),
   });
   handlers.onStatus('connecting');
 

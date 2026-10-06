@@ -234,6 +234,12 @@ const DESK_ROUTES: RouteObject[] = [
     ),
   },
   {
+    path: 'guests',
+    lazy: screen(() =>
+      import('@/screens/guests/GuestsScreen').then((module) => module.GuestsScreen),
+    ),
+  },
+  {
     path: 'caches',
     lazy: screen(() =>
       import('@/screens/caches/CachesScreen').then((module) => module.CachesScreen),
