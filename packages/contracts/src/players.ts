@@ -54,6 +54,12 @@ export const ReadPlayerMessagesSchema = PlayerMessageSchema.pick({ from_id: true
 /** Body of `POST /player_messages/read`. */
 export type ReadPlayerMessages = z.infer<typeof ReadPlayerMessagesSchema>;
 
+/** What a player does at a prop, shown on their body to the others: sit, drink, press and so on. */
+export const PlayerActSchema = z.enum(['sit', 'drink', 'press', 'touch', 'write', 'look']);
+
+/** A player's act at a prop. */
+export type PlayerAct = z.infer<typeof PlayerActSchema>;
+
 /** Where a player stands and what they do, sent a few times a second. Never stored. */
 export const PlayerPoseSchema = z.strictObject({
   environment: EnvironmentNameSchema,
@@ -64,6 +70,8 @@ export const PlayerPoseSchema = z.strictObject({
   moving: z.boolean(),
   running: z.boolean(),
   seated: z.boolean(),
+  /** The clip the player plays at a prop, with `y` at the seat's height when they sit. */
+  act: PlayerActSchema.nullable().default(null),
 });
 
 /** A player's pose. */

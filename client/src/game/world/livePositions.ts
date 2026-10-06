@@ -1,3 +1,4 @@
+import type { PlayerAct } from '@tbn/contracts';
 import type { Camera, Vector3 } from 'three';
 
 /** The key of the owner's character in `livePositions`; agents are keyed by their id. */
@@ -19,7 +20,16 @@ export const playerPositions = new Map<string, Vector3>();
  * Where your own character stands and what it does, written every frame, for the pose this client
  * sends the other players.
  */
-export const localPose = {
+export const localPose: {
+  x: number;
+  y: number;
+  z: number;
+  yawDeg: number;
+  isMoving: boolean;
+  isRunning: boolean;
+  isPlaced: boolean;
+  act: PlayerAct | null;
+} = {
   x: 0,
   y: 0,
   z: 0,
@@ -27,6 +37,7 @@ export const localPose = {
   isMoving: false,
   isRunning: false,
   isPlaced: false,
+  act: null,
 };
 
 /** The camera the world draws with, for DOM overlays that follow something in the scene. */

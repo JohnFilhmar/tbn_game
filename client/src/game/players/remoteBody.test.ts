@@ -17,6 +17,7 @@ function pose(x: number, z: number, overrides: Partial<PlayerPose> = {}): Player
     moving: false,
     running: false,
     seated: false,
+    act: null,
     ...overrides,
   };
 }
@@ -47,6 +48,20 @@ describe('a remote player body', () => {
     body.tick(0.1, 'online', 'Mika', STRAIGHT, EXIT);
     expect(body.clip).toBe('work');
     expect(body.position.toArray()).toEqual([2, 0, 2]);
+  });
+
+  it('sits on the sofa at its height, then stands up and walks off', () => {
+    const body = new RemoteBody('mika', pose(0, 0));
+    body.follow(pose(1, 1, { y: 0.4, act: 'sit', yaw: 180 }));
+    body.tick(0.1, 'online', 'Mika', STRAIGHT, EXIT);
+    expect(body.clip).toBe('sit');
+    expect(body.position.toArray()).toEqual([1, 0.4, 1]);
+    expect(body.yawDeg).toBe(180);
+
+    body.follow(pose(1.5, 1, { moving: true }));
+    body.tick(0.1, 'online', 'Mika', STRAIGHT, EXIT);
+    expect(body.clip).toBe('walk');
+    expect(body.position.y).toBe(0);
   });
 
   it('walks out through the exit and is gone, once its player left for good', () => {

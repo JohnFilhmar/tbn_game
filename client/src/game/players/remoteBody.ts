@@ -91,12 +91,15 @@ export class RemoteBody {
     const dx = pose.x - this.position.x;
     const dz = pose.z - this.position.z;
     const distance = Math.hypot(dx, dz);
-    if (pose.seated) {
-      this.position.set(pose.x, 0, pose.z);
+    if (pose.seated || pose.act !== null) {
+      // At the computer or a prop: the body is where the player is, sitting at the seat's height.
+      this.position.set(pose.x, pose.y, pose.z);
       this.yawDeg = pose.yaw;
-      this.clip = 'work';
+      this.clip = pose.act ?? 'work';
+      this.timeScale = 1;
       return;
     }
+    this.position.y = 0;
     if (distance > SNAP_DISTANCE) {
       this.position.set(pose.x, 0, pose.z);
     } else if (distance > 0.02) {

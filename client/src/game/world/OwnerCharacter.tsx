@@ -1,4 +1,5 @@
 import { useFrame } from '@react-three/fiber';
+import { PlayerActSchema, type PlayerAct } from '@tbn/contracts';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Vector3, type Group } from 'three';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
@@ -15,6 +16,24 @@ import type { Navigation, NavNode } from './navmesh';
 import { promptAt, propsInReach, type Prompt, type UsableProp } from './prompt';
 import { seatPoseOf, type SeatPose } from './seat';
 import { useWorldStore } from './worldStore';
+
+/** Writes the pose this client sends the other players. */
+function showPose(
+  at: Vector3,
+  yawDeg: number,
+  isMoving: boolean,
+  isRunning: boolean,
+  act: PlayerAct | null,
+): void {
+  localPose.x = at.x;
+  localPose.y = at.y;
+  localPose.z = at.z;
+  localPose.yawDeg = yawDeg;
+  localPose.isMoving = isMoving;
+  localPose.isRunning = isRunning;
+  localPose.act = act;
+  localPose.isPlaced = true;
+}
 
 /** Props of `OwnerCharacter`. */
 export interface OwnerCharacterProps {
@@ -115,12 +134,7 @@ export function OwnerCharacter({
       group.position.copy(own.position);
       group.rotation.y = radiansOf(own.yawDeg);
       clipRef.current = 'work';
-      localPose.x = own.position.x;
-      localPose.z = own.position.z;
-      localPose.yawDeg = own.yawDeg;
-      localPose.isMoving = false;
-      localPose.isRunning = false;
-      localPose.isPlaced = true;
+      showPose(own.position, own.yawDeg, false, false, null);
       head.set(own.position.x, HEAD_HEIGHT, own.position.z);
       group.visible = camera.position.distanceTo(head) > HIDE_WITHIN;
       return;
@@ -168,6 +182,7 @@ export function OwnerCharacter({
       group.visible = false;
       group.position.copy(own.position);
       clipRef.current = 'idle';
+      showPose(own.position, own.yawDeg, false, false, 'write');
       return;
     }
     if (partner !== undefined) {
@@ -200,6 +215,8 @@ export function OwnerCharacter({
       group.position.copy(acting.seat ?? own.position);
       group.rotation.y = radiansOf(own.yawDeg);
       clipRef.current = acting.clip;
+      const act = PlayerActSchema.safeParse(acting.clip);
+      showPose(group.position, own.yawDeg, false, false, act.success ? act.data : null);
       return;
     }
     if (isMoving) {
@@ -213,12 +230,7 @@ export function OwnerCharacter({
     group.position.copy(own.position);
     group.rotation.y = radiansOf(own.yawDeg);
     clipRef.current = isMoving ? 'walk' : 'idle';
-    localPose.x = own.position.x;
-    localPose.z = own.position.z;
-    localPose.yawDeg = own.yawDeg;
-    localPose.isMoving = isMoving;
-    localPose.isRunning = isMoving && keys.has('run');
-    localPose.isPlaced = true;
+    showPose(own.position, own.yawDeg, isMoving, isMoving && keys.has('run'), null);
     const agents = new Map(livePositions);
     agents.delete(OWNER_KEY);
     const prompt: Prompt = promptAt({

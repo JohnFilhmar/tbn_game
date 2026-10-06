@@ -11,6 +11,7 @@ const POSE: PlayerPose = {
   moving: true,
   running: false,
   seated: false,
+  act: null,
 };
 
 describe('the presence registry', () => {

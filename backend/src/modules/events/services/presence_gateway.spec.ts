@@ -26,6 +26,7 @@ const POSE: PlayerPose = {
   moving: true,
   running: false,
   seated: false,
+  act: null,
 };
 
 /** A connected socket and everything it heard. */

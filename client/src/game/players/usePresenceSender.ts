@@ -32,12 +32,13 @@ export function usePresenceSender(
       const pose: PlayerPose = {
         environment,
         x: rounded(localPose.x),
-        y: 0,
+        y: rounded(localPose.y),
         z: rounded(localPose.z),
         yaw: rounded(localPose.yawDeg),
         moving: !isSeated && localPose.isMoving,
         running: !isSeated && localPose.isRunning,
         seated: isSeated,
+        act: isSeated ? null : localPose.act,
       };
       const key = JSON.stringify(pose);
       const now = Date.now();
