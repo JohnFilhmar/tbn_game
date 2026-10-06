@@ -27,7 +27,7 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 4f | The suggested objects | Merged |
 | 4g | Costs and the desk | Merged |
 | 4h | Conversations and commands | Merged |
-| 4i | Guests | In progress |
+| 4i | Guests | Merged |
 | 4j | Sound | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
