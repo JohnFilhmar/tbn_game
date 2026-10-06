@@ -22,6 +22,16 @@ function prop(placementId: string, x: number, z: number, reach = 1.8): UsablePro
 }
 
 describe('the E prompt', () => {
+  it('offers a player in front, but never over the computer', () => {
+    const players = new Map([['mika', new Vector3(0, 0, 1)]]);
+    const ahead = new Map([['mika', new Vector3(0, 0, -1)]]);
+    expect(promptAt({ ...scene({}, [0, -2]), players: ahead })).toEqual({
+      kind: 'player',
+      playerId: 'mika',
+    });
+    expect(promptAt({ ...scene({}), players })).toEqual({ kind: 'computer' });
+  });
+
   it('offers the computer within its reach', () => {
     expect(promptAt(scene({}))).toEqual({ kind: 'computer' });
     expect(promptAt(scene({}, [0, -5]))).toBeNull();

@@ -61,7 +61,8 @@ export function promptAt(scene: PromptScene): Prompt {
     best = { kind: 'agent', agentId };
     bestDistance = distance;
   }
-  for (const [playerId, position] of scene.players ?? []) {
+  // Another player never takes E from the computer either: a guest may sit in its chair.
+  for (const [playerId, position] of best?.kind === 'computer' ? [] : (scene.players ?? [])) {
     const distance = distanceXz(scene.owner, position);
     if (distance > TALK_REACH || distance >= bestDistance) continue;
     if (!isInFront(position.x, position.z, distance)) continue;
