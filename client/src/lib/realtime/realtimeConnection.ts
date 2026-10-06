@@ -5,11 +5,13 @@ import {
   REALTIME_MESSAGES,
   RealtimeHelloSchema,
   ResyncRequiredSchema,
+  SoundCueSchema,
   StreamChunkSchema,
   type ChangeEvent,
   type Player,
   type PlayerPose,
   type ResyncRequired,
+  type SoundCue,
   type StreamChunk,
 } from '@tbn/contracts';
 import { io } from 'socket.io-client';
@@ -33,6 +35,8 @@ export interface RealtimeHandlers {
   onPlayer: (player: Player) => void;
   /** A player who left long enough ago is gone. */
   onPlayerGone: (id: string) => void;
+  /** Another player made a sound. */
+  onCue: (cue: SoundCue) => void;
 }
 
 /** A live connection to the gateway. */
@@ -40,6 +44,8 @@ export interface RealtimeConnection {
   close: () => void;
   /** Sends this player's pose; dropped while disconnected. */
   sendPresence: (pose: PlayerPose) => void;
+  /** Sends a sound this player made; dropped while disconnected. */
+  sendCue: (cue: SoundCue) => void;
 }
 
 const ChangesSchema = ChangeEventSchema.array();
@@ -101,6 +107,10 @@ export function connectRealtime(options: {
     const gone = PlayerGoneSchema.safeParse(payload);
     if (gone.success) handlers.onPlayerGone(gone.data.id);
   });
+  socket.on(REALTIME_MESSAGES.cue, (payload: unknown) => {
+    const cue = SoundCueSchema.safeParse(payload);
+    if (cue.success) handlers.onCue(cue.data);
+  });
   socket.on('connect_error', (error: Error) => {
     if (closed) return;
     if (error.message === 'unauthorized') {
@@ -128,6 +138,9 @@ export function connectRealtime(options: {
     },
     sendPresence: (pose) => {
       if (socket.connected) socket.volatile.emit(REALTIME_MESSAGES.presence, pose);
+    },
+    sendCue: (cue) => {
+      if (socket.connected) socket.volatile.emit(REALTIME_MESSAGES.cue, cue);
     },
   };
 }

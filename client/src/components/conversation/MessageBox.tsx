@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/Button';
 import { TextAreaField } from '@/components/fields/TextField';
 import { FormError } from '@/components/FormError';
+import { playSound } from '@/game/sound/soundEngine';
 import { putRow, putTranscriptEntry } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useForm } from '@/lib/forms/useForm';
@@ -72,6 +73,7 @@ export function MessageBox({
       });
       putTranscriptEntry(client, entry);
       form.reset({ text: '' });
+      playSound('send');
     },
   });
   return (

@@ -6,6 +6,8 @@ import { appearanceOf, resolveAppearance, type ResolvedAppearance } from '@/game
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { forwardOf, radiansOf, vec3, yawTowards } from '@/game/assets/geometry';
 import { emitEffect } from '@/game/objects/liveEffects';
+import { EFFECT_SOUNDS } from '@/game/sound/soundCues';
+import { playSound } from '@/game/sound/soundEngine';
 import type { ArrangedPack } from '@/game/props/arrangedPack';
 import { Character } from '@/game/world/Character';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
@@ -209,6 +211,7 @@ function AgentCharacter({ actor, appearance, hasApproval, onGone }: AgentCharact
             groupRef={groupRef}
             position={[actor.position.x, actor.position.y, actor.position.z]}
             rotationY={radiansOf(actor.yawDeg)}
+            isHeard
           />
         </group>
       </Suspense>
@@ -278,6 +281,7 @@ export function Agents({
             onEffect: (kind, at, yawDeg) => {
               const [dx, dz] = forwardOf(yawDeg);
               emitEffect(kind, at.x + dx * 0.6, at.z + dz * 0.6);
+              playSound(EFFECT_SOUNDS[kind], { x: at.x + dx * 0.6, y: 1, z: at.z + dz * 0.6 });
             },
           },
           from: hasRoster.current ? entry : 'home',

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { GuestChatMessageSchema, type Agent } from '@tbn/contracts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { playSound } from '@/game/sound/soundEngine';
 import { Button } from '@/components/Button';
 import { FormError } from '@/components/FormError';
 import { queryKeys } from '@/lib/data/collections';
@@ -60,7 +61,9 @@ export function GuestAgentChat({ agent, isBusy, ownerName }: GuestAgentChatProps
     const trimmed = text.trim();
     if (trimmed.length === 0) return;
     const sent = await send.submit({ text: trimmed }).catch(() => null);
-    if (sent !== null) setText('');
+    if (sent === null) return;
+    setText('');
+    playSound('send');
   };
 
   return (

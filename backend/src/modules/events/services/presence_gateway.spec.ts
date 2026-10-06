@@ -4,9 +4,11 @@ import {
   ChangeEventSchema,
   PlayerSchema,
   REALTIME_MESSAGES,
+  SoundCueSchema,
   type ChangeEvent,
   type Player,
   type PlayerPose,
+  type SoundCue,
 } from '@tbn/contracts';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
@@ -35,6 +37,7 @@ interface Listener {
   snapshot: Player[];
   players: Player[];
   changes: ChangeEvent[];
+  cues: SoundCue[];
 }
 
 describe('presence and private messages over the gateway', () => {
@@ -70,10 +73,13 @@ describe('presence and private messages over the gateway', () => {
       auth: who.token === undefined ? {} : { token: who.token },
       ...(who.cookie !== undefined && { extraHeaders: { Cookie: who.cookie } }),
     });
-    const listener: Listener = { socket, snapshot: [], players: [], changes: [] };
+    const listener: Listener = { socket, snapshot: [], players: [], changes: [], cues: [] };
     listeners.push(listener);
     socket.on(REALTIME_MESSAGES.player, (player: unknown) => {
       listener.players.push(PlayerSchema.parse(player));
+    });
+    socket.on(REALTIME_MESSAGES.cue, (cue: unknown) => {
+      listener.cues.push(SoundCueSchema.parse(cue));
     });
     socket.on(REALTIME_MESSAGES.changes, (events: unknown) => {
       listener.changes.push(...z.array(ChangeEventSchema).parse(events));
@@ -135,5 +141,22 @@ describe('presence and private messages over the gateway', () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(reached(bo_socket)).toBe(false);
+  });
+
+  it('relays a sound to the other players only, and drops bad and hurried ones', async () => {
+    const owner_socket = await connect({ token: owner.token });
+    const mika_socket = await connect({ cookie: mika.cookie });
+    const blinds: SoundCue = { sound: 'blinds', environment: 'office', x: 3, y: 0, z: -2 };
+    mika_socket.socket.emit(REALTIME_MESSAGES.cue, blinds);
+    mika_socket.socket.emit(REALTIME_MESSAGES.cue, { ...blinds, sound: 'click' });
+    await wait_for('the owner to hear the blinds', () =>
+      owner_socket.cues.length > 0 ? true : undefined,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    mika_socket.socket.emit(REALTIME_MESSAGES.cue, { ...blinds, sound: 'explosion' });
+    mika_socket.socket.emit(REALTIME_MESSAGES.cue, { ...blinds, x: 'far' });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(owner_socket.cues).toEqual([blinds]);
+    expect(mika_socket.cues).toEqual([]);
   });
 });

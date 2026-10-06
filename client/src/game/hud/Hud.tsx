@@ -19,6 +19,7 @@ import { useSetPreference } from '@/lib/data/useSetPreference';
 import { ownerAppearanceOf } from '@/game/assets/appearance';
 import { useSession } from '@/providers/SessionProvider';
 import { ControlsHelp } from './ControlsHelp';
+import { SoundVolume } from './SoundVolume';
 import { ConversationPanel } from './ConversationPanel';
 import { CustomiseDialog } from './CustomiseDialog';
 import { MOST_HOTKEYS, NarrationPanel } from './NarrationPanel';
@@ -189,6 +190,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
             >
               Camera: {cameraMode === 'top_down' ? 'top down' : 'third person'}
             </Button>
+            <SoundVolume />
             {guestOf === null && (
               <>
                 <Button size="sm" onClick={() => setOpenDialog('world')}>

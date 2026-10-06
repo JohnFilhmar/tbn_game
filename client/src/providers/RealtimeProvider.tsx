@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { applyChanges } from '@/lib/realtime/applyChanges';
 import { publishChanges } from '@/lib/realtime/changeFeed';
+import { hearCue } from '@/game/sound/soundCues';
 import { setPresenceSender } from '@/lib/realtime/presenceChannel';
 import { usePlayersStore } from '@/lib/stores/playersStore';
 import { connectRealtime, type ConnectionStatus } from '@/lib/realtime/realtimeConnection';
@@ -42,9 +43,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         onPlayers: (players) => usePlayersStore.getState().replace(players),
         onPlayer: (player) => usePlayersStore.getState().upsert(player),
         onPlayerGone: (id) => usePlayersStore.getState().leave(id),
+        onCue: hearCue,
       },
     });
-    setPresenceSender(connection.sendPresence);
+    setPresenceSender(connection);
     return () => {
       setPresenceSender(null);
       connection.close();

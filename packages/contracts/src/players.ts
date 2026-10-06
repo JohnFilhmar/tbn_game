@@ -98,3 +98,33 @@ export const PLAYER_LINGER_MS = 20 * 60_000;
 
 /** Payload of the gateway's `player_gone` message: a player who left long enough ago. */
 export const PlayerGoneSchema = z.strictObject({ id: IdSchema });
+
+/** The sounds a player's use of a prop makes, heard by the other players. */
+export const SoundCueNameSchema = z.enum([
+  'pour',
+  'bubble',
+  'sprinkle',
+  'rustle',
+  'sit',
+  'click',
+  'blinds',
+  'scribble',
+]);
+
+/** A sound a prop makes. */
+export type SoundCueName = z.infer<typeof SoundCueNameSchema>;
+
+/**
+ * A sound a player made at a place in an environment. The gateway relays it unchanged to the
+ * other players, who hear it quieter the farther they stand. Never stored.
+ */
+export const SoundCueSchema = z.strictObject({
+  sound: SoundCueNameSchema,
+  environment: EnvironmentNameSchema,
+  x: z.number().finite(),
+  y: z.number().finite(),
+  z: z.number().finite(),
+});
+
+/** A sound cue. */
+export type SoundCue = z.infer<typeof SoundCueSchema>;

@@ -21,6 +21,7 @@ import { usePresenceSender } from '@/game/players/usePresenceSender';
 import { milestonesOf, pinnedReports, type LiveData } from '@/game/objects/liveData';
 import { isThirsty, propStatesOf, stateOf } from '@/game/objects/propStates';
 import { RadioPlayer } from '@/game/objects/RadioPlayer';
+import { setHeardEnvironment } from '@/game/sound/soundCues';
 import { BuildPanel } from '@/game/build/BuildPanel';
 import { useBuildStore } from '@/game/build/buildStore';
 import { arrangePack } from '@/game/props/arrangedPack';
@@ -101,6 +102,10 @@ export function WorldLayout() {
   }, [preferredEnvironment, setEnvironment]);
 
   const shownEnvironment = preferredEnvironment ?? environment;
+  useEffect(() => {
+    setHeardEnvironment(shownEnvironment);
+    return () => setHeardEnvironment(null);
+  }, [shownEnvironment]);
   const pack = PACKS[shownEnvironment];
   const { data: savedLayout } = useWorldLayout(shownEnvironment);
   const saved = useMemo(() => arrangePack(pack, savedLayout ?? null), [pack, savedLayout]);
@@ -194,7 +199,7 @@ export function WorldLayout() {
       ),
     [arranged.placements, propStates, now],
   );
-  const isRadioOn = saved.placements.some(
+  const playingRadio = saved.placements.find(
     (placement) => placement.kind === 'radio' && stateOf.isRadioOn(propStates, placement.id),
   );
   const canRender = useMemo(() => canRenderWorld(), []);
@@ -236,7 +241,7 @@ export function WorldLayout() {
       )}
       {isSignedIn && <PlayersHud myId={myPlayerId} isOverlayOpen={isSeated || isBuilding} />}
       {isBuilding && <BuildPanel arranged={saved} defaults={pack.manifest.default_layout} />}
-      <RadioPlayer isOn={isSignedIn && isRadioOn} />
+      <RadioPlayer radio={isSignedIn ? (playingRadio ?? null) : null} />
       <Outlet />
       <div
         aria-hidden="true"

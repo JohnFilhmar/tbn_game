@@ -7,6 +7,7 @@ import { emitEffect } from '@/game/objects/liveEffects';
 import { stateOf, type PropStates } from '@/game/objects/propStates';
 import { toWorld } from '@/game/props/arrangement';
 import { INTERACTIONS, verbOf } from '@/game/props/interactions';
+import { cueSound } from '@/game/sound/soundCues';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
 import { useWorldStore } from '@/game/world/worldStore';
 import { errorMessage } from '@/lib/api/apiError';
@@ -80,6 +81,9 @@ export function useInteract(
       }
       store.narrate(`You ${verb}.`);
       if (interaction.effect !== null) emitEffect(interaction.effect, placement.x, placement.z);
+      if (interaction.sound !== null) {
+        cueSound(interaction.sound, { x: placement.x, y: 1, z: placement.z });
+      }
       switch (interaction.action) {
         case 'draw':
           store.setDrawingOn(placement.id);

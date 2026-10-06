@@ -1,35 +1,34 @@
+import type { WorldPlacement } from '@tbn/contracts';
 import { useEffect } from 'react';
+import { placedPanner } from '@/game/sound/listener';
+import { whenSoundReady } from '@/game/sound/soundEngine';
 import { playTune } from './radioTune';
 
 /** Props of `RadioPlayer`. */
 export interface RadioPlayerProps {
-  /** True while a radio in the environment shown is on. */
-  isOn: boolean;
+  /** The radio playing in the environment shown, or null while none is on. */
+  radio: WorldPlacement | null;
 }
 
-const VOLUME = 0.15;
+const VOLUME = 0.35;
 
 /**
- * The radio's calm loop, playing while a radio is on. A browser starts sound only after a press
- * on the page, so after a reload with the radio on the loop starts on the next key or click.
+ * The radio's calm loop, playing from the radio while it is on: louder close by, faint across the
+ * room. The world's sound starts on the first key or click on the page, so after a reload with
+ * the radio on the loop starts then.
  */
-export function RadioPlayer({ isOn }: RadioPlayerProps) {
+export function RadioPlayer({ radio }: RadioPlayerProps) {
   useEffect(() => {
-    if (!isOn || typeof AudioContext === 'undefined') return undefined;
-    const context = new AudioContext();
-    const stop = playTune(context, VOLUME);
-    const wake = (): void => {
-      if (context.state === 'suspended') void context.resume();
-    };
-    wake();
-    window.addEventListener('pointerdown', wake);
-    window.addEventListener('keydown', wake);
-    return () => {
-      window.removeEventListener('pointerdown', wake);
-      window.removeEventListener('keydown', wake);
-      stop();
-      void context.close();
-    };
-  }, [isOn]);
+    if (radio === null) return undefined;
+    return whenSoundReady((context, master) => {
+      const { panner, release } = placedPanner(context, { x: radio.x, y: 1, z: radio.z });
+      panner.connect(master);
+      const stop = playTune(context, panner, VOLUME);
+      return () => {
+        stop();
+        release();
+      };
+    });
+  }, [radio]);
   return null;
 }

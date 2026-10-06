@@ -7,7 +7,12 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { PlayerPoseSchema, REALTIME_MESSAGES, type ProcessType } from '@tbn/contracts';
+import {
+  PlayerPoseSchema,
+  REALTIME_MESSAGES,
+  SoundCueSchema,
+  type ProcessType,
+} from '@tbn/contracts';
 import { Server } from 'socket.io';
 import type { AppConfig } from '@/config/config.schema';
 import { APP_CONFIG, PROCESS_TYPE } from '@/config/config.tokens';
@@ -43,12 +48,15 @@ const MAX_CLIENT_MESSAGE_BYTES = 16_384;
 /** The shortest gap between two poses a socket may send; faster ones are dropped. */
 const MIN_POSE_INTERVAL_MS = 50;
 
+/** The shortest gap between two sound cues a socket may send; faster ones are dropped. */
+const MIN_CUE_INTERVAL_MS = 150;
+
 /**
  * The Socket.IO gateway on the web port. The owner connects with a session token, a guest with the
  * guest cookie, and either may send the last sequence it applied to resume; it receives every event
  * after that in order that it may see, then the live ones, and the stream of the agents' output
- * while it is generated. Every player sends their pose and hears the others'. Commands are HTTP
- * routes. Runs in the web process only.
+ * while it is generated. Every player sends their pose and the sounds they make, and hears the
+ * others'. Commands are HTTP routes. Runs in the web process only.
  *
  * Ceiling: each socket reads the log on every change of its owner, which suits one owner with a
  * few devices and a handful of guests.
@@ -215,6 +223,7 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
       this.presence.join(owner_id, socket.data.player, socket.id),
     );
     socket.on(REALTIME_MESSAGES.presence, (pose: unknown) => void this.move(socket, pose));
+    socket.on(REALTIME_MESSAGES.cue, (cue: unknown) => this.relay_cue(socket, cue));
     socket.on('disconnect', () => {
       owned.delete(feed);
       if (owned.size === 0) this.feeds.delete(owner_id);
@@ -241,6 +250,20 @@ export class RealtimeGatewayService implements OnApplicationBootstrap, OnApplica
       }
     }
     this.presence.move(owner_id, player.id, parsed.data);
+  }
+
+  /** Relays a sound a player made to the owner's other players, at most every `MIN_CUE_INTERVAL_MS`. */
+  private relay_cue(socket: RealtimeSocket, cue: unknown): void {
+    const now = Date.now();
+    if (now - socket.data.last_cue_at < MIN_CUE_INTERVAL_MS) return;
+    const parsed = SoundCueSchema.safeParse(cue);
+    if (!parsed.success) return;
+    socket.data.last_cue_at = now;
+    for (const other of this.sockets_of(socket.data.owner_id)) {
+      if (other.data.player.id !== socket.data.player.id) {
+        other.emit(REALTIME_MESSAGES.cue, parsed.data);
+      }
+    }
   }
 
   private wake(owner_id: string): void {

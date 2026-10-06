@@ -57,13 +57,17 @@ function tone(
 }
 
 /**
- * Plays the calm loop on `context` at `volume`, scheduling a bar ahead of time, and answers a
- * function that stops it.
+ * Plays the calm loop on `context` into `destination` at `volume`, scheduling a bar ahead of time,
+ * and answers a function that stops it.
  */
-export function playTune(context: AudioContext, volume: number): () => void {
+export function playTune(
+  context: AudioContext,
+  destination: AudioNode,
+  volume: number,
+): () => void {
   const out = context.createGain();
   out.gain.value = volume;
-  out.connect(context.destination);
+  out.connect(destination);
   let bar = 0;
   let nextAt = context.currentTime + 0.1;
   const schedule = (): void => {

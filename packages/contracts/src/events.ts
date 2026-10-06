@@ -138,7 +138,10 @@ export const EventsPageSchema = z.strictObject({
 /** A page of `GET /events`. */
 export type EventsPage = z.infer<typeof EventsPageSchema>;
 
-/** The names of the Socket.IO messages. Clients send only `presence`; commands are HTTP routes. */
+/**
+ * The names of the Socket.IO messages. Clients send only `presence` and `cue`; commands are HTTP
+ * routes.
+ */
 export const REALTIME_MESSAGES = {
   hello: 'hello',
   changes: 'changes',
@@ -152,6 +155,8 @@ export const REALTIME_MESSAGES = {
   player: 'player',
   /** A player who left long enough ago is gone from the world. */
   player_gone: 'player_gone',
+  /** Both ways: a sound a player made at a prop, relayed unchanged to the other players. */
+  cue: 'cue',
 } as const;
 
 /**

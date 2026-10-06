@@ -1,4 +1,4 @@
-import type { PropKind } from '@tbn/contracts';
+import type { PropKind, SoundCueName } from '@tbn/contracts';
 import type { ClipName } from '../assets/clipNames.ts';
 import { spot, type SpotAnchor } from './spots.ts';
 
@@ -37,6 +37,8 @@ export interface Interaction {
   clip: ClipName;
   seconds: number;
   effect: EffectKind | null;
+  /** What using it sounds like, heard by everyone near; none for a look. */
+  sound: SoundCueName | null;
   action: InteractionAction;
   /** The desk screen a `desk` action opens. */
   path?: string;
@@ -48,7 +50,7 @@ export interface Interaction {
 /** As long as the owner sits back: until they move. */
 const UNTIL_MOVED = 3_600;
 
-const LOOK = { clip: 'look', seconds: 1, effect: null } as const;
+const LOOK = { clip: 'look', seconds: 1, effect: null, sound: null } as const;
 
 /**
  * Every prop kind someone can use. The HUD's prompt and the agents' wander spots both read this
@@ -61,6 +63,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'write',
     seconds: 1,
     effect: null,
+    sound: 'scribble',
     action: 'draw',
     spots: [spot('board', [1.5, 0.55], [0.6, 0])],
   },
@@ -70,6 +73,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'drink',
     seconds: 3,
     effect: 'steam',
+    sound: 'pour',
     action: 'drink',
     spots: [spot('coffee', [0, 0.85], [0, 0])],
   },
@@ -79,6 +83,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'drink',
     seconds: 3,
     effect: 'bubbles',
+    sound: 'bubble',
     action: 'drink',
     spots: [spot('water', [0, 0.75], [0, 0])],
   },
@@ -89,6 +94,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'press',
     seconds: 1,
     effect: null,
+    sound: 'blinds',
     action: 'blinds',
     spots: [spot('window', [0, 0.7], [0, 0])],
   },
@@ -98,6 +104,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'press',
     seconds: 1,
     effect: null,
+    sound: 'click',
     action: 'lights',
     spots: [],
   },
@@ -107,6 +114,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'touch',
     seconds: 2.5,
     effect: 'blades',
+    sound: 'rustle',
     action: 'grass',
     spots: [spot('grass', [0, 0.95], [0, 0])],
   },
@@ -146,6 +154,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'sit',
     seconds: UNTIL_MOVED,
     effect: null,
+    sound: 'sit',
     action: 'sit',
     spots: [spot('rest', [0, 0.95], [0, 2], [0, 0.05])],
   },
@@ -155,6 +164,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'sit',
     seconds: UNTIL_MOVED,
     effect: null,
+    sound: 'sit',
     action: 'sit',
     spots: [spot('rest', [0, 0.75], [0, 2], [0, 0])],
   },
@@ -171,6 +181,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'touch',
     seconds: 2,
     effect: 'drops',
+    sound: 'sprinkle',
     action: 'water',
     spots: [spot('plant', [0, 0.9], [0, 0])],
   },
@@ -180,6 +191,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'touch',
     seconds: 2,
     effect: 'drops',
+    sound: 'sprinkle',
     action: 'water',
     spots: [spot('plant', [0, 1], [0, 0])],
   },
@@ -197,6 +209,7 @@ export const INTERACTIONS: Partial<Record<PropKind, Interaction>> = {
     clip: 'press',
     seconds: 1,
     effect: null,
+    sound: 'click',
     action: 'radio',
     spots: [],
   },

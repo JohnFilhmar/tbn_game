@@ -28,6 +28,7 @@ Start phase <n>, for example 1a. Write docs/plans/phase_<n>.md first, then build
 | 4g | Costs and the desk | Merged |
 | 4h | Conversations and commands | Merged |
 | 4i | Guests | In progress |
+| 4j | Sound | In progress |
 | 5 | Mobile | Not started |
 | 6 | Desktop | Not started |
 | 7 | Online readiness | Not scheduled. A written design only. |
@@ -241,6 +242,12 @@ outside its job description. Plan: `docs/plans/phase_4h.md`.
 Friends visit by invite link: they walk the world with the owner in real time, read the desk
 without changing it, talk with idle agents on a local guest model, and message the owner and each
 other. Voice chat comes later. Plan: `docs/plans/phase_4i.md`.
+
+## Phase 4j, sound
+
+Small synthesized sounds where something happens: footsteps, the props, sitting, and messages.
+Sounds in the world fade with distance and come from their side, for every player in the room.
+Plan: `docs/plans/phase_4j.md`.
 
 ## Phase 5, mobile
 
