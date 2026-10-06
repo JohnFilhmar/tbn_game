@@ -5,8 +5,9 @@ import { appearanceOf } from '@/game/assets/appearance';
 import { CHARACTER_SET } from '@/game/assets/characters';
 import { newCommandId } from '@/lib/api/apiClient';
 import { putRow } from '@/lib/data/cacheWrites';
-import { useApi } from '@/providers/SessionProvider';
+import { useApi, useSession } from '@/providers/SessionProvider';
 import { CustomiseDialog } from './CustomiseDialog';
+import { GuestAgentChat } from './GuestAgentChat';
 import { Button } from '@/components/Button';
 import { Conversation } from '@/components/conversation/Conversation';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -22,9 +23,10 @@ export interface ConversationPanelProps {
 }
 
 /**
- * The owner's conversation with an agent in the world: who it is, what it is working on, its
- * live session and a message box. It slides in beside the scene rather than over it, so the world
- * stays in view; Escape anywhere inside it, or Close, ends the conversation.
+ * A conversation with an agent in the world: who it is, what it is working on, and for the owner
+ * its live session and a message box, for a guest their own chat with it while it is idle. It
+ * slides in beside the scene rather than over it, so the world stays in view; Escape anywhere
+ * inside it, or Close, ends the conversation.
  */
 export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) {
   const { data: agents } = useCollection(COLLECTIONS.agents);
@@ -44,6 +46,7 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
   const api = useApi();
   const client = useQueryClient();
   const narrate = useWorldStore((state) => state.narrate);
+  const { guest } = useSession();
 
   return (
     <aside
@@ -68,7 +71,7 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
           )}
         </div>
         <span className="flex shrink-0 gap-2">
-          {agent !== undefined && (
+          {agent !== undefined && guest === null && (
             <Button size="sm" onClick={() => setIsCustomising(true)}>
               Customise
             </Button>
@@ -112,6 +115,12 @@ export function ConversationPanel({ agentId, onClose }: ConversationPanelProps) 
       </p>
       {agent === undefined ? (
         <p className="text-sm text-slate-300">This agent is no longer in the company.</p>
+      ) : guest !== null ? (
+        <GuestAgentChat
+          agent={agent}
+          isBusy={agent.status !== 'idle' || task !== undefined}
+          ownerName={guest.owner_username}
+        />
       ) : (
         <Conversation
           agent={agent}

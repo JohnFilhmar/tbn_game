@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
 import { cx } from '@/lib/ui/cx';
+import { useIsReadOnly } from './readOnly';
 
 /** How much a button stands out: the one main action, the others, a destructive one, a quiet one. */
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -43,7 +44,10 @@ export interface ButtonProps extends ComponentProps<'button'> {
   isBusy?: boolean;
 }
 
-/** A button; `type` defaults to `button` so only an explicit submit sends a form. */
+/**
+ * A button; `type` defaults to `button` so only an explicit submit sends a form. On a read-only
+ * screen a submit, primary or danger button turns itself off, since those change something.
+ */
 export function Button({
   variant = 'secondary',
   size = 'md',
@@ -54,12 +58,15 @@ export function Button({
   type = 'button',
   ...rest
 }: ButtonProps) {
+  const isLocked =
+    useIsReadOnly() && (type === 'submit' || variant === 'primary' || variant === 'danger');
   return (
     <button
       type={type}
       className={cx(buttonClasses(variant, size), className)}
-      disabled={disabled === true || isBusy}
+      disabled={disabled === true || isBusy || isLocked}
       aria-busy={isBusy || undefined}
+      {...(isLocked && { title: 'Guests can look but not change anything' })}
       {...rest}
     >
       {isBusy && (

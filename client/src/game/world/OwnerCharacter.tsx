@@ -1,4 +1,5 @@
 import { useFrame } from '@react-three/fiber';
+import { PlayerActSchema, type PlayerAct } from '@tbn/contracts';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Vector3, type Group } from 'three';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
@@ -7,13 +8,32 @@ import { forwardOf, radiansOf, turnTowards, vec3, yawTowards } from '@/game/asse
 import type { Anchor, ComputerAnchor } from '@/game/assets/packManifest';
 import { WALK_SPEED } from '@/game/npcs/agentActor';
 import { useBuildStore } from '@/game/build/buildStore';
+import { usePlayerUiStore } from '@/game/players/playerUiStore';
 import { Character } from './Character';
 import type { MoveAction } from './keyboard';
-import { livePositions, OWNER_KEY } from './livePositions';
+import { livePositions, localPose, OWNER_KEY, playerPositions } from './livePositions';
 import type { Navigation, NavNode } from './navmesh';
 import { promptAt, propsInReach, type Prompt, type UsableProp } from './prompt';
 import { seatPoseOf, type SeatPose } from './seat';
 import { useWorldStore } from './worldStore';
+
+/** Writes the pose this client sends the other players. */
+function showPose(
+  at: Vector3,
+  yawDeg: number,
+  isMoving: boolean,
+  isRunning: boolean,
+  act: PlayerAct | null,
+): void {
+  localPose.x = at.x;
+  localPose.y = at.y;
+  localPose.z = at.z;
+  localPose.yawDeg = yawDeg;
+  localPose.isMoving = isMoving;
+  localPose.isRunning = isRunning;
+  localPose.act = act;
+  localPose.isPlaced = true;
+}
 
 /** Props of `OwnerCharacter`. */
 export interface OwnerCharacterProps {
@@ -43,6 +63,8 @@ interface OwnerState {
   wasSeated: boolean;
   /** The last teleport request taken. */
   teleportId: number;
+  /** The last unstuck request taken. */
+  unstuckId: number;
 }
 
 const OWNER_WALK = 1.6;
@@ -83,6 +105,7 @@ export function OwnerCharacter({
     promptKey: '',
     wasSeated: startsAtChair,
     teleportId: useWorldStore.getState().teleport?.id ?? 0,
+    unstuckId: usePlayerUiStore.getState().unstuckId,
   });
   const clipRef = useRef<ClipName>('idle');
   const timeScaleRef = useRef(1);
@@ -95,6 +118,7 @@ export function OwnerCharacter({
     livePositions.set(OWNER_KEY, state.current.position);
     return () => {
       livePositions.delete(OWNER_KEY);
+      localPose.isPlaced = false;
     };
   }, []);
 
@@ -110,6 +134,7 @@ export function OwnerCharacter({
       group.position.copy(own.position);
       group.rotation.y = radiansOf(own.yawDeg);
       clipRef.current = 'work';
+      showPose(own.position, own.yawDeg, false, false, null);
       head.set(own.position.x, HEAD_HEIGHT, own.position.z);
       group.visible = camera.position.distanceTo(head) > HIDE_WITHIN;
       return;
@@ -129,10 +154,23 @@ export function OwnerCharacter({
       own.position.set(clamped.x, 0, clamped.z);
       own.yawDeg = teleport.yawDeg;
     }
+    const { unstuckId, chatWith } = usePlayerUiStore.getState();
+    if (unstuckId !== own.unstuckId) {
+      own.unstuckId = unstuckId;
+      const start = navigation.snap(vec3(spawn.position));
+      own.node = navigation.clampStep(start, vec3(spawn.position), null, clamped);
+      own.position.set(clamped.x, 0, clamped.z);
+      own.yawDeg = spawn.yaw_deg;
+    }
     const keys = keysRef.current;
     const dt = Math.min(delta, 0.05);
     const { talkingTo, drawingOn, acting, stopActing } = useWorldStore.getState();
-    const partner = talkingTo === null ? undefined : livePositions.get(talkingTo);
+    const partner =
+      talkingTo !== null
+        ? livePositions.get(talkingTo)
+        : chatWith === null
+          ? undefined
+          : playerPositions.get(chatWith);
     if (useBuildStore.getState().environment !== null) {
       // Building: the movement keys pan the view instead.
       group.position.copy(own.position);
@@ -144,6 +182,7 @@ export function OwnerCharacter({
       group.visible = false;
       group.position.copy(own.position);
       clipRef.current = 'idle';
+      showPose(own.position, own.yawDeg, false, false, 'write');
       return;
     }
     if (partner !== undefined) {
@@ -176,6 +215,8 @@ export function OwnerCharacter({
       group.position.copy(acting.seat ?? own.position);
       group.rotation.y = radiansOf(own.yawDeg);
       clipRef.current = acting.clip;
+      const act = PlayerActSchema.safeParse(acting.clip);
+      showPose(group.position, own.yawDeg, false, false, act.success ? act.data : null);
       return;
     }
     if (isMoving) {
@@ -189,6 +230,7 @@ export function OwnerCharacter({
     group.position.copy(own.position);
     group.rotation.y = radiansOf(own.yawDeg);
     clipRef.current = isMoving ? 'walk' : 'idle';
+    showPose(own.position, own.yawDeg, isMoving, isMoving && keys.has('run'), null);
     const agents = new Map(livePositions);
     agents.delete(OWNER_KEY);
     const prompt: Prompt = promptAt({
@@ -197,6 +239,7 @@ export function OwnerCharacter({
       computer: computerPosition,
       computerReach: computer.use_radius,
       agents,
+      players: playerPositions,
       props: usableProps,
     });
     const reachable = propsInReach(own.position, usableProps);
@@ -207,12 +250,17 @@ export function OwnerCharacter({
           ? 'computer'
           : prompt.kind === 'agent'
             ? prompt.agentId
-            : prompt.placementId;
+            : prompt.kind === 'player'
+              ? prompt.playerId
+              : prompt.placementId;
     const key = [promptId, ...reachable].join(' ');
     if (key !== own.promptKey) {
       own.promptKey = key;
       setCanUseComputer(prompt?.kind === 'computer');
       setNearAgentId(prompt?.kind === 'agent' ? prompt.agentId : null);
+      usePlayerUiStore
+        .getState()
+        .setNearPlayerId(prompt?.kind === 'player' ? prompt.playerId : null);
       setNearProps(prompt?.kind === 'prop' ? prompt.placementId : null, reachable);
     }
   });

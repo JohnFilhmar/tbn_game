@@ -8,6 +8,7 @@ export const TALK_REACH = 2;
 export type Prompt =
   | { kind: 'computer' }
   | { kind: 'agent'; agentId: string }
+  | { kind: 'player'; playerId: string }
   | { kind: 'prop'; placementId: string }
   | null;
 
@@ -27,6 +28,8 @@ export interface PromptScene {
   computer: Vector3;
   computerReach: number;
   agents: ReadonlyMap<string, Vector3>;
+  /** The other players, by id. */
+  players?: ReadonlyMap<string, Vector3>;
   props: readonly UsableProp[];
 }
 
@@ -56,6 +59,14 @@ export function promptAt(scene: PromptScene): Prompt {
     if (distance > TALK_REACH || distance >= bestDistance) continue;
     if (!isInFront(position.x, position.z, distance)) continue;
     best = { kind: 'agent', agentId };
+    bestDistance = distance;
+  }
+  // Another player never takes E from the computer either: a guest may sit in its chair.
+  for (const [playerId, position] of best?.kind === 'computer' ? [] : (scene.players ?? [])) {
+    const distance = distanceXz(scene.owner, position);
+    if (distance > TALK_REACH || distance >= bestDistance) continue;
+    if (!isInFront(position.x, position.z, distance)) continue;
+    best = { kind: 'player', playerId };
     bestDistance = distance;
   }
   // A prop never takes E from the computer, such as the inbox tray on the computer's own desk.

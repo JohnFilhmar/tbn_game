@@ -13,8 +13,10 @@ import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { PluginError, PluginService } from '@/modules/integrations/services/plugin.service';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** MCP plugins. Tokens are written here and never read back. */
+@OwnerOnly()
 @Controller('plugins')
 export class PluginController {
   constructor(private readonly plugins: PluginService) {}

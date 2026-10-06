@@ -1,11 +1,12 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import {
-  OwnerSchema,
+  PrincipalSchema,
   PreferencesSchema,
   WorldLayoutResponseSchema,
   WorldPropStatesResponseSchema,
   type EnvironmentName,
   type Preferences,
+  type Principal,
   type WorldLayout,
   type WorldPropState,
 } from '@tbn/contracts';
@@ -17,22 +18,22 @@ export function useCollection<Row extends { id: string }>(
   spec: CollectionSpec<Row>,
 ): UseQueryResult<Row[]> {
   const api = useApi();
-  const { token } = useSession();
+  const { isSignedIn } = useSession();
   return useQuery({
     queryKey: spec.key,
     queryFn: () => api.get(spec.path, spec.schema),
-    enabled: token !== null,
+    enabled: isSignedIn,
   });
 }
 
 /** The owner's preferences, kept live by events. */
 export function usePreferences(): UseQueryResult<Preferences> {
   const api = useApi();
-  const { token } = useSession();
+  const { isSignedIn } = useSession();
   return useQuery({
     queryKey: queryKeys.preferences(),
     queryFn: () => api.get('/preferences', PreferencesSchema),
-    enabled: token !== null,
+    enabled: isSignedIn,
   });
 }
 
@@ -42,11 +43,11 @@ export function usePreferences(): UseQueryResult<Preferences> {
  */
 export function useWorldLayout(environment: EnvironmentName): UseQueryResult<WorldLayout | null> {
   const api = useApi();
-  const { token } = useSession();
+  const { isSignedIn } = useSession();
   return useQuery({
     queryKey: queryKeys.world(environment),
     queryFn: async () => (await api.get(`/world/${environment}`, WorldLayoutResponseSchema)).layout,
-    enabled: token !== null,
+    enabled: isSignedIn,
   });
 }
 
@@ -56,12 +57,12 @@ export function useWorldLayout(environment: EnvironmentName): UseQueryResult<Wor
  */
 export function useWorldPropStates(environment: EnvironmentName): UseQueryResult<WorldPropState[]> {
   const api = useApi();
-  const { token } = useSession();
+  const { isSignedIn } = useSession();
   return useQuery({
     queryKey: queryKeys.worldProps(environment),
     queryFn: async () =>
       (await api.get(`/world/${environment}/props`, WorldPropStatesResponseSchema)).states,
-    enabled: token !== null,
+    enabled: isSignedIn,
   });
 }
 
@@ -71,13 +72,13 @@ export function useTimeZone(): string {
   return data?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-/** The signed-in owner's name. */
-export function useMe(): UseQueryResult<{ id: string; username: string }> {
+/** Who is signed in: the owner, or a guest and whose company they visit. */
+export function useMe(): UseQueryResult<Principal> {
   const api = useApi();
-  const { token } = useSession();
+  const { isSignedIn } = useSession();
   return useQuery({
     queryKey: queryKeys.me(),
-    queryFn: () => api.get('/auth/me', OwnerSchema.pick({ id: true, username: true })),
-    enabled: token !== null,
+    queryFn: () => api.get('/auth/me', PrincipalSchema),
+    enabled: isSignedIn,
   });
 }

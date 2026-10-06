@@ -277,6 +277,11 @@ model Owner {
   updated_at    DateTime @updatedAt @db.Timestamptz(6)
 
   sessions                Session[]
+  guests                  Guest[]
+  guest_invites           GuestInvite[]
+  guest_sessions          GuestSession[]
+  guest_chat_messages     GuestChatMessage[]
+  player_messages         PlayerMessage[]
   providers               Provider[]
   provider_models         ProviderModel[]
   departments             Department[]
@@ -326,6 +331,99 @@ model Session {
 
   @@index([owner_id])
   @@map("sessions")
+}
+
+/// A friend the owner invited. `name` stays null until the guest picks one on the first visit.
+model Guest {
+  id           String    @id @default(uuid(7))
+  owner_id     String
+  name         String?
+  last_seen_at DateTime? @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @updatedAt @db.Timestamptz(6)
+
+  owner         Owner              @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  invites       GuestInvite[]
+  sessions      GuestSession[]
+  chat_messages GuestChatMessage[]
+
+  @@unique([owner_id, name])
+  @@map("guests")
+}
+
+/// A link for one friend, stored only as a token hash. It works once, before `expires_at`.
+model GuestInvite {
+  id          String    @id @default(uuid(7))
+  owner_id    String
+  guest_id    String?
+  label       String
+  token_hash  String    @unique
+  expires_at  DateTime  @db.Timestamptz(6)
+  redeemed_at DateTime? @db.Timestamptz(6)
+  revoked_at  DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  owner Owner  @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  guest Guest? @relation(fields: [guest_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id])
+  @@map("guest_invites")
+}
+
+/// A guest's signed-in browser, behind the `tbn_guest` cookie, stored only as a token hash.
+model GuestSession {
+  id         String   @id @default(uuid(7))
+  owner_id   String
+  guest_id   String
+  token_hash String   @unique
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  guest Guest @relation(fields: [guest_id], references: [id], onDelete: Cascade)
+
+  @@index([guest_id])
+  @@map("guest_sessions")
+}
+
+/// One line of a guest's conversation with an agent's persona: `role` is `guest` or `agent`. It
+/// never enters the agent's own transcript.
+model GuestChatMessage {
+  id         String   @id @default(uuid(7))
+  owner_id   String
+  guest_id   String
+  agent_id   String
+  role       String
+  text       String
+  is_error   Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  guest Guest @relation(fields: [guest_id], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([guest_id, agent_id, created_at])
+  @@map("guest_chat_messages")
+}
+
+/// A message between two players: the owner or a guest, named by id. `read_at` is set when the
+/// recipient opens it.
+model PlayerMessage {
+  id         String    @id @default(uuid(7))
+  owner_id   String
+  from_id    String
+  from_name  String
+  to_id      String
+  text       String
+  read_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id, to_id, read_at])
+  @@index([owner_id, from_id])
+  @@map("player_messages")
 }
 
 model Provider {
@@ -451,6 +549,7 @@ model Agent {
   plugin_attachments      PluginAttachment[]
   merge_requests          MergeRequest[]
   branch_reviews          BranchReview[]
+  guest_chat_messages     GuestChatMessage[]
 
   @@unique([owner_id, name])
   @@index([owner_id, status])

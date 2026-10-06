@@ -12,8 +12,10 @@ import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { ProviderService } from '@/modules/runtime/services/provider.service';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** LLM connections. Keys are written here and never read back. */
+@OwnerOnly()
 @Controller('providers')
 export class ProviderController {
   constructor(private readonly provider_service: ProviderService) {}

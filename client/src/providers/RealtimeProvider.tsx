@@ -2,6 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { applyChanges } from '@/lib/realtime/applyChanges';
 import { publishChanges } from '@/lib/realtime/changeFeed';
+import { setPresenceSender } from '@/lib/realtime/presenceChannel';
+import { usePlayersStore } from '@/lib/stores/playersStore';
 import { connectRealtime, type ConnectionStatus } from '@/lib/realtime/realtimeConnection';
 import { useStreamStore } from '@/lib/stores/streamStore';
 import { API_BASE_URL, useSession } from './SessionProvider';
@@ -9,19 +11,19 @@ import { API_BASE_URL, useSession } from './SessionProvider';
 const RealtimeContext = createContext<ConnectionStatus>('offline');
 
 /**
- * Keeps the desktop and the world live while the owner is signed in: every change from the
+ * Keeps the desktop and the world live while the owner or a guest is signed in: every change from the
  * gateway is written into the query cache and then published to the change feed the world watches,
  * streamed output goes to the stream store, and a resync reloads what is loaded. Nothing polls.
  */
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const { token, signOut } = useSession();
+  const { token, isSignedIn, signOut } = useSession();
   const queryClient = useQueryClient();
   const receive = useStreamStore((state) => state.receive);
   const settle = useStreamStore((state) => state.settle);
   const [status, setStatus] = useState<ConnectionStatus>('offline');
 
   useEffect(() => {
-    if (token === null) return undefined;
+    if (!isSignedIn) return undefined;
     const connection = connectRealtime({
       baseUrl: API_BASE_URL,
       token,
@@ -37,10 +39,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         onResync: () => void queryClient.invalidateQueries(),
         onStatus: setStatus,
         onUnauthorized: () => void signOut('Your session ended. Sign in again.'),
+        onPlayers: (players) => usePlayersStore.getState().replace(players),
+        onPlayer: (player) => usePlayersStore.getState().upsert(player),
+        onPlayerGone: (id) => usePlayersStore.getState().leave(id),
       },
     });
-    return () => connection.close();
-  }, [token, queryClient, receive, settle, signOut]);
+    setPresenceSender(connection.sendPresence);
+    return () => {
+      setPresenceSender(null);
+      connection.close();
+      usePlayersStore.getState().clear();
+    };
+  }, [token, isSignedIn, queryClient, receive, settle, signOut]);
 
   return <RealtimeContext value={status}>{children}</RealtimeContext>;
 }

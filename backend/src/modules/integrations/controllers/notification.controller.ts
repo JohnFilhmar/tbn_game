@@ -16,6 +16,7 @@ import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam, ZodQuery } from '@/lib/validation/zod.decorator';
 import { NotificationService } from '@/modules/integrations/services/notification.service';
 import { notification_event_catalogue } from '@/modules/integrations/services/notification_events';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** The event catalogue: what the system can notify about, with placeholders and default bodies. */
 @Controller('notification_events')
@@ -27,6 +28,7 @@ export class NotificationEventController {
 }
 
 /** Channels: an integration attached to an event type. */
+@OwnerOnly()
 @Controller('notification_channels')
 export class NotificationChannelController {
   constructor(private readonly notifications: NotificationService) {}

@@ -83,4 +83,8 @@ export const queryKeys = {
   cacheStats: () => ['cacheStats'] as const,
   notificationEvents: () => ['notificationEvents'] as const,
   me: () => ['me'] as const,
+  guests: () => ['guests'] as const,
+  guestInvites: () => ['guestInvites'] as const,
+  playerMessages: () => ['playerMessages'] as const,
+  guestChat: (agentId: string) => ['guestChat', agentId] as const,
 };

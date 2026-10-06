@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Button } from '@/components/Button';
+import { ReadOnlyContext } from '@/components/readOnly';
 import { isTypingTarget } from '@/game/world/keyboard';
 import { COLLECTIONS } from '@/lib/data/collections';
 import { useCollection, useMe } from '@/lib/data/queries';
@@ -22,7 +23,8 @@ function usePendingApprovals(): number {
  * owner up and returns to the world.
  */
 export function DesktopLayout() {
-  const { signOut } = useSession();
+  const { signOut, guest } = useSession();
+  const isGuest = guest !== null;
   const { data: me } = useMe();
   const navigate = useNavigate();
   const pendingApprovals = usePendingApprovals();
@@ -57,39 +59,44 @@ export function DesktopLayout() {
           <p className="font-display text-xl font-bold tracking-wide uppercase">
             tbn <span className="text-teal-600 dark:text-teal-400">desk</span>
           </p>
-          {LAUNCHER.map((section) => (
-            <div key={section.title} className="flex flex-col gap-1">
-              <h2 className="px-2 font-display text-xs font-semibold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-                {section.title}
-              </h2>
-              <ul className="flex flex-col gap-0.5">
-                {section.items.map((item) => (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={({ isActive }) =>
-                        cx(
-                          'flex items-center justify-between rounded-md border-l-4 px-2 py-1.5 text-sm',
-                          isActive
-                            ? 'border-teal-600 bg-teal-50 font-medium text-teal-900 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
-                            : 'border-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-                        )
-                      }
-                    >
-                      {item.label}
-                      {item.to === '/approvals' && pendingApprovals > 0 && (
-                        <span className="rounded-full bg-amber-500 px-2 text-xs font-semibold text-slate-950">
-                          {pendingApprovals}
-                          <span className="sr-only"> waiting</span>
-                        </span>
-                      )}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {LAUNCHER.map((section) => ({
+            ...section,
+            items: section.items.filter((item) => !(isGuest && item.isOwnerOnly === true)),
+          }))
+            .filter((section) => section.items.length > 0)
+            .map((section) => (
+              <div key={section.title} className="flex flex-col gap-1">
+                <h2 className="px-2 font-display text-xs font-semibold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+                  {section.title}
+                </h2>
+                <ul className="flex flex-col gap-0.5">
+                  {section.items.map((item) => (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={({ isActive }) =>
+                          cx(
+                            'flex items-center justify-between rounded-md border-l-4 px-2 py-1.5 text-sm',
+                            isActive
+                              ? 'border-teal-600 bg-teal-50 font-medium text-teal-900 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-200'
+                              : 'border-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+                          )
+                        }
+                      >
+                        {item.label}
+                        {item.to === '/approvals' && pendingApprovals > 0 && (
+                          <span className="rounded-full bg-amber-500 px-2 text-xs font-semibold text-slate-950">
+                            {pendingApprovals}
+                            <span className="sr-only"> waiting</span>
+                          </span>
+                        )}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
         </nav>
         {isMenuOpen && (
           <button
@@ -122,15 +129,30 @@ export function DesktopLayout() {
             <ConnectionLight />
             <div className="ml-auto flex items-center gap-3">
               {me !== undefined && (
-                <span className="text-sm text-slate-600 dark:text-slate-400">{me.username}</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  {me.kind === 'owner' ? me.username : `${me.name ?? 'Guest'} (guest)`}
+                </span>
               )}
-              <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-                Sign out
-              </Button>
+              {!isGuest && (
+                <Button variant="ghost" size="sm" onClick={() => void signOut()}>
+                  Sign out
+                </Button>
+              )}
             </div>
           </header>
           <main id="main" tabIndex={-1} className="flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6">
-            <Outlet />
+            {isGuest && (
+              <p
+                role="note"
+                className="rounded-md border border-teal-300 bg-teal-50 px-3 py-2 text-sm text-teal-900 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-100"
+              >
+                You are a guest here: look around as much as you like; changes stay with{' '}
+                {guest.owner_username}.
+              </p>
+            )}
+            <ReadOnlyContext value={isGuest}>
+              <Outlet />
+            </ReadOnlyContext>
           </main>
         </div>
       </div>

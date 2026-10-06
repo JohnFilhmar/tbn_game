@@ -5,11 +5,16 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UnauthorizedException,
 } from '@nestjs/common';
-import { LoginRequestSchema, type LoginRequest, type Owner, type Session } from '@tbn/contracts';
-import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
-import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
+import {
+  LoginRequestSchema,
+  type LoginRequest,
+  type Principal,
+  type Session,
+} from '@tbn/contracts';
+import type { AuthenticatedRequest } from '@/lib/auth/authenticated_owner';
 import { Public } from '@/lib/auth/public.decorator';
 import { ZodBody } from '@/lib/validation/zod.decorator';
 import { AuthService } from '@/modules/identity/services/auth.service';
@@ -37,9 +42,14 @@ export class AuthController {
     await this.auth_service.logout(token);
   }
 
-  /** The owner behind the current session. */
+  /** Who is signed in: the owner, or a guest and whose company they visit. */
   @Get('me')
-  me(@CurrentOwner() owner: AuthenticatedOwner): Pick<Owner, 'id' | 'username'> {
-    return { id: owner.id, username: owner.username };
+  me(@Req() request: AuthenticatedRequest): Principal {
+    if (request.guest !== undefined) {
+      const { id, name, owner_username } = request.guest;
+      return { kind: 'guest', id, name, owner_username };
+    }
+    if (request.owner === undefined) throw new UnauthorizedException();
+    return { kind: 'owner', id: request.owner.id, username: request.owner.username };
   }
 }

@@ -19,7 +19,11 @@ export interface FakeApi extends ApiClient {
 
 /** What the desktop itself reads on every screen: the owner, the approvals badge, the theme. */
 const DESKTOP_ROUTES: Record<string, FakeRoute> = {
-  'GET /auth/me': () => ({ id: '00000000-0000-4000-8000-0000000000aa', username: 'owner' }),
+  'GET /auth/me': () => ({
+    kind: 'owner',
+    id: '00000000-0000-4000-8000-0000000000aa',
+    username: 'owner',
+  }),
   'GET /approvals': () => [],
   'GET /preferences': () => PREFERENCE_DEFAULTS,
   'GET /world/office': () => ({ layout: null }),
@@ -51,5 +55,12 @@ export function fakeApi(routes: Record<string, FakeRoute>): FakeApi {
       await answer(method, path, init.body);
     },
     getBlob: async (path) => new Blob([String(await answer('GET', path, undefined))]),
+    probe: async (path, schema) => {
+      try {
+        return schema.safeParse(await answer('GET', path, undefined)).data ?? null;
+      } catch {
+        return null;
+      }
+    },
   };
 }

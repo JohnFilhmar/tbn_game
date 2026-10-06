@@ -9,6 +9,9 @@ import type { ArrangedPack } from '@/game/props/arrangedPack';
 import { isTypingTarget, useHotkeys } from '@/game/world/keyboard';
 import { livePositions, OWNER_KEY } from '@/game/world/livePositions';
 import { talkTo } from '@/game/world/talk';
+import { chatWith } from '@/game/players/chatWith';
+import { usePlayerUiStore } from '@/game/players/playerUiStore';
+import { usePlayersStore } from '@/lib/stores/playersStore';
 import { landingBeside } from '@/game/world/seat';
 import { useWorldStore } from '@/game/world/worldStore';
 import { usePreferences } from '@/lib/data/queries';
@@ -55,7 +58,14 @@ const PANEL =
  */
 export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, live }: HudProps) {
   const navigate = useNavigate();
-  const { signOut } = useSession();
+  const { signOut, guest } = useSession();
+  const guestOf = guest?.owner_username ?? null;
+  const nearPlayerId = usePlayerUiStore((state) => state.nearPlayerId);
+  const chatPartner = usePlayerUiStore((state) => state.chatWith);
+  const unstuck = usePlayerUiStore((state) => state.unstuck);
+  const nearPlayer = usePlayersStore((state) =>
+    nearPlayerId === null ? undefined : state.players[nearPlayerId],
+  );
   const { data: preferences } = usePreferences();
   const setPreference = useSetPreference();
   const cameraMode = useWorldStore((state) => state.cameraMode);
@@ -84,8 +94,9 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
     () => ({
       openDesk: (path: string) => fadeThrough(() => void navigate(path)),
       openWorldMenu: () => setOpenDialog('world'),
+      guestOf,
     }),
-    [fadeThrough, navigate],
+    [fadeThrough, navigate, guestOf],
   );
   const interact = useInteract(placements, propStates, arranged.manifest.name, host);
   const nearProp = placements.find((placement) => placement.id === nearPropId);
@@ -132,17 +143,22 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
   const agentKeys = Object.fromEntries(
     rows.slice(0, MOST_HOTKEYS).map((row, index) => [`Digit${index + 1}`, () => goTo(row)]),
   );
-  const isBusy = talkingTo !== null || drawingOn !== null || panel !== null;
+  const isBusy = talkingTo !== null || drawingOn !== null || panel !== null || chatPartner !== null;
   useHotkeys(!isOverlayOpen && openDialog === null && !isBusy, {
     ...agentKeys,
     KeyC: toggleCamera,
     KeyE: () => {
       if (nearAgent !== undefined) talk(nearAgent);
+      else if (nearPlayer !== undefined) chatWith(nearPlayer.id, nearPlayer.name);
       else if (nearPropId !== null) interact(nearPropId);
       else if (canUseComputer) sitDown();
     },
+    KeyU: () => {
+      unstuck();
+      narrate('You are back at the entrance.');
+    },
     F3: toggleFps,
-    KeyB: onBuild,
+    ...(guestOf === null && { KeyB: onBuild }),
   });
 
   if (isOverlayOpen) return null;
@@ -173,18 +189,22 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
             >
               Camera: {cameraMode === 'top_down' ? 'top down' : 'third person'}
             </Button>
-            <Button size="sm" onClick={() => setOpenDialog('world')}>
-              World
-            </Button>
-            <Button size="sm" onClick={onBuild} title="Arrange and paint this place (B)">
-              Build
-            </Button>
-            <Button size="sm" onClick={() => setOpenDialog('customise')}>
-              Customise
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => void signOut()}>
-              Sign out
-            </Button>
+            {guestOf === null && (
+              <>
+                <Button size="sm" onClick={() => setOpenDialog('world')}>
+                  World
+                </Button>
+                <Button size="sm" onClick={onBuild} title="Arrange and paint this place (B)">
+                  Build
+                </Button>
+                <Button size="sm" onClick={() => setOpenDialog('customise')}>
+                  Customise
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void signOut()}>
+                  Sign out
+                </Button>
+              </>
+            )}
           </div>
         </header>
         {talkingTo === null && drawingOn === null && (
@@ -195,6 +215,11 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
               {nearAgent !== undefined && (
                 <p className="font-display text-sm font-semibold text-teal-300">
                   Press E to talk to {nearAgent.name}
+                </p>
+              )}
+              {nearAgent === undefined && nearPlayer !== undefined && (
+                <p className="font-display text-sm font-semibold text-teal-300">
+                  Press E to talk to {nearPlayer.name}
                 </p>
               )}
               {nearVerb !== null && (
@@ -226,7 +251,7 @@ export function Hud({ isOverlayOpen, packTitle, onBuild, arranged, propStates, l
       <PropOverlays arranged={arranged} propStates={propStates} live={live} />
       {talkingTo !== null && (
         <>
-          <SpeechBubble agentId={talkingTo} />
+          {guestOf === null && <SpeechBubble agentId={talkingTo} />}
           <ConversationPanel agentId={talkingTo} onClose={() => setTalkingTo(null)} />
         </>
       )}

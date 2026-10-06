@@ -115,6 +115,13 @@ export function applyChange(client: QueryClient, event: ChangeEvent): void {
       if (event.data === null) void client.invalidateQueries({ queryKey: ['world'] });
       else client.setQueryData(queryKeys.world(event.data.environment), event.data);
       return;
+    case 'player_message':
+      writeList(client, queryKeys.playerMessages(), event.id, event.data);
+      return;
+    case 'guest_chat_message':
+      if (event.data === null) removeEverywhere(client, ['guestChat'], event.id);
+      else writeList(client, queryKeys.guestChat(event.data.agent_id), event.id, event.data);
+      return;
     case 'world_prop_state': {
       const state = event.data;
       if (state !== null) {

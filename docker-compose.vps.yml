@@ -1,0 +1,11 @@
+# Overlay for the shared VPS, used with docker-compose.production.yml by scripts/vps_up.sh when the
+# box has the `llm_gateway` network: the worker joins it to reach the guest model on llama.cpp
+# (http://llama_cpp:8080/v1) and LiteLLM. The network belongs to /opt/litellm on that box, so this
+# file is used only where it exists.
+services:
+  worker:
+    networks: [backend, llm_gateway]
+
+networks:
+  llm_gateway:
+    external: true

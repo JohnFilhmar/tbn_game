@@ -53,6 +53,7 @@ describe('preference routes', () => {
       fetch_cache_ttl_minutes: 1440,
       fetch_max_chars: 15_000,
       disk_alert_percent: 90,
+      guest_model: null,
     });
 
     const set = await api()

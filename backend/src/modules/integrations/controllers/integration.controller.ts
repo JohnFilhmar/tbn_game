@@ -14,8 +14,10 @@ import type { AuthenticatedOwner } from '@/lib/auth/authenticated_owner';
 import { CurrentOwner } from '@/lib/auth/current_owner.decorator';
 import { ZodBody, ZodParam } from '@/lib/validation/zod.decorator';
 import { IntegrationService } from '@/modules/integrations/services/integration.service';
+import { OwnerOnly } from '@/lib/auth/guest_policy.decorator';
 
 /** Request templates. Tokens are written here and never read back. */
+@OwnerOnly()
 @Controller('integrations')
 export class IntegrationController {
   constructor(private readonly integrations: IntegrationService) {}

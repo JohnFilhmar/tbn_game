@@ -2,6 +2,8 @@
 export interface LauncherItem {
   to: string;
   label: string;
+  /** Hidden from guests: the screen holds settings that work like secrets, or manages guests. */
+  isOwnerOnly?: boolean;
 }
 
 /** A group of screens in the launcher. */
@@ -33,10 +35,10 @@ export const LAUNCHER: readonly LauncherSection[] = [
   {
     title: 'Connections',
     items: [
-      { to: '/providers', label: 'Providers' },
-      { to: '/search_providers', label: 'Search' },
-      { to: '/integrations', label: 'Integrations' },
-      { to: '/plugins', label: 'Plugins' },
+      { to: '/providers', label: 'Providers', isOwnerOnly: true },
+      { to: '/search_providers', label: 'Search', isOwnerOnly: true },
+      { to: '/integrations', label: 'Integrations', isOwnerOnly: true },
+      { to: '/plugins', label: 'Plugins', isOwnerOnly: true },
     ],
   },
   {
@@ -49,6 +51,7 @@ export const LAUNCHER: readonly LauncherSection[] = [
   {
     title: 'Settings',
     items: [
+      { to: '/guests', label: 'Guests', isOwnerOnly: true },
       { to: '/preferences', label: 'Preferences' },
       { to: '/caches', label: 'Cache savings' },
     ],

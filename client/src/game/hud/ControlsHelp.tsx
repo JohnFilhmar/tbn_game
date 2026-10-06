@@ -12,7 +12,7 @@ export function ControlsHelp() {
     <p className="leading-relaxed">
       <Key>WASD</Key> walk · <Key>Shift</Key> run · drag look · wheel zoom · <Key>C</Key> camera ·{' '}
       <Key>E</Key> talk, use or sit · <Key>1-9</Key> go to an agent · <Key>B</Key> build ·{' '}
-      <Key>F3</Key> frame rate
+      <Key>U</Key> unstuck · <Key>F3</Key> frame rate
     </p>
   );
 }

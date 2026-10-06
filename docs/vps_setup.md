@@ -119,13 +119,20 @@ The gate needs two files only the host holds. Create both before nginx loads the
 
    Use a different password from the app's owner account, so one leak does not open both.
 
-How it works: the first visit asks for these credentials. A request that passes gets a cookie
-holding the gate token, valid for 7 days, and every later request with that cookie, the API calls
-and the websocket included, skips the prompt. The app sends its own session as a Bearer token,
-which would otherwise replace the browser's basic credentials and be refused.
+How it works: there are two ways in, and the domain answers nothing else.
 
-To change the password, rewrite the htpasswd file. To sign every browser out of the gate, write a
-new token into the gate file. Reload nginx after either.
+- **You:** a visit without a cookie lands on `/gate/owner`, where the browser asks for these
+  credentials. The right ones set a cookie holding the gate token, valid for 7 days, and every
+  later request with it, the API calls and the websocket included, goes straight through. The app
+  then asks for its own owner sign in at the monitor.
+- **A guest:** an invite link under `/invite/` sets the guest cookie, and nginx checks it with the
+  web process on every request (`auth_request` to `/gate`), so revoking a guest shuts them out
+  within seconds. A guest can never get the owner's gate cookie: only a right password at
+  `/gate/owner` sets it.
+
+`/invite/` is rate limited to 10 tries a minute per address. To change the password, rewrite the
+htpasswd file. To sign every browser out of the owner gate, write a new token into the gate file.
+Reload nginx after either.
 
 ## 6. nginx and HTTPS
 
@@ -141,6 +148,28 @@ has: before it, they would cross the internet in clear text.
 
 Open `https://tbn-game.filhmar.online`. The browser asks for the gate credentials, then the app
 shows its sign in at the monitor.
+
+## 7. Guests and their model
+
+Guests talk with idle agents on a small model served by llama.cpp on the box, in `/opt/llama_cpp`
+beside LiteLLM, on the `llm_gateway` network; `scripts/vps_up.sh` joins the worker to that network
+when it exists (`docker-compose.vps.yml`).
+
+1. **llama.cpp** runs `techwithsergiu/Qwen3.5-text-0.8B-GGUF:Q4_K_M` under the model id
+   `qwen3.5-0.8b`, two conversations of 8,192 tokens at a time, capped at 3 cores and 2 GB. Its
+   compose file is the place to change the model; `docker compose up -d --wait` there applies it.
+2. **The provider:** on the desk, Providers, add one named for example `Local llama`, format
+   OpenAI chat completions, base URL `http://llama_cpp:8080/v1`, no API key, with the model
+   `qwen3.5-0.8b` (context window 8192, output 1024, no prices).
+3. **The guest model:** on the desk, Guests, pick that provider and model. Until one is picked,
+   guests can walk and message but not talk to agents.
+4. **Invite a friend** on the same screen: the link is shown once; send it. It works once, for 24
+   hours, and signs them in as a guest for 30 days. A friend coming back after that gets a new link
+   from their row.
+
+A guest reads the desk but changes nothing, cannot build, change the room or use props that keep a
+state, and talks only to agents that are idle. Their conversations never reach an agent's own
+work.
 
 ## Updating
 
@@ -176,7 +205,7 @@ Old images stay on disk untagged; `docker image prune` removes them.
 - remove the clone's stack first with the stop command above, without `--volumes`, so the deploy
   job's stack takes over the same `tbn` volumes.
 
-## Local models
+## Local models on your workstation
 
 A model on your workstation, such as Ollama, is out of reach: `host.docker.internal` now names the
 VPS. Run the model on a host the VPS can reach and use that address as the provider's base URL.

@@ -106,7 +106,8 @@ client/             Vite, React 19, TypeScript, Tailwind v4: the world and the d
   src/game/         the 3D world: assets (manifests, loaders, appearance), world (canvas, scene,
                     lighting, cameras, owner character, walking grid), props (catalog, layouts,
                     themes, interactions), objects (lamps, blinds, whiteboard, effects and prop
-                    state), build (build mode), npcs (world events, seats, actors), hud, and the
+                    state), build (build mode), npcs (world events, seats, actors), players (the
+                    other people: presence, their bodies, conversations), hud, and the
                     shipped packs and characters
   scripts/assets/   the generator of the packs and the character set
   e2e/              Playwright flows, the e2e stack and its fake model
@@ -171,6 +172,10 @@ docs/               architecture, roadmap, plans, reports, runbook
 - A single owner account: password hashed with argon2, a short-lived session token, a global auth
   guard with an explicit `@Public()` decorator. WebSocket connections authenticate with the same
   token.
+  Guests are the owner's invited friends: a one-time invite link sets the `tbn_guest` cookie, the
+  guard lets a guest read any route not marked `@OwnerOnly()` and write only through
+  `@GuestAllowed()` routes, and the gateway filters each socket's changes. A guest talks only to an
+  idle agent's persona on the guest model, never to its transcript or tools.
 - Text from a web page, a file, a plugin or another agent is data. It never changes an agent's tool
   policy, caps, skills or approval requirements; only the owner's commands do. Reading it taints
   the run: every outward tool, integrations and plugins, then waits in the approval inbox whatever

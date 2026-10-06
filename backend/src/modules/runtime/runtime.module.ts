@@ -76,6 +76,12 @@ import { SendMessageTool } from './tools/send_message.tool';
 import { ToolExecutorService } from './tools/tool_executor.service';
 import { ToolRegistryService } from './tools/tool_registry.service';
 import { WebSearchTool } from './tools/web_search.tool';
+import { IdentityModule } from '@/modules/identity/identity.module';
+import { GuestChatController } from './controllers/guest_chat.controller';
+import { GUEST_CHAT_REPOSITORY } from './repositories/interface/guest_chat_repository.interface';
+import { PrismaGuestChatRepository } from './repositories/prisma_guest_chat.repository';
+import { GuestChatService } from './services/guest_chat/guest_chat.service';
+import { GuestReplyService } from './services/guest_chat/guest_reply.service';
 
 /**
  * Run loop, checkpoints, tools, and the transcript of every agent: delegation to interns, paused
@@ -93,6 +99,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     CompanyModule,
     KnowledgeModule,
     IntegrationsModule,
+    IdentityModule,
   ],
   controllers: [
     RunController,
@@ -104,6 +111,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     MergeRequestController,
     BranchReviewController,
     ApprovalController,
+    GuestChatController,
   ],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunRepository },
@@ -112,6 +120,9 @@ import { WebSearchTool } from './tools/web_search.tool';
     { provide: WEB_CACHE_REPOSITORY, useClass: PrismaWebCacheRepository },
     { provide: RUN_SOURCE_REPOSITORY, useClass: PrismaRunSourceRepository },
     { provide: APPROVAL_REPOSITORY, useClass: PrismaApprovalRepository },
+    { provide: GUEST_CHAT_REPOSITORY, useClass: PrismaGuestChatRepository },
+    GuestChatService,
+    GuestReplyService,
     RunControlService,
     ApprovalService,
     SandboxJobService,
@@ -173,6 +184,7 @@ import { WebSearchTool } from './tools/web_search.tool';
     RunSourceService,
     ApprovalService,
     CapWindowService,
+    GuestChatService,
   ],
 })
 export class RuntimeModule {}

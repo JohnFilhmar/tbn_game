@@ -190,6 +190,10 @@ export const PreferencesSchema = z.strictObject({
   fetch_cache_ttl_minutes: z.number().min(0).max(525_600),
   fetch_max_chars: z.number().int().min(1_000).max(2_000_000),
   disk_alert_percent: z.number().int().min(1).max(100),
+  /** The model every guest conversation runs on, or null while guests cannot talk to agents. */
+  guest_model: z
+    .strictObject({ provider_id: IdSchema, model_id: z.string().min(1).max(200) })
+    .nullable(),
 });
 
 /** The owner's preferences. */
@@ -225,6 +229,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
   fetch_cache_ttl_minutes: 1440,
   fetch_max_chars: 15_000,
   disk_alert_percent: 90,
+  guest_model: null,
 };
 
 /** Body of `PUT /preferences/:key`. The value is checked against the key's own schema. */

@@ -30,7 +30,12 @@ export interface InteractHost {
   openDesk: (path: string) => void;
   /** Opens the world menu, with its time of day. */
   openWorldMenu: () => void;
+  /** The owner's name for a guest, who may not change the world's settings; null for the owner. */
+  guestOf: string | null;
 }
+
+/** What a guest may not do with a prop: change the owner's world or take everyone elsewhere. */
+const OWNER_ACTIONS: ReadonlySet<string> = new Set(['travel', 'clock']);
 
 /**
  * Uses a placed prop as the owner: they turn to it and play its clip where they stand, or sit on
@@ -46,7 +51,7 @@ export function useInteract(
   const savePropState = useSavePropState(environment);
   const setPreference = useSetPreference();
   const client = useQueryClient();
-  const { openDesk, openWorldMenu } = host;
+  const { openDesk, openWorldMenu, guestOf } = host;
   return useCallback(
     (placementId: string) => {
       const placement = placements.find((one) => one.id === placementId);
@@ -54,6 +59,10 @@ export function useInteract(
       const verb = placement === undefined ? null : propVerb(placement, states);
       if (placement === undefined || interaction === undefined || verb === null) return;
       const store = useWorldStore.getState();
+      if (guestOf !== null && OWNER_ACTIONS.has(interaction.action)) {
+        store.showToast(`Only ${guestOf} can ${verb} here.`);
+        return;
+      }
       const fail = (error: unknown): void => store.showToast(errorMessage(error));
       const seatSpot = interaction.action === 'sit' ? interaction.spots[0] : undefined;
       if (seatSpot?.seat !== undefined) {
@@ -113,6 +122,11 @@ export function useInteract(
           return;
         }
         case 'grass': {
+          // The count is the owner's own preference: a guest's touch is not added to it.
+          if (guestOf !== null) {
+            store.showToast('You touched grass.');
+            return;
+          }
           const preferences = client.getQueryData<Preferences>(queryKeys.preferences());
           const count = (preferences?.grass_touched ?? 0) + 1;
           // Counted in the cache at once, so a second touch before the answer counts on from it.
@@ -128,6 +142,6 @@ export function useInteract(
           return;
       }
     },
-    [placements, states, savePropState, setPreference, client, openDesk, openWorldMenu],
+    [placements, states, savePropState, setPreference, client, openDesk, openWorldMenu, guestOf],
   );
 }

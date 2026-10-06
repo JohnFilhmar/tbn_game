@@ -12,6 +12,7 @@ import {
 import { BranchReviewSchema, MergeRequestSchema, RepositorySchema } from './git';
 import { IntegrationSchema, NotificationChannelSchema, NotificationSchema } from './integrations';
 import { InstructionSchema, PreferencesSchema, SkillSchema } from './knowledge';
+import { GuestChatMessageSchema, PlayerMessageSchema } from './players';
 import { PluginSchema } from './plugins';
 import { ProviderSchema } from './providers';
 import { RunSchema, RunSourceSchema, TranscriptEntrySchema } from './runs';
@@ -53,6 +54,8 @@ export const EventEntitySchema = z.enum([
   'preferences',
   'world_layout',
   'world_prop_state',
+  'guest_chat_message',
+  'player_message',
 ]);
 
 /** An entity kind in the event log. */
@@ -110,6 +113,8 @@ export const ChangeEventSchema = z.discriminatedUnion('entity', [
   change_event('preferences', PreferencesSchema),
   change_event('world_layout', WorldLayoutSchema),
   change_event('world_prop_state', WorldPropStateSchema),
+  change_event('guest_chat_message', GuestChatMessageSchema),
+  change_event('player_message', PlayerMessageSchema),
 ]);
 
 /** One change from the event log. */
@@ -133,20 +138,29 @@ export const EventsPageSchema = z.strictObject({
 /** A page of `GET /events`. */
 export type EventsPage = z.infer<typeof EventsPageSchema>;
 
-/** The names of the Socket.IO messages the gateway sends. Clients send none. */
+/** The names of the Socket.IO messages. Clients send only `presence`; commands are HTTP routes. */
 export const REALTIME_MESSAGES = {
   hello: 'hello',
   changes: 'changes',
   stream: 'stream',
   resync_required: 'resync_required',
+  /** Both ways: a client sends its pose; the server relays another player's as `player`. */
+  presence: 'presence',
+  /** The players in the world when a socket connects, the sender left out. */
+  players: 'players',
+  /** One player changed: moved, came online or went offline. */
+  player: 'player',
+  /** A player who left long enough ago is gone from the world. */
+  player_gone: 'player_gone',
 } as const;
 
 /**
- * What a client sends in the Socket.IO handshake: its session token and, to resume, the last
- * sequence it applied. Without a cursor it receives only what happens after it connects.
+ * What a client sends in the Socket.IO handshake: the owner's session token, or nothing for a guest
+ * signed in by cookie, and, to resume, the last sequence it applied. Without a cursor it receives
+ * only what happens after it connects.
  */
 export const RealtimeAuthSchema = z.strictObject({
-  token: z.string().min(1).max(512),
+  token: z.string().min(1).max(512).optional(),
   cursor: EventSeqSchema.nullish(),
 });
 

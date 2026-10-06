@@ -47,6 +47,8 @@ const EVENTED_TABLES: Record<string, [entity: string, id_column: string]> = {
   preferences: ['preferences', 'owner_id'],
   world_layouts: ['world_layout', 'id'],
   world_prop_states: ['world_prop_state', 'id'],
+  guest_chat_messages: ['guest_chat_message', 'id'],
+  player_messages: ['player_message', 'id'],
 };
 
 const TriggerRowsSchema = z.array(z.object({ table_name: z.string(), definition: z.string() }));
