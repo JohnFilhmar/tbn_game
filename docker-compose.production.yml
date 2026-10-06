@@ -30,6 +30,9 @@ x-backend: &backend
   logging: *logging
   environment: &backend_environment
     NODE_ENV: production
+    # The owner's clock. The code keeps time in UTC (timestamptz columns, utc_day), so this only
+    # changes how a container shows local time; the databases stay on UTC.
+    TZ: ${TZ:-Asia/Manila}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     DATABASE_URL: postgresql://tbn:${POSTGRES_PASSWORD:?missing from the secrets file}@postgres:5432/tbn
     DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
@@ -174,6 +177,7 @@ services:
     logging: *logging
     environment:
       NODE_ENV: production
+      TZ: ${TZ:-Asia/Manila}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       EGRESS_PROXY_PORT: '3128'
       EGRESS_PROXY_OPS_PORT: '3003'
