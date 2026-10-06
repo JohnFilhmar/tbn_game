@@ -20,6 +20,7 @@ import { boardFrame, boardPoseOf } from '@/game/objects/whiteboard/frame';
 import { INTERACTIONS } from '@/game/props/interactions';
 import { Props } from '@/game/props/Props';
 import { Agents } from '@/game/npcs/Agents';
+import { SoundEar } from '@/game/sound/SoundEar';
 import { CameraRig, FOV } from './CameraRig';
 import { Lighting } from './Lighting';
 import { liveView } from './livePositions';
@@ -203,6 +204,7 @@ function PackWorld({
       <Blinds blinds={byKind.blinds} states={propStates} onPick={onPick} />
       <BoardFaces boards={byKind.boards} states={propStates} theme={arranged.theme} />
       <Effects />
+      <SoundEar />
       {isBuilding && <BuildLayer arranged={arranged} keysRef={keysRef} />}
       <Lighting
         hour={hour}

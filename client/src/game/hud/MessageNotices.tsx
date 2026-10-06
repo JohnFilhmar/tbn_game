@@ -6,6 +6,7 @@ import { chatWith } from '@/game/players/chatWith';
 import { usePlayerUiStore } from '@/game/players/playerUiStore';
 import { queryKeys } from '@/lib/data/collections';
 import { subscribeToChanges } from '@/lib/realtime/changeFeed';
+import { playSound } from '@/game/sound/soundEngine';
 import { useApi } from '@/providers/SessionProvider';
 
 /** How much of a message a pop up quotes. */
@@ -41,7 +42,9 @@ export function MessageNotices({ myId, isHidden }: MessageNoticesProps) {
         for (const event of events) {
           if (event.entity !== 'player_message' || event.op !== 'insert') continue;
           const message = event.data;
-          if (message === null || message.to_id !== myId || message.from_id === open) continue;
+          if (message === null || message.to_id !== myId) continue;
+          playSound('receive');
+          if (message.from_id === open) continue;
           notify({ fromId: message.from_id, fromName: message.from_name, text: message.text });
         }
       }),

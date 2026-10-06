@@ -171,6 +171,7 @@ function RemotePlayer({ player, body, appearance, navigation, exit, onGone }: Re
           groupRef={groupRef}
           position={[body.position.x, 0, body.position.z]}
           rotationY={radiansOf(body.yawDeg)}
+          isHeard
         />
       </group>
     </Suspense>

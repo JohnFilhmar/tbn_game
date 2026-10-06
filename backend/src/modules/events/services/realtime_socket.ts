@@ -5,6 +5,7 @@ import {
   type PlayerPose,
   type RealtimeHello,
   type ResyncRequired,
+  type SoundCue,
   type StreamChunk,
 } from '@tbn/contracts';
 import type { Socket } from 'socket.io';
@@ -27,11 +28,13 @@ export interface ServerToClient {
   players: (players: Player[]) => void;
   player: (player: Player) => void;
   player_gone: (gone: { id: string }) => void;
+  cue: (cue: SoundCue) => void;
 }
 
 /** The messages a client sends. */
 export interface ClientToServer {
   presence: (pose: PlayerPose) => void;
+  cue: (cue: SoundCue) => void;
 }
 
 /** What the gateway keeps on each socket. */
@@ -44,6 +47,7 @@ export interface SocketData {
   player: { id: string; kind: Player['kind']; name: string };
   cursor: number | null;
   last_pose_at: number;
+  last_cue_at: number;
 }
 
 /** A socket of the gateway. */
@@ -83,6 +87,7 @@ export async function authenticate_handshake(
       player: { id: owner.id, kind: 'owner', name: owner.username },
       cursor,
       last_pose_at: 0,
+      last_cue_at: 0,
     };
   }
   const guest_token = read_cookie(cookie_header, GUEST_COOKIE);
@@ -96,6 +101,7 @@ export async function authenticate_handshake(
     player: { id: guest.id, kind: 'guest', name: guest.name ?? UNNAMED_GUEST },
     cursor,
     last_pose_at: 0,
+    last_cue_at: 0,
   };
 }
 

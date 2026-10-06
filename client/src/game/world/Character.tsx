@@ -12,7 +12,12 @@ import {
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ResolvedAppearance } from '@/game/assets/appearance';
 import type { ClipName, PaletteSlot } from '@/game/assets/characterManifest';
+import { playSound } from '@/game/sound/soundEngine';
+import { RUN_STRIDE, Strider, WALK_STRIDE } from '@/game/sound/strider';
 import { isStandardMaterial, materialsOf, meshesOf } from './sceneObjects';
+
+/** A walk clip played faster than this is a run, by its footfalls. */
+const RUN_SCALE = 1.8;
 
 /** What a loaded glTF file gives the character: its scene and, for a body, its clips. */
 interface LoadedModel {
@@ -83,12 +88,15 @@ export interface CharacterProps {
   groupRef: RefObject<Group | null>;
   position: [number, number, number];
   rotationY: number;
+  /** True for a walker in the world, whose footsteps are heard; the preview stays silent. */
+  isHeard?: boolean;
 }
 
 /**
  * A character built from the set: a body variant with its parts attached and its palette applied,
- * playing one of its clips with a short crossfade between them, with a cup in hand to drink. It stands at the origin of its
- * group facing +Z; the owner of the group moves it.
+ * playing one of its clips with a short crossfade between them, with a cup in hand to drink, and
+ * footsteps when it is heard. It stands at the origin of its group facing +Z; the owner of the
+ * group moves it.
  */
 export function Character({
   appearance,
@@ -97,6 +105,7 @@ export function Character({
   groupRef,
   position,
   rotationY,
+  isHeard = false,
 }: CharacterProps) {
   const body = useLoader(GLTFLoader, appearance.body.url);
   const parts = useLoader(
@@ -112,6 +121,7 @@ export function Character({
     return byName;
   }, [body, mixer]);
   const playing = useRef<AnimationAction | null>(null);
+  const strider = useMemo(() => new Strider(), []);
 
   useEffect(() => {
     const cup = cupIn(model);
@@ -142,6 +152,14 @@ export function Character({
     const cup = cupRef.current;
     if (cup !== null) cup.visible = clipRef.current === 'drink';
     mixer.update(delta);
+    const group = groupRef.current;
+    if (!isHeard || group === null) return;
+    const isRunning = (timeScaleRef?.current ?? 1) > RUN_SCALE;
+    const { x, y, z } = group.position;
+    const stride = isRunning ? RUN_STRIDE : WALK_STRIDE;
+    if (strider.advance(x, z, clipRef.current === 'walk', stride)) {
+      playSound(isRunning ? 'run_step' : 'step', { x, y, z });
+    }
   });
 
   return (

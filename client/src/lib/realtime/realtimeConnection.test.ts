@@ -19,6 +19,7 @@ function connect() {
     onPlayers: vi.fn(),
     onPlayer: vi.fn(),
     onPlayerGone: vi.fn(),
+    onCue: vi.fn(),
   };
   const connection = connectRealtime({ baseUrl: 'http://server', token: 'tbn_token', handlers });
   const socket: FakeSocket | undefined = openedSockets.at(-1);

@@ -9,6 +9,7 @@ import type { Anchor, ComputerAnchor } from '@/game/assets/packManifest';
 import { WALK_SPEED } from '@/game/npcs/agentActor';
 import { useBuildStore } from '@/game/build/buildStore';
 import { usePlayerUiStore } from '@/game/players/playerUiStore';
+import { cueSound } from '@/game/sound/soundCues';
 import { Character } from './Character';
 import type { MoveAction } from './keyboard';
 import { livePositions, localPose, OWNER_KEY, playerPositions } from './livePositions';
@@ -127,6 +128,7 @@ export function OwnerCharacter({
     if (group === null) return;
     const own = state.current;
     if (seatPose !== null) {
+      if (!own.wasSeated) cueSound('sit', seatPose.chair);
       own.position.copy(seatPose.chair);
       own.yawDeg = seatPose.yawDeg;
       own.node = null;
@@ -273,6 +275,7 @@ export function OwnerCharacter({
       groupRef={groupRef}
       position={spawn.position}
       rotationY={radiansOf(spawn.yaw_deg)}
+      isHeard
     />
   );
 }

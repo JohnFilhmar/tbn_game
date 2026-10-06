@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button';
 import { FormError } from '@/components/FormError';
 import { StatusBadge } from '@/components/StatusBadge';
+import { playSound } from '@/game/sound/soundEngine';
 import { newCommandId } from '@/lib/api/apiClient';
 import { queryKeys } from '@/lib/data/collections';
 import { useCommand } from '@/lib/data/useCommand';
@@ -66,7 +67,9 @@ export function PlayerChatPanel({ playerId, myId, onClose }: PlayerChatPanelProp
     const trimmed = text.trim();
     if (trimmed.length === 0) return;
     const sent = await send.submit({ to_id: playerId, text: trimmed }).catch(() => null);
-    if (sent !== null) setText('');
+    if (sent === null) return;
+    setText('');
+    playSound('send');
   };
 
   const shownName = name ?? 'Someone';

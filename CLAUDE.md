@@ -107,8 +107,9 @@ client/             Vite, React 19, TypeScript, Tailwind v4: the world and the d
                     lighting, cameras, owner character, walking grid), props (catalog, layouts,
                     themes, interactions), objects (lamps, blinds, whiteboard, effects and prop
                     state), build (build mode), npcs (world events, seats, actors), players (the
-                    other people: presence, their bodies, conversations), hud, and the
-                    shipped packs and characters
+                    other people: presence, their bodies, conversations), sound (the
+                    synthesized sounds, their falloff with distance, footsteps and cues), hud,
+                    and the shipped packs and characters
   scripts/assets/   the generator of the packs and the character set
   e2e/              Playwright flows, the e2e stack and its fake model
 desktop/            phase 6: Tauri v2 shell
