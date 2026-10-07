@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createServer } from 'node:net';
 import { join } from 'node:path';
 import type { INestApplicationContext } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -65,6 +66,20 @@ export async function reset_worker_state(app: INestApplicationContext): Promise<
   });
 }
 
+/**
+ * A port the OS just found free. A random guess collided with ports in use on CI runners.
+ */
+// ponytail: another process can still take the port between this probe and the worker binding;
+// pass the listening socket to the child if that ever shows up.
+async function free_port(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === 'object' && address !== null ? address.port : 0;
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return port;
+}
+
 /** A worker running as a separate OS process from `dist/worker.js`. */
 export interface WorkerProcess {
   child: ChildProcess;
@@ -78,7 +93,7 @@ export interface WorkerProcess {
  * answers. `npm test` builds `dist/` first; run `nest build` by hand before a single spec.
  */
 export async function start_worker_process(env: Record<string, string>): Promise<WorkerProcess> {
-  const port = 30_000 + Math.floor(Math.random() * 20_000);
+  const port = await free_port();
   const child = spawn(process.execPath, [join(process.cwd(), 'dist/worker.js')], {
     env: { ...process.env, LOG_LEVEL: 'warn', ...env, WORKER_PORT: String(port) },
     stdio: ['ignore', 'inherit', 'inherit'],
