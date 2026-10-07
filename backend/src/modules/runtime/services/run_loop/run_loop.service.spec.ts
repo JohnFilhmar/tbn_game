@@ -336,6 +336,35 @@ describe('run loop', () => {
     expect(await agent_now(agent)).toMatchObject({ status: 'idle' });
   });
 
+  it('fails a chat run once, not forever, when the agent model left its provider', async () => {
+    const { agent } = await agent_on('openai_chat_completions');
+    await api()
+      .patch(`/providers/${agent.provider_id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ models: [{ model_id: 'another-model', cost_tier: 'cheap' }] })
+      .expect(200);
+
+    await api()
+      .post(`/agents/${agent.id}/messages`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ text: 'Are you there?' })
+      .expect(201);
+    const runs_of = async (): Promise<z.infer<typeof RunSchema>[]> =>
+      RunSchema.array().parse(
+        (
+          await api()
+            .get('/runs')
+            .query({ agent_id: agent.id })
+            .set('Authorization', `Bearer ${owner.token}`)
+        ).body,
+      );
+    await wait_for('the chat run to fail', async () =>
+      (await runs_of()).some((run) => run.status === 'failed') ? true : undefined,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    expect(await runs_of()).toHaveLength(1);
+  });
+
   it('reads a message sent to a working agent at its next turn', async () => {
     const { fake, agent } = await agent_on('openai_chat_completions');
     fake.enqueue({ type: 'hold' });

@@ -232,7 +232,15 @@ export class RunLoopService {
     }
     await this.runs.finish(run.owner_id, run.id, status, error);
     await this.agents.release_run(run.owner_id, run.agent_id, run.id);
-    await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
+    // A chat run that failed would fail the same way on the message it never read, waking itself
+    // forever: it wakes the agent again only for a task that waits for it.
+    const is_failed_chat = status === 'failed' && run.task_id === null;
+    if (
+      !is_failed_chat ||
+      (await this.tasks.next_queued_for_agent(run.owner_id, run.agent_id)) !== null
+    ) {
+      await this.queue.send_agent_wake({ owner_id: run.owner_id, agent_id: run.agent_id });
+    }
     if (run.task_id !== null) {
       const task = await this.tasks.require(run.owner_id, run.task_id);
       if (task.delegator_agent_id !== null) {
