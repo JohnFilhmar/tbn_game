@@ -308,6 +308,14 @@ export class ProviderService {
     );
   }
 
+  /**
+   * Holds every run on the key until a rate limit resets, so they wait together instead of each
+   * meeting the limit on its own.
+   */
+  hold_until(owner_id: string, id: string, until: Date): Promise<void> {
+    return this.providers.hold_until(owner_id, id, until);
+  }
+
   /** Closes the breaker after a successful call. */
   record_success(owner_id: string, id: string): Promise<void> {
     return this.providers.record_success(owner_id, id);

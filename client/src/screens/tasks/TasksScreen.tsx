@@ -12,8 +12,10 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ChipGroup } from '@/components/Tabs';
 import { TimeStamp } from '@/components/TimeStamp';
 import { COLLECTIONS } from '@/lib/data/collections';
-import { useCollection } from '@/lib/data/queries';
+import { useCollection, useTimeZone } from '@/lib/data/queries';
 import { newestFirst } from '@/lib/data/rows';
+import { humanize } from '@/lib/format/labels';
+import { withReadableTimes } from '@/lib/format/time';
 import { AssignTaskForm } from './AssignTaskForm';
 
 type TaskFilter = 'open' | 'done' | 'failed' | 'cancelled' | 'declined' | 'all';
@@ -27,6 +29,8 @@ function matches(task: Task, filter: TaskFilter): boolean {
 /** The task board: every task by status, assigning a new one, and each task's detail a click away. */
 export function TasksScreen() {
   const tasks = useCollection(COLLECTIONS.tasks);
+  const agents = useCollection(COLLECTIONS.agents);
+  const timeZone = useTimeZone();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const assignTo = searchParams.get('assign');
@@ -67,6 +71,8 @@ export function TasksScreen() {
       </>
     );
   }
+  const agentName = (id: string | null): string =>
+    agents.data?.find((agent) => agent.id === id)?.name ?? '';
   const shown = newestFirst(
     tasks.data.filter((task) => matches(task, filter)),
     (task) => task.created_at,
@@ -103,6 +109,15 @@ export function TasksScreen() {
           caption="Tasks"
           rows={shown}
           rowKey={(task) => task.id}
+          searchText={(task) =>
+            [
+              task.title,
+              humanize(task.status),
+              task.status_reason ?? '',
+              agentName(task.assignee_agent_id),
+              agentName(task.delegator_agent_id),
+            ].join(' ')
+          }
           columns={[
             {
               header: 'Task',
@@ -115,7 +130,11 @@ export function TasksScreen() {
                 </Link>
               ),
             },
-            { header: 'Assignee', cell: (task) => <AgentName agentId={task.assignee_agent_id} /> },
+            {
+              header: 'Assignee',
+              className: 'whitespace-nowrap',
+              cell: (task) => <AgentName agentId={task.assignee_agent_id} />,
+            },
             {
               header: 'Status',
               cell: (task) => (
@@ -123,7 +142,7 @@ export function TasksScreen() {
                   <StatusBadge status={task.status} />
                   {task.status_reason !== null && (
                     <span className="text-xs text-slate-600 dark:text-slate-400">
-                      {task.status_reason}
+                      {withReadableTimes(task.status_reason, timeZone)}
                     </span>
                   )}
                 </div>

@@ -48,6 +48,20 @@ describe('PrismaProviderRepository state', () => {
     });
   });
 
+  it('holds a key until the later of two holds, for its owner only', async () => {
+    const provider = await create_test_provider(app, owner.owner_id, 'openai_chat_completions');
+    const soon = new Date(Date.now() + 60_000);
+    const later = new Date(Date.now() + 3_600_000);
+
+    await providers.hold_until(owner.owner_id, provider.id, later);
+    await providers.hold_until(owner.owner_id, provider.id, soon);
+    await providers.hold_until(other.owner_id, provider.id, new Date(Date.now() + 7_200_000));
+    expect(await providers.find(owner.owner_id, provider.id)).toMatchObject({
+      breaker_failures: 0,
+      breaker_open_until: later,
+    });
+  });
+
   it('marks a key out of credit once and clears it for its owner only', async () => {
     const provider = await create_test_provider(app, owner.owner_id, 'openai_chat_completions');
     const first = new Date(Date.now() - 5_000);

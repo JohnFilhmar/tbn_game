@@ -129,6 +129,17 @@ export class PrismaProviderRepository implements ProviderRepository {
     return this.prisma.provider.findFirst({ where: { id, owner_id }, select: state_fields });
   }
 
+  async hold_until(owner_id: string, id: string, until: Date): Promise<void> {
+    await this.prisma.provider.updateMany({
+      where: {
+        id,
+        owner_id,
+        OR: [{ breaker_open_until: null }, { breaker_open_until: { lt: until } }],
+      },
+      data: { breaker_open_until: until },
+    });
+  }
+
   async record_success(owner_id: string, id: string): Promise<void> {
     await this.prisma.provider.updateMany({
       where: {

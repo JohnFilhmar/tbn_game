@@ -13,7 +13,7 @@ import type {
 } from '@/modules/runtime/types/model_request';
 import { ProviderError } from '@/modules/runtime/types/provider_error';
 import type { ProviderConnection } from '@/modules/runtime/types/provider_record';
-import { error_excerpt, retry_after_ms, stream_failure } from './http/failures';
+import { error_excerpt, rate_limit_wait_ms, retry_after_ms, stream_failure } from './http/failures';
 import { post_json, post_stream, type PostJsonOptions } from './http/post';
 import { assemble_openai_stream, parse_arguments, to_stop_reason } from './openai_stream';
 import { read_sse } from './sse';
@@ -101,7 +101,7 @@ function classify(status: number, body: unknown, text: string, headers: Headers)
   if (status === 429) {
     return new ProviderError('rate_limited', detail, {
       status,
-      retry_after_ms: retry_after_ms(headers),
+      retry_after_ms: rate_limit_wait_ms(headers, body),
     });
   }
   if (status >= 500)

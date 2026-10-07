@@ -46,6 +46,7 @@ export function ReportsScreen() {
         caption="Reports"
         rows={newestFirst(reports.data, (report) => report.created_at)}
         rowKey={(report) => report.id}
+        searchText={(row) => row.body_md}
         columns={[
           {
             header: 'Task',

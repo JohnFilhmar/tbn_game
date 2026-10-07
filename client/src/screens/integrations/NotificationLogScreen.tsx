@@ -29,6 +29,7 @@ export function NotificationLogScreen() {
       caption="Notification log"
       rows={newestFirst(notifications.data, (notification) => notification.created_at)}
       rowKey={(notification) => notification.id}
+      searchText={(row) => `${row.title} ${row.message} ${row.event_type} ${row.status}`}
       columns={[
         {
           header: 'Notice',

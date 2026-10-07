@@ -29,5 +29,6 @@ export function usePage<Row>(rows: readonly Row[], size: number) {
     rows: rows.slice(current.start, current.end),
     previous: () => setPage(Math.max(0, current.page - 1)),
     next: () => setPage(Math.min(current.pages - 1, current.page + 1)),
+    first: () => setPage(0),
   };
 }
