@@ -292,6 +292,30 @@ describe('ProviderClientService', () => {
     expect(gap).toBeGreaterThanOrEqual(950);
   });
 
+  it('holds the key until a long rate limit resets instead of retrying it', async () => {
+    const { server, context } = await connect('openai_chat_completions');
+    const reset = Date.now() + 2 * 3_600_000;
+    server.enqueue({
+      type: 'status',
+      status: 429,
+      body: {
+        error: {
+          message: 'Rate limit exceeded: free-models-per-day',
+          code: 429,
+          metadata: { headers: { 'X-RateLimit-Reset': String(reset) } },
+        },
+      },
+    });
+
+    await expect(client.complete(context, request_fixture)).rejects.toMatchObject({
+      kind: 'rate_limited',
+    });
+    expect(server.requests).toHaveLength(1);
+    const held = await providers.require(owner.owner_id, context.provider_id);
+    expect(held.breaker_failures).toBe(0);
+    expect(Math.abs((held.breaker_open_until?.getTime() ?? 0) - reset)).toBeLessThan(5_000);
+  });
+
   it('does not retry an authentication error or an out of credit answer', async () => {
     const { server, context } = await connect('anthropic_messages');
     server.enqueue({ type: 'status', status: 401 });

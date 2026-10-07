@@ -151,6 +151,20 @@ export class ProviderClientService {
           this.logger.warn(`Provider ${context.provider_id} is out of credit: ${error.message}`);
           throw error;
         }
+        const wait_ms =
+          error instanceof ProviderError && error.kind === 'rate_limited'
+            ? (error.retry_after_ms ?? 0)
+            : 0;
+        if (wait_ms > MAX_DELAY_MS) {
+          // A limit that resets later than any retry would wait, such as a daily quota: every run
+          // on the key waits for the reset instead of retrying, and it is no failure of the key.
+          await this.providers.hold_until(
+            context.owner_id,
+            context.provider_id,
+            new Date(Date.now() + wait_ms),
+          );
+          throw error;
+        }
         if (!(error instanceof ProviderError) || !error.retryable || attempt + 1 >= max_attempts) {
           if (error instanceof ProviderError && error.retryable) {
             await this.providers.record_failure(context.owner_id, context.provider_id);

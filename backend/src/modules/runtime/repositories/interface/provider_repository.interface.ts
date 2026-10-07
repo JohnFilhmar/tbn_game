@@ -38,6 +38,8 @@ export interface ProviderRepository {
     threshold: number,
     open_until: Date,
   ): Promise<ProviderState | null>;
+  /** Holds every call on the key until `until`, unless it is already held longer. */
+  hold_until(owner_id: string, id: string, until: Date): Promise<void>;
   /** Closes the breaker and resets its count. */
   record_success(owner_id: string, id: string): Promise<void>;
   /** Marks the key out of credit from `at`, unless it already is. */

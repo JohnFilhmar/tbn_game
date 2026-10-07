@@ -70,7 +70,7 @@ export class RunGateService {
       return {
         reason: 'breaker_open',
         resume_at: provider.breaker_open_until,
-        status_reason: `${provider.name} keeps failing. Its runs wait until ${provider.breaker_open_until.toISOString()}.`,
+        status_reason: `${provider.name} is on hold after a rate limit or repeated failures. Its runs wait until ${provider.breaker_open_until.toISOString()}.`,
       };
     }
     return this.limit_pause(provider, agent.primary_model, now);
@@ -118,10 +118,17 @@ export class RunGateService {
     if (error.kind !== 'out_of_credit' && !error.retryable) return null;
     const provider = await this.providers.require(run.owner_id, agent.provider_id);
     if (error.kind === 'out_of_credit') return out_of_credit(provider);
+    const held_until = provider.breaker_open_until?.getTime() ?? 0;
+    if (error.kind === 'rate_limited' && error.retry_after_ms !== undefined) {
+      const resume_at = new Date(Math.max(now.getTime() + error.retry_after_ms, held_until));
+      return {
+        reason: 'breaker_open',
+        resume_at,
+        status_reason: `${provider.name} hit its rate limit. Resumes at ${resume_at.toISOString()}.`,
+      };
+    }
     const cooldown_until = now.getTime() + this.config.providers.breaker_cooldown_seconds * 1_000;
-    const resume_at = new Date(
-      Math.max(cooldown_until, provider.breaker_open_until?.getTime() ?? 0),
-    );
+    const resume_at = new Date(Math.max(cooldown_until, held_until));
     return {
       reason: 'breaker_open',
       resume_at,
