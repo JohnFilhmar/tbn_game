@@ -98,6 +98,7 @@ export function PluginsScreen() {
           caption="Plugins"
           rows={plugins.data}
           rowKey={(plugin) => plugin.id}
+          searchText={(row) => `${row.name} ${row.url}`}
           columns={[
             {
               header: 'Name',

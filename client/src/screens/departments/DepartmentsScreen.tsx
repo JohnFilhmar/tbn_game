@@ -105,7 +105,13 @@ export function DepartmentsScreen() {
   return (
     <>
       {header}
-      <DataTable caption="Departments" columns={columns} rows={sorted} rowKey={(row) => row.id} />
+      <DataTable
+        caption="Departments"
+        columns={columns}
+        rows={sorted}
+        rowKey={(row) => row.id}
+        searchText={(row) => row.name}
+      />
       <RenameDepartmentDialog department={renaming} onClose={() => setRenaming(null)} />
     </>
   );

@@ -62,6 +62,9 @@ export function MergeRequestsScreen() {
           caption="Merge requests"
           rows={shown}
           rowKey={(request) => request.id}
+          searchText={(row) =>
+            `${row.source_branch} ${row.target_branch} ${row.status} ${row.review_notes}`
+          }
           columns={[
             {
               header: 'Branch',

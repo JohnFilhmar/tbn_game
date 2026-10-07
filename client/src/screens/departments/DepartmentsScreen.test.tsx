@@ -62,5 +62,14 @@ describe('the departments screen', () => {
     await userEvent.click(within(pages).getByRole('button', { name: 'Next' }));
     expect(within(table).getByText('Team 30')).toBeDefined();
     expect(pages.textContent).toContain('26 to 30 of 30');
+
+    const search = screen.getByRole('searchbox', { name: 'Search departments' });
+    await userEvent.type(search, '21 team');
+    expect(within(table).getByText('Team 21')).toBeDefined();
+    expect(within(table).queryByText('Team 01')).toBeNull();
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    await userEvent.clear(search);
+    await userEvent.type(search, 'sales');
+    expect(within(table).getByText('Nothing matches "sales".')).toBeDefined();
   });
 });

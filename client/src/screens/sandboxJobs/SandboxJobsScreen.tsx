@@ -78,6 +78,7 @@ export function SandboxJobsScreen() {
           caption="Sandbox jobs"
           rows={shown}
           rowKey={(job) => job.id}
+          searchText={(row) => `${row.kind} ${row.status} ${JSON.stringify(row.spec)}`}
           columns={[
             {
               header: 'Command',

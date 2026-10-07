@@ -15,9 +15,10 @@ import { TimeStamp } from '@/components/TimeStamp';
 import { errorMessage } from '@/lib/api/apiError';
 import { putRow } from '@/lib/data/cacheWrites';
 import { COLLECTIONS } from '@/lib/data/collections';
-import { useCollection } from '@/lib/data/queries';
+import { useCollection, useTimeZone } from '@/lib/data/queries';
 import { oldestFirst } from '@/lib/data/rows';
 import { useCommand } from '@/lib/data/useCommand';
+import { withReadableTimes } from '@/lib/format/time';
 
 const LINK = 'text-teal-800 hover:underline dark:text-teal-300';
 
@@ -26,6 +27,7 @@ export function TaskScreen() {
   const { taskId = '' } = useParams();
   const tasks = useCollection(COLLECTIONS.tasks);
   const repositories = useCollection(COLLECTIONS.repositories);
+  const timeZone = useTimeZone();
   const [isCancelling, setIsCancelling] = useState(false);
   const cancel = useCommand(
     (api, id: string, commandId) =>
@@ -65,7 +67,9 @@ export function TaskScreen() {
             <StatusBadge status={task.status} />
           </span>
         }
-        description={task.status_reason ?? undefined}
+        description={
+          task.status_reason === null ? undefined : withReadableTimes(task.status_reason, timeZone)
+        }
         actions={
           <>
             {task.report_id !== null && (

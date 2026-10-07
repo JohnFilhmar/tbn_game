@@ -68,6 +68,7 @@ export function SkillsScreen() {
           caption="Skills"
           rows={[...skills.data].sort((left, right) => left.name.localeCompare(right.name))}
           rowKey={(skill) => skill.id}
+          searchText={(row) => `${row.name} ${row.description}`}
           columns={[
             {
               header: 'Name',

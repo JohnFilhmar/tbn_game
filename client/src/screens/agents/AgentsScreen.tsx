@@ -141,6 +141,7 @@ export function AgentsScreen() {
           columns={columnsOf(tasks.data, departmentName)}
           rows={shown}
           rowKey={(agent) => agent.id}
+          searchText={(row) => `${row.name} ${row.role} ${row.job_description} ${row.status}`}
         />
       )}
     </>
