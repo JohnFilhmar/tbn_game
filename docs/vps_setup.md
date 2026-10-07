@@ -158,18 +158,23 @@ when it exists (`docker-compose.vps.yml`).
 1. **llama.cpp** runs `techwithsergiu/Qwen3.5-text-0.8B-GGUF:Q4_K_M` under the model id
    `qwen3.5-0.8b`, two conversations of 8,192 tokens at a time, capped at 3 cores and 2 GB. Its
    compose file is the place to change the model; `docker compose up -d --wait` there applies it.
+   Its web UI and the same API are on the host's `127.0.0.1:8080` only: `you$ ssh -L
+   8080:127.0.0.1:8080 pvps`, then open `http://localhost:8080` to chat with the model directly.
 2. **The provider:** on the desk, Providers, add one named for example `Local llama`, format
-   OpenAI chat completions, base URL `http://llama_cpp:8080/v1`, no API key, with the model
-   `qwen3.5-0.8b` (context window 8192, output 1024, no prices).
+   OpenAI chat completions, base URL `http://llama_cpp:8080/v1`, no API key, Local on, at most 2
+   requests at a time, with the model `qwen3.5-0.8b` (cost tier cheap, context window 8192, output
+   1024, no prices). Local makes it the provider new interns fall back to when a key passes its
+   cap.
 3. **The guest model:** on the desk, Guests, pick that provider and model. Until one is picked,
-   guests can walk and message but not talk to agents.
+   guests can walk and message but not talk to agents. Pick another provider's model there at any
+   time to change it.
 4. **Invite a friend** on the same screen: the link is shown once; send it. It works once, for 24
    hours, and signs them in as a guest for 30 days. A friend coming back after that gets a new link
    from their row.
 
-A guest reads the desk but changes nothing, cannot build, change the room or use props that keep a
-state, and talks only to agents that are idle. Their conversations never reach an agent's own
-work.
+A guest reads the desk but changes nothing, uses the room's props but cannot build, change the
+world's time or travel, and talks only to agents that are idle. Their conversations never reach an
+agent's own work.
 
 ## Updating
 
