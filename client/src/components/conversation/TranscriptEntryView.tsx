@@ -129,7 +129,7 @@ export function TranscriptEntryView({ entry, agentName }: TranscriptEntryViewPro
           who={`${entry.content.from_name} (${humanize(entry.content.kind).toLowerCase()})`}
           at={entry.created_at}
         >
-          <p className="text-sm whitespace-pre-wrap">{entry.content.text}</p>
+          <Markdown text={entry.content.text} />
         </Bubble>
       );
     case 'subtask_result':

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { playSound } from '@/game/sound/soundEngine';
 import { Button } from '@/components/Button';
 import { FormError } from '@/components/FormError';
+import { Markdown } from '@/components/Markdown';
 import { queryKeys } from '@/lib/data/collections';
 import { useCommand } from '@/lib/data/useCommand';
 import { cx } from '@/lib/ui/cx';
@@ -89,7 +90,11 @@ export function GuestAgentChat({ agent, isBusy, ownerName }: GuestAgentChatProps
             <span className="block text-xs text-slate-300">
               {line.role === 'guest' ? 'You' : agent.name}
             </span>
-            {line.text}
+            {line.role === 'guest' || line.is_error ? (
+              <p className="whitespace-pre-wrap">{line.text}</p>
+            ) : (
+              <Markdown text={line.text} />
+            )}
           </li>
         ))}
         {isWaiting && (

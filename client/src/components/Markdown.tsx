@@ -56,7 +56,8 @@ export interface MarkdownProps {
  */
 export function Markdown({ text }: MarkdownProps) {
   return (
-    <div className="text-sm text-slate-800 dark:text-slate-200">
+    // The first and last blocks lose their outer margin, so a reply sits snug in its bubble.
+    <div className="text-sm text-slate-800 *:first:mt-0 *:last:mb-0 dark:text-slate-200">
       <ReactMarkdown components={COMPONENTS}>{text}</ReactMarkdown>
     </div>
   );
