@@ -3,7 +3,7 @@
 # proposes updates.
 
 # Compile with every dependency installed. The `npm ci` layer is cached until a manifest changes.
-FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS build
+FROM node:26.12.0-trixie-slim@sha256:e556a144463cc8dc53afe8de6d2fa0db5c132fd39ffa232c17641bd40df2bf11 AS build
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY packages/contracts/package.json packages/contracts/
@@ -20,7 +20,7 @@ RUN npm run build \
 # Production dependencies only. Prisma's approved install script fetches the schema engine that
 # `prisma migrate deploy` runs in the release step. The client's packages are all dev
 # dependencies, so none of them is installed here.
-FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS prod_deps
+FROM node:26.12.0-trixie-slim@sha256:e556a144463cc8dc53afe8de6d2fa0db5c132fd39ffa232c17641bd40df2bf11 AS prod_deps
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY packages/contracts/package.json packages/contracts/
@@ -29,7 +29,7 @@ COPY client/package.json client/
 RUN npm ci --omit=dev --no-audit
 
 # Distroless runtime: no shell, no package manager, runs as uid 65532.
-FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:9eeb7f5887d0e239e78264b06f7f11d2e14be534050481803a9e4728fcdd278e AS runtime
+FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:b8cec4b2f2126ff7bd034ec9ac207ffb3272667dfdc48376e3b035d3270549ba AS runtime
 LABEL org.opencontainers.image.source="https://github.com/JohnFilhmar/tbn_game" \
       org.opencontainers.image.description="tbn_game backend: web, worker, sandbox launcher and egress proxy, with the client"
 ENV NODE_ENV=production
